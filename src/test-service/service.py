@@ -23,8 +23,11 @@ def run_forever(
     sleep_seconds=DEFAULT_SLEEP_SECONDS,
     key=DEFAULT_KEY,
     value=DEFAULT_VALUE,
+    should_stop=None,
 ):
-    while True:
+    stop_check = should_stop or (lambda: False)
+
+    while not stop_check():
         try:
             run_once(cache, key=key, value=value)
         except Exception as exc:
