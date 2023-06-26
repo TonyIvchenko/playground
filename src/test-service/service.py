@@ -8,6 +8,9 @@ DEFAULT_REDIS_PORT = 6379
 DEFAULT_KEY = "key"
 DEFAULT_VALUE = "value"
 DEFAULT_SLEEP_SECONDS = 60
+DEFAULT_BACKOFF_INITIAL_SECONDS = 1.0
+DEFAULT_BACKOFF_MAX_SECONDS = 60.0
+DEFAULT_BACKOFF_MULTIPLIER = 2.0
 
 
 def build_client(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT):
@@ -24,12 +27,19 @@ def run_forever(
     key=DEFAULT_KEY,
     value=DEFAULT_VALUE,
     should_stop=None,
+    backoff_initial_seconds=DEFAULT_BACKOFF_INITIAL_SECONDS,
+    backoff_max_seconds=DEFAULT_BACKOFF_MAX_SECONDS,
+    backoff_multiplier=DEFAULT_BACKOFF_MULTIPLIER,
 ):
     stop_check = should_stop or (lambda: False)
+    retry_sleep = backoff_initial_seconds
 
     while not stop_check():
         try:
             run_once(cache, key=key, value=value)
+            retry_sleep = backoff_initial_seconds
+            time.sleep(sleep_seconds)
         except Exception as exc:
             print(f"Error: {exc}")
-        time.sleep(sleep_seconds)
+            time.sleep(retry_sleep)
+            retry_sleep = min(backoff_max_seconds, retry_sleep * backoff_multiplier)
