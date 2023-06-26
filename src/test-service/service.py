@@ -1,7 +1,10 @@
+import logging
 import time
 
 import redis
 
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_REDIS_HOST = "redis-service"
 DEFAULT_REDIS_PORT = 6379
@@ -40,6 +43,6 @@ def run_forever(
             retry_sleep = backoff_initial_seconds
             time.sleep(sleep_seconds)
         except Exception as exc:
-            print(f"Error: {exc}")
+            logger.warning("Redis write failed; retrying in %.1f seconds", retry_sleep)
             time.sleep(retry_sleep)
             retry_sleep = min(backoff_max_seconds, retry_sleep * backoff_multiplier)
