@@ -11,7 +11,7 @@ clean:
 	rm -rf __pycache__
 
 build-service:
-	docker build -t test-docker -f src/test-service/Dockerfile src/test-service/
+	docker build -t test-docker -f src/test_service/Dockerfile src/test_service/
 
 start-service: build-service
 	docker network create shared-net`

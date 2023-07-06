@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 
-MODULE_PATH = Path(__file__).resolve().parents[1] / "src" / "test-service" / "settings.py"
+MODULE_PATH = Path(__file__).resolve().parents[1] / "src" / "test_service" / "settings.py"
 SPEC = spec_from_file_location("test_service_settings", MODULE_PATH)
 settings = module_from_spec(SPEC)
 assert SPEC.loader is not None
