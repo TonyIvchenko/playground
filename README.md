@@ -11,6 +11,7 @@ make setup
 ## Usage
 ```
 make test
+make smoke
 make build-service
 make start-service
 ```
@@ -26,5 +27,4 @@ This project is licensed under the MIT License. See LICENSE.txt for more informa
 ## Contact
 
 For questions or comments about the project, please contact the maintainers at toxa.ivchenko@gmail.com.
-
 
