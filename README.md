@@ -1,20 +1,33 @@
-# Playgroung
+# Playground
 
-Contains multiple projects
+Contains multiple projects.
 
 ## Installation
 
-```
+```bash
 make setup
 ```
 
 ## Usage
-```
+
+```bash
 make test
-make smoke
 make build-service
 make start-service
+make train-hurricane-model
+make build-hurricane-service
+make start-hurricane-service
+make smoke-hurricane-service
 ```
+
+## Hurricane Service
+
+- Service code: `src/hurricane_service/`
+- Notebook: `notebooks/hurricane_eda_and_baseline.ipynb`
+- Training script: `scripts/train_hurricane_intensity_model.py`
+- API endpoints: `/health`, `/predict`, `/service-metadata`
+- Built-in Gradio UI: `/ui`
+- Implementation plan: `docs/hurricane-service-implementation-plan.md`
 
 ## Contributing
 
@@ -26,5 +39,4 @@ This project is licensed under the MIT License. See LICENSE.txt for more informa
 
 ## Contact
 
-For questions or comments about the project, please contact the maintainers at toxa.ivchenko@gmail.com.
-
+For questions or comments about the project, contact maintainers at toxa.ivchenko@gmail.com.
