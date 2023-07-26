@@ -18,6 +18,10 @@ make train-hurricane-model
 make build-hurricane-service
 make start-hurricane-service
 make smoke-hurricane-service
+make train-wildfire-model
+make build-wildfire-service
+make start-wildfire-service
+make smoke-wildfire-service
 ```
 
 ## Hurricane Service
@@ -28,6 +32,15 @@ make smoke-hurricane-service
 - API endpoints: `/health`, `/predict`, `/service-metadata`
 - Built-in Gradio UI: `/ui`
 - Implementation plan: `docs/hurricane-service-implementation-plan.md`
+
+## Wildfire Service
+
+- Service code: `src/wildfire_service/`
+- Notebook: `notebooks/wildfire_eda_and_baseline.ipynb`
+- Training script: `scripts/train_wildfire_ignition_model.py`
+- API endpoints: `/health`, `/predict`, `/service-metadata`
+- Built-in Gradio UI: `/ui`
+- Implementation plan: `docs/wildfire-service-implementation-plan.md`
 
 ## Contributing
 
