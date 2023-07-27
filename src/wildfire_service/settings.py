@@ -30,7 +30,11 @@ def load_settings(env: dict[str, str] | None = None) -> ServiceSettings:
     return ServiceSettings(
         model_bundle_path=values.get("MODEL_BUNDLE_PATH", ServiceSettings.model_bundle_path),
         api_host=values.get("API_HOST", ServiceSettings.api_host),
-        api_port=_read_int(values, "API_PORT", ServiceSettings.api_port),
+        api_port=_read_int(
+            values,
+            "API_PORT",
+            _read_int(values, "PORT", ServiceSettings.api_port),
+        ),
         ui_path=values.get("UI_PATH", ServiceSettings.ui_path),
         service_id=values.get("SERVICE_ID", ServiceSettings.service_id),
         service_name=values.get("SERVICE_NAME", ServiceSettings.service_name),
