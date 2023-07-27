@@ -28,6 +28,11 @@ def test_load_settings_from_env():
     assert loaded.service_version == "1.2.3"
 
 
+def test_load_settings_reads_port_fallback():
+    loaded = load_settings({"PORT": "7860"})
+    assert loaded.api_port == 7860
+
+
 def test_load_settings_invalid_port_raises():
     with pytest.raises(ValueError):
         load_settings({"API_PORT": "bad"})
