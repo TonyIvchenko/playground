@@ -22,6 +22,8 @@ make train-wildfire-model
 make build-wildfire-service
 make start-wildfire-service
 make smoke-wildfire-service
+make bundle-hf-hurricane-space
+make bundle-hf-wildfire-space
 ```
 
 ## Hurricane Service
@@ -41,6 +43,20 @@ make smoke-wildfire-service
 - API endpoints: `/health`, `/predict`, `/service-metadata`
 - Built-in Gradio UI: `/ui`
 - Implementation plan: `docs/wildfire-service-implementation-plan.md`
+
+## Hugging Face Spaces
+
+Build standalone Docker Space bundles:
+
+- `make bundle-hf-hurricane-space`
+- `make bundle-hf-wildfire-space`
+
+Generated output:
+
+- `dist/hf_spaces/hurricane/`
+- `dist/hf_spaces/wildfire/`
+
+Each bundle includes `Dockerfile`, `README.md` Space metadata, service source, sample data, and training script.
 
 ## Contributing
 
