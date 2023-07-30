@@ -1,7 +1,8 @@
 # Targets
 .PHONY: setup test clean build-service start-service \
 	build-hurricane-service train-hurricane-model start-hurricane-service smoke-hurricane-service \
-	build-wildfire-service train-wildfire-model start-wildfire-service smoke-wildfire-service
+	build-wildfire-service train-wildfire-model start-wildfire-service smoke-wildfire-service \
+	bundle-hf-hurricane-space bundle-hf-wildfire-space
 
 setup: environment.yml
 	conda env create -f environment.yml
@@ -61,3 +62,9 @@ start-wildfire-service: build-wildfire-service
 smoke-wildfire-service:
 	curl --fail --silent --show-error http://localhost:8010/health
 	curl --fail --silent --show-error http://localhost:8010/ui
+
+bundle-hf-hurricane-space:
+	python scripts/build_hf_space_bundle.py --service hurricane
+
+bundle-hf-wildfire-space:
+	python scripts/build_hf_space_bundle.py --service wildfire
