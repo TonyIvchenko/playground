@@ -1,6 +1,9 @@
 name: playground
 dependencies:
   - python>=3.8
+  - pip
   - pip:
-    - pytest==7.2.2
-    - -r requirements.txt
+      - -r requirements.txt
+      - -r src/test_service/requirements.txt
+      - -r src/hurricane_service/requirements.txt
+      - -r src/wildfire_service/requirements.txt
