@@ -42,10 +42,6 @@ Every service is kept minimal:
 - `requirements.txt`
 - `Dockerfile`
 
-## Contributing
-
-To report issues or contribute code, please see CONTRIBUTING.md.
-
 ## License
 
 This project is licensed under the MIT License. See LICENSE.txt for more information.
