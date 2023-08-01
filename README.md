@@ -1,6 +1,13 @@
 # Playground
 
-Contains multiple projects.
+Contains multiple minimal services.
+
+## Dependency Model
+
+1. Root `requirements.txt` contains only general environment dependencies.
+2. Each service under `src/<service>/requirements.txt` contains its own dependencies.
+3. Root `environment.yml` references root requirements plus every service requirements file.
+4. When adding a new service, add its folder under `src/` with `main.py`, `Dockerfile`, and `requirements.txt`, then add that requirements path to `environment.yml`.
 
 ## Installation
 
@@ -12,51 +19,28 @@ make setup
 
 ```bash
 make test
-make build-service
-make start-service
-make train-hurricane-model
 make build-hurricane-service
 make start-hurricane-service
 make smoke-hurricane-service
-make train-wildfire-model
 make build-wildfire-service
 make start-wildfire-service
 make smoke-wildfire-service
-make bundle-hf-hurricane-space
-make bundle-hf-wildfire-space
 ```
 
-## Hurricane Service
+## Local Run Without Docker
 
-- Service code: `src/hurricane_service/`
-- Notebook: `notebooks/hurricane_eda_and_baseline.ipynb`
-- Training script: `scripts/train_hurricane_intensity_model.py`
-- API endpoints: `/health`, `/predict`, `/service-metadata`
-- Built-in Gradio UI: `/ui`
-- Implementation plan: `docs/hurricane-service-implementation-plan.md`
+```bash
+cd src
+PYTHONPATH=. API_PORT=8000 python3 -m hurricane_service.main
+PYTHONPATH=. API_PORT=8010 python3 -m wildfire_service.main
+```
 
-## Wildfire Service
+## Service Structure
 
-- Service code: `src/wildfire_service/`
-- Notebook: `notebooks/wildfire_eda_and_baseline.ipynb`
-- Training script: `scripts/train_wildfire_ignition_model.py`
-- API endpoints: `/health`, `/predict`, `/service-metadata`
-- Built-in Gradio UI: `/ui`
-- Implementation plan: `docs/wildfire-service-implementation-plan.md`
-
-## Hugging Face Spaces
-
-Build standalone Docker Space bundles:
-
-- `make bundle-hf-hurricane-space`
-- `make bundle-hf-wildfire-space`
-
-Generated output:
-
-- `dist/hf_spaces/hurricane/`
-- `dist/hf_spaces/wildfire/`
-
-Each bundle includes `Dockerfile`, `README.md` Space metadata, service source, sample data, and training script.
+Every service is kept minimal:
+- `main.py`
+- `requirements.txt`
+- `Dockerfile`
 
 ## Contributing
 
@@ -65,7 +49,3 @@ To report issues or contribute code, please see CONTRIBUTING.md.
 ## License
 
 This project is licensed under the MIT License. See LICENSE.txt for more information.
-
-## Contact
-
-For questions or comments about the project, contact maintainers at toxa.ivchenko@gmail.com.
