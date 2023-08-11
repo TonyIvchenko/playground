@@ -1,5 +1,13 @@
+from pathlib import Path
+import sys
+
 from fastapi.testclient import TestClient
 import pytest
+
+# Make package imports work when running pytest from repo root.
+SRC_ROOT = Path(__file__).resolve().parents[2]
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(SRC_ROOT))
 
 from wildfire_service.main import create_app, load_settings
 
