@@ -1,47 +1,52 @@
 # Playground
 
-Contains multiple minimal services.
+Minimal multi-service playground.
 
-## Dependency Model
+## Services
 
-1. Root `requirements.txt` contains only general environment dependencies.
-2. Each service under `src/<service>/requirements.txt` contains its own dependencies.
-3. Root `environment.yml` references root requirements plus every service requirements file.
-4. When adding a new service, add its folder under `src/` with `main.py`, `Dockerfile`, and `requirements.txt`, then add that requirements path to `environment.yml`.
+- `src/test_service`: redis test service
+- `src/hurricane_service`: hurricane intensity-risk API + Gradio UI
+- `src/wildfire_service`: wildfire ignition-risk API + Gradio UI
 
-## Installation
+## Dependency Layout
+
+1. Root `requirements.txt` contains only shared environment dependencies.
+2. Each service defines its own dependencies in `src/<service>/requirements.txt`.
+3. Root `environment.yml` installs root requirements plus each service requirements file.
+4. When adding a service, create `src/<service>/main.py`, `Dockerfile`, and `requirements.txt`, then reference it in `environment.yml`.
+
+## Setup
 
 ```bash
 make setup
 ```
 
-## Usage
+## Test
 
 ```bash
 make test
+```
+
+## Run Locally (No Docker)
+
+```bash
+PYTHONPATH=src API_PORT=8000 python3 -m hurricane_service.main
+PYTHONPATH=src API_PORT=8010 python3 -m wildfire_service.main
+```
+
+## Docker
+
+```bash
 make build-hurricane-service
 make start-hurricane-service
 make smoke-hurricane-service
+
 make build-wildfire-service
 make start-wildfire-service
 make smoke-wildfire-service
 ```
 
-## Local Run Without Docker
+## Service Docs
 
-```bash
-cd src
-PYTHONPATH=. API_PORT=8000 python3 -m hurricane_service.main
-PYTHONPATH=. API_PORT=8010 python3 -m wildfire_service.main
-```
-
-## Service Structure
-
-Every service is kept minimal:
-- `main.py`
-- `requirements.txt`
-- `Dockerfile`
-
-## License
-
-This project is licensed under the MIT License. See LICENSE.txt for more information.
+- `src/hurricane_service/README.md`
+- `src/wildfire_service/README.md`
