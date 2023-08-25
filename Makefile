@@ -1,10 +1,13 @@
 # Targets
-.PHONY: setup test clean build-service start-service \
+.PHONY: setup update test clean build-service start-service \
 	build-hurricane-service start-hurricane-service smoke-hurricane-service \
 	build-wildfire-service start-wildfire-service smoke-wildfire-service
 
 setup: environment.yml
 	conda env create -f environment.yml
+
+update: environment.yml
+	conda env update -f environment.yml --prune
 
 test:
 	python3 -m pytest -q
