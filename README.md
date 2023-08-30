@@ -21,10 +21,10 @@ Minimal multi-service playground.
 make setup
 ```
 
-## Test
+## Update Environment
 
 ```bash
-make test
+make update
 ```
 
 ## Run Locally (No Docker)
@@ -37,14 +37,22 @@ PYTHONPATH=src API_PORT=8010 python3 -m wildfire_service.main
 ## Docker
 
 ```bash
-make build-hurricane-service
-make start-hurricane-service
-make smoke-hurricane-service
+make build SERVICE=hurricane
+make start SERVICE=hurricane
+make smoke SERVICE=hurricane
 
-make build-wildfire-service
-make start-wildfire-service
-make smoke-wildfire-service
+make build SERVICE=wildfire
+make start SERVICE=wildfire
+make smoke SERVICE=wildfire
 ```
+
+Shortcut targets are also available:
+- `make build-hurricane-service`
+- `make start-hurricane-service`
+- `make smoke-hurricane-service`
+- `make build-wildfire-service`
+- `make start-wildfire-service`
+- `make smoke-wildfire-service`
 
 ## Service Docs
 
