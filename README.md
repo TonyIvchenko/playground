@@ -5,8 +5,8 @@ Minimal multi-service playground.
 ## Services
 
 - `src/test_service`: redis test service
-- `src/hurricane_service`: hurricane intensity-risk API + Gradio UI
-- `src/wildfire_service`: wildfire ignition-risk API + Gradio UI
+- `src/hurricane`: hurricane intensity-risk API + Gradio UI
+- `src/wildfire`: wildfire ignition-risk API + Gradio UI
 
 ## Dependency Layout
 
@@ -30,31 +30,23 @@ make update
 ## Run Locally (No Docker)
 
 ```bash
-PYTHONPATH=src API_PORT=8000 python3 -m hurricane_service.main
-PYTHONPATH=src API_PORT=8010 python3 -m wildfire_service.main
+PYTHONPATH=src API_PORT=8000 python3 -m hurricane.main
+PYTHONPATH=src API_PORT=8010 python3 -m wildfire.main
 ```
 
 ## Docker
 
 ```bash
-make build SERVICE=hurricane
-make start SERVICE=hurricane
-make smoke SERVICE=hurricane
+make build app=hurricane
+make start app=hurricane port=8000
+make smoke port=8000
 
-make build SERVICE=wildfire
-make start SERVICE=wildfire
-make smoke SERVICE=wildfire
+make build app=wildfire
+make start app=wildfire port=8010
+make smoke port=8010
 ```
-
-Shortcut targets are also available:
-- `make build-hurricane-service`
-- `make start-hurricane-service`
-- `make smoke-hurricane-service`
-- `make build-wildfire-service`
-- `make start-wildfire-service`
-- `make smoke-wildfire-service`
 
 ## Service Docs
 
-- `src/hurricane_service/README.md`
-- `src/wildfire_service/README.md`
+- `src/hurricane/README.md`
+- `src/wildfire/README.md`
