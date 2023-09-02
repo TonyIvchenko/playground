@@ -4,7 +4,7 @@ Minimal multi-service playground.
 
 ## Services
 
-- `src/test_service`: redis test service
+- `src/test`: redis test service
 - `src/hurricane`: hurricane intensity-risk API + Gradio UI
 - `src/wildfire`: wildfire ignition-risk API + Gradio UI
 

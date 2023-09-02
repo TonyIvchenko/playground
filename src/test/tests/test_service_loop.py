@@ -5,7 +5,7 @@ import types
 
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "service.py"
-SPEC = spec_from_file_location("test_service_runtime", MODULE_PATH)
+SPEC = spec_from_file_location("test_runtime", MODULE_PATH)
 service = module_from_spec(SPEC)
 assert SPEC.loader is not None
 sys.modules["redis"] = types.SimpleNamespace(Redis=object)
