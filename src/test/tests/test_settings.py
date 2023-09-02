@@ -5,7 +5,7 @@ import pytest
 
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "settings.py"
-SPEC = spec_from_file_location("test_service_settings", MODULE_PATH)
+SPEC = spec_from_file_location("test_settings_runtime", MODULE_PATH)
 settings = module_from_spec(SPEC)
 assert SPEC.loader is not None
 SPEC.loader.exec_module(settings)
