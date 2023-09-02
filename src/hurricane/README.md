@@ -9,7 +9,7 @@ Minimal self-contained service with:
 From repo root:
 
 ```bash
-PYTHONPATH=src API_PORT=8000 python3 -m hurricane_service.main
+PYTHONPATH=src API_PORT=8000 python3 -m hurricane.main
 ```
 
 ## Docker Run
@@ -17,12 +17,12 @@ PYTHONPATH=src API_PORT=8000 python3 -m hurricane_service.main
 From repo root:
 
 ```bash
-docker build -t hurricane-service-docker -f src/hurricane_service/Dockerfile .
-docker run --rm -p 8000:8000 hurricane-service-docker
+docker build -t hurricane -f src/hurricane/Dockerfile .
+docker run --rm --name hurricane -p 8000:8000 -e API_PORT=8000 hurricane
 ```
 
 ## Tests
 
 ```bash
-pytest -q src/hurricane_service/tests/test_main.py
+pytest -q src/hurricane/tests/test_main.py
 ```

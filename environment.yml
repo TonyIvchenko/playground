@@ -5,5 +5,5 @@ dependencies:
   - pip:
       - -r requirements.txt
       - -r src/test_service/requirements.txt
-      - -r src/hurricane_service/requirements.txt
-      - -r src/wildfire_service/requirements.txt
+      - -r src/hurricane/requirements.txt
+      - -r src/wildfire/requirements.txt
