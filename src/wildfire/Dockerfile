@@ -9,7 +9,6 @@ COPY src/wildfire /app/wildfire
 
 ENV PYTHONPATH=/app
 ENV API_PORT=8010
-ENV UI_PATH=/ui
 
 EXPOSE 8010
 
