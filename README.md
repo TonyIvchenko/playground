@@ -5,8 +5,8 @@ Minimal multi-service playground.
 ## Services
 
 - `src/test`: redis test service
-- `src/hurricane`: hurricane intensity-risk API + Gradio UI
-- `src/wildfire`: wildfire ignition-risk API + Gradio UI
+- `src/hurricane`: standalone Gradio app for hurricane intensity risk
+- `src/wildfire`: standalone Gradio app for wildfire ignition risk
 
 ## Dependency Layout
 

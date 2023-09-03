@@ -20,5 +20,4 @@ start: build
 	docker run --name $(app) -p $(port):$(port) -e API_PORT=$(port) -d $(app)
 
 smoke:
-	curl --fail --silent --show-error http://localhost:$(port)/health
-	curl --fail --silent --show-error http://localhost:$(port)/ui
+	curl --fail --silent --show-error http://localhost:$(port)/

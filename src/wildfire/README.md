@@ -1,8 +1,6 @@
 # Wildfire Service
 
-Minimal self-contained service with:
-- FastAPI endpoints: `/health`, `/service-metadata`, `/predict`
-- Embedded Gradio UI: `/ui`
+Minimal standalone Gradio app.
 
 ## Local Run
 
@@ -11,6 +9,8 @@ From repo root:
 ```bash
 PYTHONPATH=src API_PORT=8010 python3 -m wildfire.main
 ```
+
+Open `http://localhost:8010/`.
 
 ## Docker Run
 

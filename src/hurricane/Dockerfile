@@ -9,7 +9,6 @@ COPY src/hurricane /app/hurricane
 
 ENV PYTHONPATH=/app
 ENV API_PORT=8000
-ENV UI_PATH=/ui
 
 EXPOSE 8000
 

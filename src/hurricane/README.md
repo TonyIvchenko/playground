@@ -1,8 +1,6 @@
 # Hurricane Service
 
-Minimal self-contained service with:
-- FastAPI endpoints: `/health`, `/service-metadata`, `/predict`
-- Embedded Gradio UI: `/ui`
+Minimal standalone Gradio app.
 
 ## Local Run
 
@@ -11,6 +9,8 @@ From repo root:
 ```bash
 PYTHONPATH=src API_PORT=8000 python3 -m hurricane.main
 ```
+
+Open `http://localhost:8000/`.
 
 ## Docker Run
 
