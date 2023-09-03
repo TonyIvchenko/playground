@@ -1,3 +1,5 @@
+port ?= 8080
+
 # Targets
 .PHONY: setup update clean build start smoke
 
