@@ -6,7 +6,7 @@ Minimal multi-service playground.
 
 - `src/test`: redis test service
 - `src/hurricane`: standalone Gradio app for hurricane intensity risk
-- `src/wildfire`: standalone Gradio app for wildfire ignition risk
+- `src/wildfire`: standalone Gradio app for wildfire ignition risk (PyTorch model)
 
 ## Dependency Layout
 
