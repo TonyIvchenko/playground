@@ -1,12 +1,13 @@
 # Wildfire Service
 
-Minimal standalone Gradio app.
+Minimal standalone Gradio app backed by a trained PyTorch model.
 
 ## Local Run
 
 From repo root:
 
 ```bash
+PYTHONPATH=src python3 src/wildfire/scripts/train_model.py
 PYTHONPATH=src API_PORT=8010 python3 -m wildfire.main
 ```
 
