@@ -1,13 +1,18 @@
 port ?= 8080
 
 # Targets
-.PHONY: setup update clean build start smoke
+.PHONY: setup update kernel clean build start smoke
 
 setup: environment.yml
 	conda env create -f environment.yml
+	$(MAKE) kernel
 
 update: environment.yml
 	conda env update -f environment.yml --prune
+	$(MAKE) kernel
+
+kernel:
+	conda run -n playground python -m ipykernel install --user --name playground --display-name "Python (playground)"
 
 clean:
 	rm -rf __pycache__
