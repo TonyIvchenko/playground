@@ -1,3 +1,3 @@
-from .main import build_demo, load_runtime, load_settings, main, predict
+from .main import MODEL_VERSION, demo, main, predict
 
-__all__ = ["build_demo", "load_runtime", "load_settings", "main", "predict"]
+__all__ = ["MODEL_VERSION", "demo", "main", "predict"]
