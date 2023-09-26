@@ -75,20 +75,23 @@ def predict(
     }
 
 
-demo = gr.Interface(
-    fn=predict,
-    inputs=[
-        gr.Textbox(label="Storm ID", value="AL09"),
-        gr.Number(label="Max Wind (kt)", value=70),
-        gr.Number(label="Min Pressure (mb)", value=980),
-        gr.Number(label="Latitude", value=22.5),
-        gr.Number(label="Longitude", value=-65.0),
-        gr.Number(label="Month", value=9),
-    ],
-    outputs=gr.JSON(label="Prediction"),
-    title=SERVICE_NAME,
-    description=f"Model version: {MODEL_VERSION}",
-)
+with gr.Blocks(title=SERVICE_NAME) as demo:
+    gr.Markdown(f"# {SERVICE_NAME}")
+    gr.Markdown(f"Model version: `{MODEL_VERSION}`")
+
+    storm_id = gr.Textbox(label="Storm ID", value="AL09")
+    vmax_kt = gr.Number(label="Max Wind (kt)", value=70)
+    min_pressure_mb = gr.Number(label="Min Pressure (mb)", value=980)
+    lat = gr.Number(label="Latitude", value=22.5)
+    lon = gr.Number(label="Longitude", value=-65.0)
+    month = gr.Number(label="Month", value=9)
+    output = gr.JSON(label="Prediction")
+    run = gr.Button("Predict")
+    run.click(
+        fn=predict,
+        inputs=[storm_id, vmax_kt, min_pressure_mb, lat, lon, month],
+        outputs=output,
+    )
 
 
 def main() -> None:
