@@ -1,37 +1,43 @@
-"""Minimal standalone Gradio app for hurricane intensity risk."""
+"""Minimal hurricane Gradio app with globally loaded PyTorch model."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-import math
+from pathlib import Path
 import os
 
 import gradio as gr
+import torch
+from torch import nn
 
 
-@dataclass(frozen=True)
-class ServiceSettings:
-    host: str = "0.0.0.0"
-    port: int = 8000
-    service_name: str = "Hurricane Intensity-Risk Service"
-    service_version: str = "0.1.0"
+HOST = os.getenv("API_HOST", "0.0.0.0")
+PORT = int(os.getenv("API_PORT", os.getenv("PORT", "8000")))
+MODEL_PATH = Path(os.getenv("MODEL_PATH", str(Path(__file__).resolve().parent / "model" / "hurricane_model.pt")))
+SERVICE_NAME = os.getenv("SERVICE_NAME", "Hurricane Intensity-Risk Service")
 
 
-def _read_int(env: dict[str, str], key: str, default: int) -> int:
-    raw_value = env.get(key)
-    if raw_value in (None, ""):
-        return default
-    return int(raw_value)
+class HurricaneMLP(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(5, 16),
+            nn.ReLU(),
+            nn.Linear(16, 8),
+            nn.ReLU(),
+            nn.Linear(8, 1),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x)
 
 
-def load_settings(env: dict[str, str] | None = None) -> ServiceSettings:
-    values = os.environ if env is None else env
-    return ServiceSettings(
-        host=values.get("API_HOST", ServiceSettings.host),
-        port=_read_int(values, "API_PORT", _read_int(values, "PORT", ServiceSettings.port)),
-        service_name=values.get("SERVICE_NAME", ServiceSettings.service_name),
-        service_version=values.get("SERVICE_VERSION", ServiceSettings.service_version),
-    )
+bundle = torch.load(MODEL_PATH, map_location="cpu", weights_only=True)
+model = HurricaneMLP()
+model.load_state_dict(bundle["state_dict"])
+model.eval()
+feature_mean = torch.tensor(bundle["feature_mean"], dtype=torch.float32)
+feature_std = torch.tensor(bundle["feature_std"], dtype=torch.float32).clamp_min(1e-6)
+MODEL_VERSION = str(bundle.get("model_version", "unknown"))
 
 
 def _risk_level(probability: float) -> str:
@@ -44,48 +50,49 @@ def _risk_level(probability: float) -> str:
     return "extreme"
 
 
-def predict(storm_id: str, vmax_kt: float, shear_kt: float, sst_c: float, model_version: str) -> dict[str, object]:
-    signal = 0.06 * (vmax_kt - 50.0) - 0.08 * (shear_kt - 12.0) + 0.12 * (sst_c - 27.0) - 0.35
-    probability = 1.0 / (1.0 + math.exp(-signal))
+def predict(
+    storm_id: str,
+    vmax_kt: float,
+    min_pressure_mb: float,
+    lat: float,
+    lon: float,
+    month: float,
+) -> dict[str, object]:
+    x = torch.tensor(
+        [[float(vmax_kt), float(min_pressure_mb), float(lat), float(lon), float(month)]],
+        dtype=torch.float32,
+    )
+    x = (x - feature_mean) / feature_std
+
+    with torch.no_grad():
+        probability = float(torch.sigmoid(model(x))[0, 0].item())
+
     return {
         "storm_id": storm_id,
-        "model_version": model_version,
+        "model_version": MODEL_VERSION,
         "ri_probability_24h": probability,
         "risk_level": _risk_level(probability),
     }
 
 
-def build_demo(settings: ServiceSettings) -> gr.Blocks:
-    with gr.Blocks(title=settings.service_name) as demo:
-        gr.Markdown("# Hurricane Intensity-Risk Service")
-        gr.Markdown(f"Model version: `{settings.service_version}`")
-
-        storm_id = gr.Textbox(label="Storm ID", value="AL09")
-        vmax_kt = gr.Number(label="Max Wind (kt)", value=70)
-        shear_kt = gr.Number(label="Vertical Shear (kt)", value=10)
-        sst_c = gr.Number(label="Sea Surface Temp (C)", value=29.2)
-        output = gr.JSON(label="Prediction")
-
-        run = gr.Button("Predict")
-        run.click(
-            fn=lambda sid, vmax, shear, sst: predict(
-                storm_id=sid,
-                vmax_kt=float(vmax),
-                shear_kt=float(shear),
-                sst_c=float(sst),
-                model_version=settings.service_version,
-            ),
-            inputs=[storm_id, vmax_kt, shear_kt, sst_c],
-            outputs=output,
-        )
-
-    return demo
+demo = gr.Interface(
+    fn=predict,
+    inputs=[
+        gr.Textbox(label="Storm ID", value="AL09"),
+        gr.Number(label="Max Wind (kt)", value=70),
+        gr.Number(label="Min Pressure (mb)", value=980),
+        gr.Number(label="Latitude", value=22.5),
+        gr.Number(label="Longitude", value=-65.0),
+        gr.Number(label="Month", value=9),
+    ],
+    outputs=gr.JSON(label="Prediction"),
+    title=SERVICE_NAME,
+    description=f"Model version: {MODEL_VERSION}",
+)
 
 
 def main() -> None:
-    settings = load_settings()
-    demo = build_demo(settings)
-    demo.launch(server_name=settings.host, server_port=settings.port)
+    demo.launch(server_name=HOST, server_port=PORT)
 
 
 if __name__ == "__main__":

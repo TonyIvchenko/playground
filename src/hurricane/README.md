@@ -1,10 +1,30 @@
 # Hurricane Service
 
-Minimal standalone Gradio app.
+Standalone Gradio app backed by a PyTorch model trained on real hurricane tracks.
 
-## Local Run
+## Data + Modeling Workflow
 
 From repo root:
+
+```bash
+PYTHONPATH=src python3 src/hurricane/scripts/download_data.py
+```
+
+Explore and evaluate in notebook:
+
+- `src/hurricane/notebooks/hurricane_modeling.ipynb`
+
+Train from script:
+
+```bash
+PYTHONPATH=src python3 src/hurricane/scripts/train_model.py --model-version 0.2.0
+```
+
+The trained artifact is loaded by the app from:
+
+- `src/hurricane/model/hurricane_model.pt`
+
+## Local Run
 
 ```bash
 PYTHONPATH=src API_PORT=8000 python3 -m hurricane.main
