@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 import os
 
 import gradio as gr
 import torch
+
+from hurricane.model import load_model_bundle
 
 
 HOST = os.getenv("API_HOST", "0.0.0.0")
@@ -15,23 +16,7 @@ PORT = int(os.getenv("API_PORT", os.getenv("PORT", "8000")))
 MODEL_PATH = Path(os.getenv("MODEL_PATH", str(Path(__file__).resolve().parent / "model" / "hurricane_model.pt")))
 SERVICE_NAME = os.getenv("SERVICE_NAME", "Hurricane Intensity-Risk Service")
 
-
-def _load_artifact(path: Path) -> tuple[torch.jit.ScriptModule, str]:
-    extra_files: dict[str, str] = {"metadata.json": ""}
-    loaded_model = torch.jit.load(str(path), map_location="cpu", _extra_files=extra_files)
-    loaded_model.eval()
-
-    model_version = "unknown"
-    raw_metadata = extra_files.get("metadata.json", "")
-    if isinstance(raw_metadata, bytes):
-        raw_metadata = raw_metadata.decode("utf-8")
-    if raw_metadata:
-        metadata = json.loads(raw_metadata)
-        model_version = str(metadata.get("model_version", "unknown"))
-    return loaded_model, model_version
-
-
-model, MODEL_VERSION = _load_artifact(MODEL_PATH)
+model, feature_mean, feature_std, MODEL_VERSION = load_model_bundle(MODEL_PATH)
 
 
 def _risk_level(probability: float) -> str:
@@ -56,9 +41,10 @@ def predict(
         [[float(vmax_kt), float(min_pressure_mb), float(lat), float(lon), float(month)]],
         dtype=torch.float32,
     )
+    x = (x - feature_mean) / feature_std
 
     with torch.no_grad():
-        probability = float(model(x).reshape(-1)[0].item())
+        probability = float(torch.sigmoid(model(x))[0, 0].item())
         probability = max(0.0, min(1.0, probability))
 
     return {

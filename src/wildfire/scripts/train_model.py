@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
 
 import pandas as pd
@@ -11,37 +10,10 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
+from wildfire.model import FEATURE_NAMES, WildfireMLP, create_model, save_model_bundle
 
-FEATURE_NAMES = ["temp_c", "humidity_pct", "wind_kph", "drought_index"]
+
 TARGET_NAME = "target"
-
-
-class WildfireMLP(nn.Module):
-    def __init__(self) -> None:
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(4, 16),
-            nn.ReLU(),
-            nn.Linear(16, 8),
-            nn.ReLU(),
-            nn.Linear(8, 1),
-        )
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.net(x)
-
-
-class WildfirePredictor(nn.Module):
-    def __init__(self, base_model: WildfireMLP, feature_mean: torch.Tensor, feature_std: torch.Tensor) -> None:
-        super().__init__()
-        self.base_model = base_model
-        self.register_buffer("feature_mean", feature_mean.squeeze(0).detach().clone())
-        self.register_buffer("feature_std", feature_std.squeeze(0).detach().clone().clamp_min(1e-6))
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x_norm = (x - self.feature_mean) / self.feature_std
-        logits = self.base_model(x_norm)
-        return torch.sigmoid(logits)
 
 
 def load_raw_dataset(path: Path) -> pd.DataFrame:
@@ -112,7 +84,7 @@ def train_model(
     x_train_norm = (x_train - feature_mean) / feature_std
     x_val_norm = (x_val - feature_mean) / feature_std
 
-    model = WildfireMLP()
+    model = create_model()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     loss_fn = nn.BCEWithLogitsLoss()
     loader = DataLoader(TensorDataset(x_train_norm, y_train), batch_size=batch_size, shuffle=True)
@@ -185,18 +157,14 @@ def main() -> None:
     )
 
     args.output_path.parent.mkdir(parents=True, exist_ok=True)
-    predictor = WildfirePredictor(model, feature_mean, feature_std).eval()
-    scripted = torch.jit.script(predictor)
-    metadata = {
-        "model_version": args.model_version,
-        "feature_names": FEATURE_NAMES,
-        "val_accuracy": val_accuracy,
-        "dataset_rows": int(len(training_df)),
-    }
-    torch.jit.save(
-        scripted,
-        str(args.output_path),
-        _extra_files={"metadata.json": json.dumps(metadata)},
+    save_model_bundle(
+        path=args.output_path,
+        model=model,
+        feature_mean=feature_mean,
+        feature_std=feature_std,
+        model_version=args.model_version,
+        val_accuracy=val_accuracy,
+        dataset_rows=int(len(training_df)),
     )
 
     print(f"Saved processed data to: {args.processed_csv}")

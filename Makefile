@@ -1,4 +1,11 @@
-port ?= 8080
+goal := $(firstword $(MAKECMDGOALS))
+app := $(word 2,$(MAKECMDGOALS))
+
+ifeq ($(goal),smoke)
+port := $(or $(word 2,$(MAKECMDGOALS)),8080)
+else
+port := $(or $(word 3,$(MAKECMDGOALS)),8080)
+endif
 
 # Targets
 .PHONY: setup update kernel clean build start smoke
@@ -26,3 +33,6 @@ start: build
 
 smoke:
 	curl --fail --silent --show-error http://localhost:$(port)/
+
+%:
+	@:

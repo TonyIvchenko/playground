@@ -1,0 +1,41 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import torch
+
+from .network import FEATURE_NAMES, WildfireMLP, create_model
+
+
+def save_model_bundle(
+    path: Path,
+    model: WildfireMLP,
+    feature_mean: torch.Tensor,
+    feature_std: torch.Tensor,
+    model_version: str,
+    val_accuracy: float,
+    dataset_rows: int,
+) -> None:
+    torch.save(
+        {
+            "state_dict": model.state_dict(),
+            "feature_mean": feature_mean.squeeze(0).tolist(),
+            "feature_std": feature_std.squeeze(0).tolist(),
+            "model_version": model_version,
+            "feature_names": FEATURE_NAMES,
+            "val_accuracy": val_accuracy,
+            "dataset_rows": dataset_rows,
+        },
+        path,
+    )
+
+
+def load_model_bundle(path: Path) -> tuple[WildfireMLP, torch.Tensor, torch.Tensor, str]:
+    bundle = torch.load(path, map_location="cpu", weights_only=True)
+    model = create_model()
+    model.load_state_dict(bundle["state_dict"])
+    model.eval()
+    feature_mean = torch.tensor(bundle["feature_mean"], dtype=torch.float32)
+    feature_std = torch.tensor(bundle["feature_std"], dtype=torch.float32).clamp_min(1e-6)
+    model_version = str(bundle.get("model_version", "unknown"))
+    return model, feature_mean, feature_std, model_version
