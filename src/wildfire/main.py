@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import os
 
 import gradio as gr
 import torch
-from torch import nn
 
 
 HOST = os.getenv("API_HOST", "0.0.0.0")
@@ -16,28 +16,22 @@ MODEL_PATH = Path(os.getenv("MODEL_PATH", str(Path(__file__).resolve().parent / 
 SERVICE_NAME = os.getenv("SERVICE_NAME", "Wildfire Ignition-Risk Service")
 
 
-class WildfireMLP(nn.Module):
-    def __init__(self) -> None:
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(4, 16),
-            nn.ReLU(),
-            nn.Linear(16, 8),
-            nn.ReLU(),
-            nn.Linear(8, 1),
-        )
+def _load_artifact(path: Path) -> tuple[torch.jit.ScriptModule, str]:
+    extra_files: dict[str, str] = {"metadata.json": ""}
+    loaded_model = torch.jit.load(str(path), map_location="cpu", _extra_files=extra_files)
+    loaded_model.eval()
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.net(x)
+    model_version = "unknown"
+    raw_metadata = extra_files.get("metadata.json", "")
+    if isinstance(raw_metadata, bytes):
+        raw_metadata = raw_metadata.decode("utf-8")
+    if raw_metadata:
+        metadata = json.loads(raw_metadata)
+        model_version = str(metadata.get("model_version", "unknown"))
+    return loaded_model, model_version
 
 
-bundle = torch.load(MODEL_PATH, map_location="cpu", weights_only=True)
-model = WildfireMLP()
-model.load_state_dict(bundle["state_dict"])
-model.eval()
-feature_mean = torch.tensor(bundle["feature_mean"], dtype=torch.float32)
-feature_std = torch.tensor(bundle["feature_std"], dtype=torch.float32).clamp_min(1e-6)
-MODEL_VERSION = str(bundle.get("model_version", "unknown"))
+model, MODEL_VERSION = _load_artifact(MODEL_PATH)
 
 
 def _risk_level(probability: float) -> str:
@@ -58,10 +52,10 @@ def predict(
     drought_index: float,
 ) -> dict[str, object]:
     x = torch.tensor([[float(temp_c), float(humidity_pct), float(wind_kph), float(drought_index)]], dtype=torch.float32)
-    x = (x - feature_mean) / feature_std
 
     with torch.no_grad():
-        probability = float(torch.sigmoid(model(x))[0, 0].item())
+        probability = float(model(x).reshape(-1)[0].item())
+        probability = max(0.0, min(1.0, probability))
 
     return {
         "region_id": region_id,

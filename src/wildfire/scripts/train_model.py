@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -28,6 +29,19 @@ class WildfireMLP(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
+
+
+class WildfirePredictor(nn.Module):
+    def __init__(self, base_model: WildfireMLP, feature_mean: torch.Tensor, feature_std: torch.Tensor) -> None:
+        super().__init__()
+        self.base_model = base_model
+        self.register_buffer("feature_mean", feature_mean.squeeze(0).detach().clone())
+        self.register_buffer("feature_std", feature_std.squeeze(0).detach().clone().clamp_min(1e-6))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x_norm = (x - self.feature_mean) / self.feature_std
+        logits = self.base_model(x_norm)
+        return torch.sigmoid(logits)
 
 
 def load_raw_dataset(path: Path) -> pd.DataFrame:
@@ -171,17 +185,18 @@ def main() -> None:
     )
 
     args.output_path.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(
-        {
-            "state_dict": model.state_dict(),
-            "feature_mean": feature_mean.squeeze(0).tolist(),
-            "feature_std": feature_std.squeeze(0).tolist(),
-            "model_version": args.model_version,
-            "feature_names": FEATURE_NAMES,
-            "val_accuracy": val_accuracy,
-            "dataset_rows": int(len(training_df)),
-        },
-        args.output_path,
+    predictor = WildfirePredictor(model, feature_mean, feature_std).eval()
+    scripted = torch.jit.script(predictor)
+    metadata = {
+        "model_version": args.model_version,
+        "feature_names": FEATURE_NAMES,
+        "val_accuracy": val_accuracy,
+        "dataset_rows": int(len(training_df)),
+    }
+    torch.jit.save(
+        scripted,
+        str(args.output_path),
+        _extra_files={"metadata.json": json.dumps(metadata)},
     )
 
     print(f"Saved processed data to: {args.processed_csv}")
