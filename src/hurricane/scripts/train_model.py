@@ -22,33 +22,27 @@ def load_raw_dataset(path: Path, max_rows: int | None = None) -> pd.DataFrame:
             f"Dataset not found at {path}. Run: `python src/hurricane/scripts/download_data.py`"
         )
 
-    usecols = ["SID", "ISO_TIME", "LAT", "LON", "USA_WIND", "USA_PRES", "WMO_WIND", "WMO_PRES"]
+    usecols = ["storm_id", "iso_time", "lat", "lon", "vmax_kt", "min_pressure_mb", "source"]
     df = pd.read_csv(path, usecols=usecols, low_memory=False, nrows=max_rows)
     return df
 
 
 def prepare_training_dataframe(raw_df: pd.DataFrame) -> pd.DataFrame:
     df = raw_df.copy()
-    # IBTrACS contains a units row; coercion drops it naturally.
-    df["iso_time"] = pd.to_datetime(df["ISO_TIME"], format="%Y-%m-%d %H:%M:%S", errors="coerce")
-    df["lat"] = pd.to_numeric(df["LAT"], errors="coerce")
-    df["lon"] = pd.to_numeric(df["LON"], errors="coerce")
+    df["storm_id"] = df["storm_id"].astype(str).str.strip()
+    df["iso_time"] = pd.to_datetime(df["iso_time"], errors="coerce")
+    df["lat"] = pd.to_numeric(df["lat"], errors="coerce")
+    df["lon"] = pd.to_numeric(df["lon"], errors="coerce")
+    df["vmax_kt"] = pd.to_numeric(df["vmax_kt"], errors="coerce")
+    df["min_pressure_mb"] = pd.to_numeric(df["min_pressure_mb"], errors="coerce")
 
-    usa_wind = pd.to_numeric(df["USA_WIND"], errors="coerce")
-    wmo_wind = pd.to_numeric(df["WMO_WIND"], errors="coerce")
-    df["vmax_kt"] = usa_wind.fillna(wmo_wind)
-
-    usa_pres = pd.to_numeric(df["USA_PRES"], errors="coerce")
-    wmo_pres = pd.to_numeric(df["WMO_PRES"], errors="coerce")
-    df["min_pressure_mb"] = usa_pres.fillna(wmo_pres)
-
-    df = df.dropna(subset=["SID", "iso_time", "vmax_kt", "lat", "lon"]).copy()
-    df = df.sort_values(["SID", "iso_time"]).reset_index(drop=True)
+    df = df.dropna(subset=["storm_id", "iso_time", "vmax_kt", "lat", "lon"]).copy()
+    df = df.sort_values(["storm_id", "iso_time"]).reset_index(drop=True)
     df["month"] = df["iso_time"].dt.month.astype(float)
     df["target_time"] = df["iso_time"] + pd.Timedelta(hours=24)
 
     merged_parts: list[pd.DataFrame] = []
-    for _, group in df.groupby("SID", sort=False):
+    for _, group in df.groupby("storm_id", sort=False):
         group = group.sort_values("iso_time").copy()
         future = group[["iso_time", "vmax_kt"]].rename(
             columns={"iso_time": "future_time", "vmax_kt": "future_vmax_kt"}
@@ -143,8 +137,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--input-csv",
         type=Path,
-        default=Path("src/hurricane/data/raw/ibtracs_na.csv"),
-        help="Path to downloaded IBTrACS North Atlantic CSV.",
+        default=Path("src/hurricane/data/raw/hurricane_tracks_merged.csv"),
+        help="Path to merged canonical tracks CSV produced by download_data.py.",
     )
     parser.add_argument(
         "--processed-csv",
