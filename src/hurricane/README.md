@@ -10,6 +10,15 @@ From repo root:
 PYTHONPATH=src python3 src/hurricane/scripts/download_data.py
 ```
 
+This pulls and harmonizes multiple public sources:
+
+- IBTrACS North Atlantic CSV
+- Latest HURDAT2 Atlantic text file
+
+and writes merged canonical tracks to:
+
+- `src/hurricane/data/raw/hurricane_tracks_merged.csv`
+
 Explore and evaluate in notebook:
 
 - `src/hurricane/notebooks/hurricane_modeling.ipynb`
