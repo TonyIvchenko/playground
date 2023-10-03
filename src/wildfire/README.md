@@ -10,6 +10,15 @@ From repo root:
 PYTHONPATH=src python3 src/wildfire/scripts/download_data.py
 ```
 
+This pulls and harmonizes multiple public sources:
+
+- UCI Forest Fires
+- UCI Algerian Forest Fires
+
+and writes merged canonical rows to:
+
+- `src/wildfire/data/raw/wildfire_training_merged.csv`
+
 Explore and evaluate in notebook:
 
 - `src/wildfire/notebooks/wildfire_modeling.ipynb`
