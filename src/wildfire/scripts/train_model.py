@@ -23,7 +23,7 @@ def load_raw_dataset(path: Path) -> pd.DataFrame:
         )
 
     df = pd.read_csv(path)
-    required = {"temp", "RH", "wind", "DC", "area"}
+    required = {"temp_c", "humidity_pct", "wind_kph", "drought_code", "target"}
     missing = sorted(required - set(df.columns))
     if missing:
         raise ValueError(f"Raw dataset is missing expected columns: {missing}")
@@ -31,7 +31,7 @@ def load_raw_dataset(path: Path) -> pd.DataFrame:
 
 
 def prepare_training_dataframe(raw_df: pd.DataFrame) -> pd.DataFrame:
-    drought = raw_df["DC"].astype(float)
+    drought = pd.to_numeric(raw_df["drought_code"], errors="coerce")
     drought_min = drought.min()
     drought_max = drought.max()
     denom = max(drought_max - drought_min, 1e-6)
@@ -39,11 +39,11 @@ def prepare_training_dataframe(raw_df: pd.DataFrame) -> pd.DataFrame:
 
     training_df = pd.DataFrame(
         {
-            "temp_c": raw_df["temp"].astype(float),
-            "humidity_pct": raw_df["RH"].astype(float),
-            "wind_kph": raw_df["wind"].astype(float),
+            "temp_c": pd.to_numeric(raw_df["temp_c"], errors="coerce"),
+            "humidity_pct": pd.to_numeric(raw_df["humidity_pct"], errors="coerce"),
+            "wind_kph": pd.to_numeric(raw_df["wind_kph"], errors="coerce"),
             "drought_index": drought_index.astype(float).clip(0.0, 1.0),
-            TARGET_NAME: (raw_df["area"].astype(float) > 0.0).astype(float),
+            TARGET_NAME: pd.to_numeric(raw_df["target"], errors="coerce").clip(0.0, 1.0),
         }
     )
     training_df = training_df.dropna().reset_index(drop=True)
@@ -113,8 +113,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--input-csv",
         type=Path,
-        default=Path("src/wildfire/data/raw/forestfires.csv"),
-        help="Path to the downloaded raw wildfire CSV.",
+        default=Path("src/wildfire/data/raw/wildfire_training_merged.csv"),
+        help="Path to merged canonical wildfire CSV produced by download_data.py.",
     )
     parser.add_argument(
         "--processed-csv",
