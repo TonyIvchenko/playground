@@ -5,8 +5,8 @@ Minimal multi-service playground.
 ## Services
 
 - `src/test`: redis test service
-- `src/hurricane`: standalone Gradio app for hurricane intensity risk
-- `src/wildfire`: standalone Gradio app for wildfire ignition risk (PyTorch model)
+- `src/hurricane`: standalone Gradio app for hurricane intensity risk (IBTrACS + HURDAT2 training data)
+- `src/wildfire`: standalone Gradio app for wildfire ignition risk (multi-source tabular training data)
 
 ## Dependency Layout
 
@@ -37,13 +37,13 @@ PYTHONPATH=src API_PORT=8010 python3 -m wildfire.main
 ## Docker
 
 ```bash
-make build app=hurricane
-make start app=hurricane port=8000
-make smoke port=8000
+make build hurricane
+make start hurricane 8000
+make smoke 8000
 
-make build app=wildfire
-make start app=wildfire port=8010
-make smoke port=8010
+make build wildfire
+make start wildfire 8010
+make smoke 8010
 ```
 
 ## Service Docs
