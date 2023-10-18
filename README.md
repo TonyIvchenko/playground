@@ -4,16 +4,16 @@ Minimal multi-service playground.
 
 ## Services
 
-- `src/test`: redis test service
-- `src/hurricane`: standalone Gradio app for hurricane intensity risk (IBTrACS + HURDAT2 training data)
-- `src/wildfire`: standalone Gradio app for wildfire ignition risk (multi-source tabular training data)
+- `src/test`: Redis write-loop service used for basic container/runtime checks
+- `src/hurricane`: Gradio hurricane intensity-risk service with PyTorch inference
+- `src/wildfire`: Gradio wildfire ignition-risk service with PyTorch inference
 
 ## Dependency Layout
 
 1. Root `requirements.txt` contains only shared environment dependencies.
 2. Each service defines its own dependencies in `src/<service>/requirements.txt`.
-3. Root `environment.yml` installs root requirements plus each service requirements file.
-4. When adding a service, create `src/<service>/main.py`, `Dockerfile`, and `requirements.txt`, then reference it in `environment.yml`.
+3. Root `environment.yml` installs root requirements plus all service requirements files.
+4. New service checklist: create `src/<service>/main.py`, `Dockerfile`, `requirements.txt`, then add its requirements file to `environment.yml`.
 
 ## Setup
 
@@ -27,11 +27,12 @@ make setup
 make update
 ```
 
-## Run Locally (No Docker)
+## Local Run (No Docker)
 
 ```bash
 PYTHONPATH=src API_PORT=8000 python3 -m hurricane.main
 PYTHONPATH=src API_PORT=8010 python3 -m wildfire.main
+python3 src/test/main.py
 ```
 
 ## Docker
@@ -46,7 +47,14 @@ make start wildfire 8010
 make smoke 8010
 ```
 
+## Tests
+
+```bash
+conda run -n playground pytest -q
+```
+
 ## Service Docs
 
 - `src/hurricane/README.md`
 - `src/wildfire/README.md`
+- `src/test/README.md`

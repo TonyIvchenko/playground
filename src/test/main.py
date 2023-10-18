@@ -5,7 +5,6 @@ import threading
 from service import build_client, run_forever
 from settings import load_settings
 
-mount_path = "/data"
 logger = logging.getLogger(__name__)
 
 
@@ -46,6 +45,3 @@ if __name__ == "__main__":
         if callable(close_method):
             close_method()
         logger.info("Service stopped")
-
-        
-            
