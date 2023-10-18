@@ -26,7 +26,7 @@ Explore and evaluate in notebook:
 Train from script:
 
 ```bash
-PYTHONPATH=src python3 src/wildfire/scripts/train_model.py --model-version 0.2.0
+PYTHONPATH=src python3 src/wildfire/scripts/train_model.py --model-version 0.3.0
 ```
 
 The trained artifact is loaded by the app from:
@@ -53,5 +53,5 @@ docker run --rm --name wildfire -p 8010:8010 -e API_PORT=8010 wildfire
 ## Tests
 
 ```bash
-pytest -q src/wildfire/tests/test_main.py
+pytest -q src/wildfire/tests
 ```

@@ -42,7 +42,7 @@ def run_forever(
             run_once(cache, key=key, value=value)
             retry_sleep = backoff_initial_seconds
             time.sleep(sleep_seconds)
-        except Exception as exc:
+        except Exception:
             logger.warning("Redis write failed; retrying in %.1f seconds", retry_sleep)
             time.sleep(retry_sleep)
             retry_sleep = min(backoff_max_seconds, retry_sleep * backoff_multiplier)
