@@ -32,7 +32,7 @@ make update
 ```bash
 PYTHONPATH=src API_PORT=8000 python3 -m hurricane.main
 PYTHONPATH=src API_PORT=8010 python3 -m wildfire.main
-python3 src/test/main.py
+REDIS_HOST=localhost REDIS_PORT=6379 python3 src/test/main.py
 ```
 
 ## Docker

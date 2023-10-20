@@ -132,7 +132,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--learning-rate", type=float, default=1e-3)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--model-version", type=str, default="0.2.0")
+    parser.add_argument("--model-version", type=str, default="0.3.0")
     return parser.parse_args()
 
 
