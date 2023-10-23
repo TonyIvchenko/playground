@@ -27,6 +27,12 @@ make setup
 make update
 ```
 
+## Clean Caches
+
+```bash
+make clean
+```
+
 ## Local Run (No Docker)
 
 ```bash

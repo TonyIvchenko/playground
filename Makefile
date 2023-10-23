@@ -22,7 +22,8 @@ kernel:
 	conda run -n playground python -m ipykernel install --user --name playground --display-name "Python (playground)"
 
 clean:
-	rm -rf __pycache__
+	find . -type d -name __pycache__ -prune -exec rm -rf {} +
+	rm -rf .pytest_cache
 
 build:
 	docker build -t $(app) -f src/$(app)/Dockerfile .
