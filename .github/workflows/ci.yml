@@ -3,10 +3,12 @@ name: CI
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,6 +32,9 @@ jobs:
           pip install -r src/hurricane/requirements.txt
           pip install -r src/wildfire/requirements.txt
           pip install pytest
+
+      - name: Validate dependency graph
+        run: pip check
 
       - name: Run tests
         run: pytest -q
