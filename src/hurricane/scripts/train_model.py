@@ -87,6 +87,22 @@ def split_dataset(
     return x_train, y_train, x_val, y_val
 
 
+def auc_from_scores(y_true: torch.Tensor, y_score: torch.Tensor) -> float:
+    target = y_true.reshape(-1).detach().cpu()
+    score = y_score.reshape(-1).detach().cpu()
+
+    pos_mask = target >= 0.5
+    n_pos = int(pos_mask.sum().item())
+    n_neg = int((~pos_mask).sum().item())
+    if n_pos == 0 or n_neg == 0:
+        return float("nan")
+
+    score_series = pd.Series(score.numpy())
+    ranks = score_series.rank(method="average")
+    sum_ranks_pos = float(ranks[pos_mask.numpy()].sum())
+    return (sum_ranks_pos - n_pos * (n_pos + 1) / 2.0) / float(n_pos * n_neg)
+
+
 def train_model(
     x_train: torch.Tensor,
     y_train: torch.Tensor,
@@ -96,7 +112,7 @@ def train_model(
     batch_size: int,
     learning_rate: float,
     seed: int,
-) -> tuple[HurricaneMLP, torch.Tensor, torch.Tensor, float]:
+) -> tuple[HurricaneMLP, torch.Tensor, torch.Tensor, float, float, float]:
     torch.manual_seed(seed)
 
     feature_mean = x_train.mean(dim=0, keepdim=True)
@@ -128,8 +144,16 @@ def train_model(
         val_probs = torch.sigmoid(val_logits)
         val_preds = (val_probs >= 0.5).float()
         val_accuracy = float((val_preds == y_val).float().mean().item())
+        tp = float(((val_preds == 1.0) & (y_val == 1.0)).sum().item())
+        tn = float(((val_preds == 0.0) & (y_val == 0.0)).sum().item())
+        fp = float(((val_preds == 1.0) & (y_val == 0.0)).sum().item())
+        fn = float(((val_preds == 0.0) & (y_val == 1.0)).sum().item())
+        tpr = tp / max(tp + fn, 1.0)
+        tnr = tn / max(tn + fp, 1.0)
+        val_balanced_accuracy = 0.5 * (tpr + tnr)
+        val_auc = float(auc_from_scores(y_true=y_val, y_score=val_probs))
 
-    return model, feature_mean, feature_std, val_accuracy
+    return model, feature_mean, feature_std, val_accuracy, val_balanced_accuracy, val_auc
 
 
 def parse_args() -> argparse.Namespace:
@@ -164,11 +188,11 @@ def parse_args() -> argparse.Namespace:
         default=200000,
         help="Max processed rows used for training (sampled after preprocessing).",
     )
-    parser.add_argument("--epochs", type=int, default=150)
+    parser.add_argument("--epochs", type=int, default=220)
     parser.add_argument("--batch-size", type=int, default=512)
-    parser.add_argument("--learning-rate", type=float, default=1e-3)
+    parser.add_argument("--learning-rate", type=float, default=5e-4)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--model-version", type=str, default="0.3.0")
+    parser.add_argument("--model-version", type=str, default="0.4.0")
     return parser.parse_args()
 
 
@@ -183,7 +207,7 @@ def main() -> None:
     training_df.to_csv(args.processed_csv, index=False)
 
     x_train, y_train, x_val, y_val = split_dataset(training_df, seed=args.seed)
-    model, feature_mean, feature_std, val_accuracy = train_model(
+    model, feature_mean, feature_std, val_accuracy, val_balanced_accuracy, val_auc = train_model(
         x_train=x_train,
         y_train=y_train,
         x_val=x_val,
@@ -202,12 +226,16 @@ def main() -> None:
         feature_std=feature_std,
         model_version=args.model_version,
         val_accuracy=val_accuracy,
+        val_balanced_accuracy=val_balanced_accuracy,
+        val_auc=val_auc,
         dataset_rows=int(len(training_df)),
     )
 
     print(f"Saved processed data to: {args.processed_csv}")
     print(f"Saved model to: {args.output_path}")
     print(f"Validation accuracy: {val_accuracy:.4f}")
+    print(f"Validation balanced accuracy: {val_balanced_accuracy:.4f}")
+    print(f"Validation AUROC: {val_auc:.4f}")
 
 
 if __name__ == "__main__":
