@@ -11,11 +11,11 @@ class HurricaneMLP(nn.Module):
     def __init__(self) -> None:
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(5, 16),
+            nn.Linear(5, 48),
             nn.ReLU(),
-            nn.Linear(16, 8),
+            nn.Linear(48, 24),
             nn.ReLU(),
-            nn.Linear(8, 1),
+            nn.Linear(24, 1),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

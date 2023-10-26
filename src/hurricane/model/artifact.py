@@ -15,19 +15,23 @@ def save_model_bundle(
     model_version: str,
     val_accuracy: float,
     dataset_rows: int,
+    val_balanced_accuracy: float | None = None,
+    val_auc: float | None = None,
 ) -> None:
-    torch.save(
-        {
-            "state_dict": model.state_dict(),
-            "feature_mean": feature_mean.squeeze(0).tolist(),
-            "feature_std": feature_std.squeeze(0).tolist(),
-            "model_version": model_version,
-            "feature_names": FEATURE_NAMES,
-            "val_accuracy": val_accuracy,
-            "dataset_rows": dataset_rows,
-        },
-        path,
-    )
+    bundle: dict[str, object] = {
+        "state_dict": model.state_dict(),
+        "feature_mean": feature_mean.squeeze(0).tolist(),
+        "feature_std": feature_std.squeeze(0).tolist(),
+        "model_version": model_version,
+        "feature_names": FEATURE_NAMES,
+        "val_accuracy": val_accuracy,
+        "dataset_rows": dataset_rows,
+    }
+    if val_balanced_accuracy is not None:
+        bundle["val_balanced_accuracy"] = val_balanced_accuracy
+    if val_auc is not None:
+        bundle["val_auc"] = val_auc
+    torch.save(bundle, path)
 
 
 def load_model_bundle(path: Path) -> tuple[HurricaneMLP, torch.Tensor, torch.Tensor, str]:
