@@ -26,12 +26,18 @@ Explore and evaluate in notebook:
 Train from script:
 
 ```bash
-PYTHONPATH=src python3 src/hurricane/scripts/train_model.py --model-version 0.4.0
+PYTHONPATH=src python3 src/hurricane/scripts/train_model.py --model-version 0.5.0
 ```
 
 The trained artifact is loaded by the app from:
 
 - `src/hurricane/model/hurricane_model.pt`
+
+The model includes lag-aware dynamics:
+
+- baseline state: `vmax_kt`, `min_pressure_mb`, `lat`, `lon`, `month`
+- derived season/location terms: `month_sin`, `month_cos`, `abs_lat`, `pressure_deficit`
+- recent trend terms: `dvmax_6h`, `dpres_6h`
 
 ## Local Run
 

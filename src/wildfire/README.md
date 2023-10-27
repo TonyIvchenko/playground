@@ -26,12 +26,22 @@ Explore and evaluate in notebook:
 Train from script:
 
 ```bash
-PYTHONPATH=src python3 src/wildfire/scripts/train_model.py --model-version 0.4.0
+PYTHONPATH=src python3 src/wildfire/scripts/train_model.py --model-version 0.5.0
 ```
 
 The trained artifact is loaded by the app from:
 
 - `src/wildfire/model/wildfire_model.pt`
+
+The model uses seven fire-weather inputs:
+
+- `temp_c`
+- `humidity_pct`
+- `wind_kph`
+- `ffmc`
+- `dmc`
+- `drought_code`
+- `isi`
 
 ## Local Run
 

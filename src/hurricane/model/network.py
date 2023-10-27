@@ -4,18 +4,30 @@ import torch
 from torch import nn
 
 
-FEATURE_NAMES = ["vmax_kt", "min_pressure_mb", "lat", "lon", "month"]
+FEATURE_NAMES = [
+    "vmax_kt",
+    "min_pressure_mb",
+    "lat",
+    "lon",
+    "month",
+    "month_sin",
+    "month_cos",
+    "abs_lat",
+    "pressure_deficit",
+    "dvmax_6h",
+    "dpres_6h",
+]
 
 
 class HurricaneMLP(nn.Module):
     def __init__(self) -> None:
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(5, 48),
+            nn.Linear(11, 64),
             nn.ReLU(),
-            nn.Linear(48, 24),
+            nn.Linear(64, 32),
             nn.ReLU(),
-            nn.Linear(24, 1),
+            nn.Linear(32, 1),
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

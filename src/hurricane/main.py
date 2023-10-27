@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import math
 import os
 
 import gradio as gr
@@ -36,9 +37,26 @@ def predict(
     lat: float,
     lon: float,
     month: float,
+    dvmax_6h: float,
+    dpres_6h: float,
 ) -> dict[str, object]:
+    month_angle = 2.0 * math.pi * float(month) / 12.0
     x = torch.tensor(
-        [[float(vmax_kt), float(min_pressure_mb), float(lat), float(lon), float(month)]],
+        [
+            [
+                float(vmax_kt),
+                float(min_pressure_mb),
+                float(lat),
+                float(lon),
+                float(month),
+                math.sin(month_angle),
+                math.cos(month_angle),
+                abs(float(lat)),
+                1010.0 - float(min_pressure_mb),
+                float(dvmax_6h),
+                float(dpres_6h),
+            ]
+        ],
         dtype=torch.float32,
     )
     x = (x - feature_mean) / feature_std
@@ -65,11 +83,13 @@ with gr.Blocks(title=SERVICE_NAME) as demo:
     lat = gr.Number(label="Latitude", value=22.5)
     lon = gr.Number(label="Longitude", value=-65.0)
     month = gr.Number(label="Month", value=9)
+    dvmax_6h = gr.Number(label="Recent Wind Change (kt per 6h)", value=5.0)
+    dpres_6h = gr.Number(label="Recent Pressure Change (mb per 6h)", value=-3.0)
     output = gr.JSON(label="Prediction")
     run = gr.Button("Predict")
     run.click(
         fn=predict,
-        inputs=[storm_id, vmax_kt, min_pressure_mb, lat, lon, month],
+        inputs=[storm_id, vmax_kt, min_pressure_mb, lat, lon, month, dvmax_6h, dpres_6h],
         outputs=output,
     )
 

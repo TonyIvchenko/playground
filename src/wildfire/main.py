@@ -34,9 +34,15 @@ def predict(
     temp_c: float,
     humidity_pct: float,
     wind_kph: float,
-    drought_index: float,
+    ffmc: float,
+    dmc: float,
+    drought_code: float,
+    isi: float,
 ) -> dict[str, object]:
-    x = torch.tensor([[float(temp_c), float(humidity_pct), float(wind_kph), float(drought_index)]], dtype=torch.float32)
+    x = torch.tensor(
+        [[float(temp_c), float(humidity_pct), float(wind_kph), float(ffmc), float(dmc), float(drought_code), float(isi)]],
+        dtype=torch.float32,
+    )
     x = (x - feature_mean) / feature_std
 
     with torch.no_grad():
@@ -59,12 +65,15 @@ with gr.Blocks(title=SERVICE_NAME) as demo:
     temp_c = gr.Number(label="Temperature (C)", value=34)
     humidity_pct = gr.Number(label="Humidity (%)", value=22)
     wind_kph = gr.Number(label="Wind (kph)", value=28)
-    drought_index = gr.Number(label="Drought Index (0-1)", value=0.82)
+    ffmc = gr.Number(label="FFMC", value=92.0)
+    dmc = gr.Number(label="DMC", value=180.0)
+    drought_code = gr.Number(label="DC", value=640.0)
+    isi = gr.Number(label="ISI", value=12.0)
     output = gr.JSON(label="Prediction")
     run = gr.Button("Predict")
     run.click(
         fn=predict,
-        inputs=[region_id, temp_c, humidity_pct, wind_kph, drought_index],
+        inputs=[region_id, temp_c, humidity_pct, wind_kph, ffmc, dmc, drought_code, isi],
         outputs=output,
     )
 

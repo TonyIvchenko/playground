@@ -16,6 +16,8 @@ def test_predict_output_shape_and_values():
         lat=22.5,
         lon=-65.0,
         month=9,
+        dvmax_6h=5.0,
+        dpres_6h=-3.0,
     )
     assert result["storm_id"] == "AL09"
     assert result["model_version"] == MODEL_VERSION
