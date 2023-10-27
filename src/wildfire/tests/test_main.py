@@ -14,7 +14,10 @@ def test_predict_output_shape_and_values():
         temp_c=34,
         humidity_pct=22,
         wind_kph=28,
-        drought_index=0.82,
+        ffmc=92.0,
+        dmc=180.0,
+        drought_code=640.0,
+        isi=12.0,
     )
     assert result["region_id"] == "norcal"
     assert result["model_version"] == MODEL_VERSION

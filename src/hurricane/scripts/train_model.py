@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import math
 from pathlib import Path
 
 import pandas as pd
@@ -37,13 +38,29 @@ def prepare_training_dataframe(raw_df: pd.DataFrame) -> pd.DataFrame:
     df["min_pressure_mb"] = pd.to_numeric(df["min_pressure_mb"], errors="coerce")
 
     df = df.dropna(subset=["storm_id", "iso_time", "vmax_kt", "lat", "lon"]).copy()
+    df = df[df["vmax_kt"].between(0.0, 200.0)].copy()
+    df = df[df["lat"].between(-5.0, 70.0)].copy()
+    df = df[df["lon"].between(-120.0, 20.0)].copy()
     df = df.sort_values(["storm_id", "iso_time"]).reset_index(drop=True)
     df["month"] = df["iso_time"].dt.month.astype(float)
+    angle = 2.0 * math.pi * df["month"] / 12.0
+    df["month_sin"] = angle.map(math.sin)
+    df["month_cos"] = angle.map(math.cos)
+    df["abs_lat"] = df["lat"].abs()
+    df["pressure_deficit"] = 1010.0 - df["min_pressure_mb"]
     df["target_time"] = df["iso_time"] + pd.Timedelta(hours=24)
 
     merged_parts: list[pd.DataFrame] = []
     for _, group in df.groupby("storm_id", sort=False):
         group = group.sort_values("iso_time").copy()
+        group["prev_time"] = group["iso_time"].shift(1)
+        group["prev_vmax"] = group["vmax_kt"].shift(1)
+        group["prev_pressure"] = group["min_pressure_mb"].shift(1)
+        delta_hours = (group["iso_time"] - group["prev_time"]).dt.total_seconds() / 3600.0
+        step = (delta_hours / 6.0).where(delta_hours > 0.0)
+        group["dvmax_6h"] = (group["vmax_kt"] - group["prev_vmax"]) / step
+        group["dpres_6h"] = (group["min_pressure_mb"] - group["prev_pressure"]) / step
+
         future = group[["iso_time", "vmax_kt"]].rename(
             columns={"iso_time": "future_time", "vmax_kt": "future_vmax_kt"}
         )
@@ -64,6 +81,9 @@ def prepare_training_dataframe(raw_df: pd.DataFrame) -> pd.DataFrame:
     if pd.isna(pressure_median):
         pressure_median = 1000.0
     merged["min_pressure_mb"] = merged["min_pressure_mb"].fillna(pressure_median)
+    merged["pressure_deficit"] = merged["pressure_deficit"].fillna(1010.0 - pressure_median)
+    merged["dvmax_6h"] = pd.to_numeric(merged["dvmax_6h"], errors="coerce").fillna(0.0).clip(-60.0, 60.0)
+    merged["dpres_6h"] = pd.to_numeric(merged["dpres_6h"], errors="coerce").fillna(0.0).clip(-60.0, 60.0)
 
     training_df = merged[FEATURE_NAMES + [TARGET_NAME]].dropna().reset_index(drop=True)
     if training_df.empty:
@@ -192,7 +212,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, default=512)
     parser.add_argument("--learning-rate", type=float, default=5e-4)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--model-version", type=str, default="0.4.0")
+    parser.add_argument("--model-version", type=str, default="0.5.0")
     return parser.parse_args()
 
 

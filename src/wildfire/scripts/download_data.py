@@ -49,12 +49,17 @@ def load_forest_fires(path: Path) -> pd.DataFrame:
             "temp_c": pd.to_numeric(df["temp"], errors="coerce"),
             "humidity_pct": pd.to_numeric(df["RH"], errors="coerce"),
             "wind_kph": pd.to_numeric(df["wind"], errors="coerce"),
+            "ffmc": pd.to_numeric(df["FFMC"], errors="coerce"),
+            "dmc": pd.to_numeric(df["DMC"], errors="coerce"),
             "drought_code": pd.to_numeric(df["DC"], errors="coerce"),
+            "isi": pd.to_numeric(df["ISI"], errors="coerce"),
             "target": (pd.to_numeric(df["area"], errors="coerce") > 0.0).astype(float),
             "source": "uci_forestfires",
         }
     )
-    return out.dropna(subset=["temp_c", "humidity_pct", "wind_kph", "drought_code", "target"]).reset_index(drop=True)
+    return out.dropna(
+        subset=["temp_c", "humidity_pct", "wind_kph", "ffmc", "dmc", "drought_code", "isi", "target"]
+    ).reset_index(drop=True)
 
 
 def _parse_algerian_line(line: str) -> dict[str, object] | None:
@@ -74,7 +79,10 @@ def _parse_algerian_line(line: str) -> dict[str, object] | None:
         temp_c = float(parts[3])
         humidity_pct = float(parts[4])
         wind_kph = float(parts[5])
+        ffmc = float(parts[6])
+        dmc = float(parts[7])
         drought_code = float(parts[9])
+        isi = float(parts[10])
     except ValueError:
         return None
 
@@ -90,7 +98,10 @@ def _parse_algerian_line(line: str) -> dict[str, object] | None:
         "temp_c": temp_c,
         "humidity_pct": humidity_pct,
         "wind_kph": wind_kph,
+        "ffmc": ffmc,
+        "dmc": dmc,
         "drought_code": drought_code,
+        "isi": isi,
         "target": target,
         "source": "uci_algerian",
     }

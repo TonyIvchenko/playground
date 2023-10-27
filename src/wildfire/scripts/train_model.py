@@ -23,7 +23,7 @@ def load_raw_dataset(path: Path) -> pd.DataFrame:
         )
 
     df = pd.read_csv(path)
-    required = {"temp_c", "humidity_pct", "wind_kph", "drought_code", "target"}
+    required = {"temp_c", "humidity_pct", "wind_kph", "ffmc", "dmc", "drought_code", "isi", "target"}
     missing = sorted(required - set(df.columns))
     if missing:
         raise ValueError(f"Raw dataset is missing expected columns: {missing}")
@@ -31,18 +31,15 @@ def load_raw_dataset(path: Path) -> pd.DataFrame:
 
 
 def prepare_training_dataframe(raw_df: pd.DataFrame) -> pd.DataFrame:
-    drought = pd.to_numeric(raw_df["drought_code"], errors="coerce")
-    drought_min = drought.min()
-    drought_max = drought.max()
-    denom = max(drought_max - drought_min, 1e-6)
-    drought_index = (drought - drought_min) / denom
-
     training_df = pd.DataFrame(
         {
             "temp_c": pd.to_numeric(raw_df["temp_c"], errors="coerce"),
             "humidity_pct": pd.to_numeric(raw_df["humidity_pct"], errors="coerce"),
             "wind_kph": pd.to_numeric(raw_df["wind_kph"], errors="coerce"),
-            "drought_index": drought_index.astype(float).clip(0.0, 1.0),
+            "ffmc": pd.to_numeric(raw_df["ffmc"], errors="coerce"),
+            "dmc": pd.to_numeric(raw_df["dmc"], errors="coerce"),
+            "drought_code": pd.to_numeric(raw_df["drought_code"], errors="coerce"),
+            "isi": pd.to_numeric(raw_df["isi"], errors="coerce"),
             TARGET_NAME: pd.to_numeric(raw_df["target"], errors="coerce").clip(0.0, 1.0),
         }
     )
@@ -159,7 +156,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--learning-rate", type=float, default=5e-4)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--model-version", type=str, default="0.4.0")
+    parser.add_argument("--model-version", type=str, default="0.5.0")
     return parser.parse_args()
 
 

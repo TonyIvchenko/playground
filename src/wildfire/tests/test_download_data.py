@@ -27,14 +27,24 @@ def test_load_forest_fires_maps_columns(tmp_path: Path):
     input_path = tmp_path / "forest.csv"
     pd.DataFrame(
         [
-            {"temp": 20.5, "RH": 45, "wind": 3.2, "DC": 200.0, "area": 0.0},
-            {"temp": 31.2, "RH": 22, "wind": 9.1, "DC": 500.0, "area": 4.4},
+            {"temp": 20.5, "RH": 45, "wind": 3.2, "FFMC": 85.1, "DMC": 120.0, "DC": 200.0, "ISI": 5.2, "area": 0.0},
+            {"temp": 31.2, "RH": 22, "wind": 9.1, "FFMC": 93.8, "DMC": 210.0, "DC": 500.0, "ISI": 14.1, "area": 4.4},
         ]
     ).to_csv(input_path, index=False)
 
     df = load_forest_fires(input_path)
 
-    assert list(df.columns) == ["temp_c", "humidity_pct", "wind_kph", "drought_code", "target", "source"]
+    assert list(df.columns) == [
+        "temp_c",
+        "humidity_pct",
+        "wind_kph",
+        "ffmc",
+        "dmc",
+        "drought_code",
+        "isi",
+        "target",
+        "source",
+    ]
     assert len(df) == 2
     assert set(df["target"].tolist()) == {0.0, 1.0}
     assert set(df["source"].unique()) == {"uci_forestfires"}
