@@ -152,11 +152,11 @@ def parse_args() -> argparse.Namespace:
         default=Path("src/wildfire/model/wildfire_model.pt"),
         help="Where to store trained model artifact.",
     )
-    parser.add_argument("--epochs", type=int, default=350)
+    parser.add_argument("--epochs", type=int, default=260)
     parser.add_argument("--batch-size", type=int, default=64)
-    parser.add_argument("--learning-rate", type=float, default=5e-4)
+    parser.add_argument("--learning-rate", type=float, default=8e-4)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--model-version", type=str, default="0.5.0")
+    parser.add_argument("--model-version", type=str, default="0.5.1")
     return parser.parse_args()
 
 
