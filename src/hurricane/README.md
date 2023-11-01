@@ -26,7 +26,7 @@ Explore and evaluate in notebook:
 Train from script:
 
 ```bash
-PYTHONPATH=src python3 src/hurricane/scripts/train_model.py --model-version 0.5.0
+PYTHONPATH=src python3 src/hurricane/scripts/train_model.py --model-version 0.5.1
 ```
 
 The trained artifact is loaded by the app from:
