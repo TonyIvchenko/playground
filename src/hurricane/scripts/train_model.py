@@ -208,11 +208,11 @@ def parse_args() -> argparse.Namespace:
         default=200000,
         help="Max processed rows used for training (sampled after preprocessing).",
     )
-    parser.add_argument("--epochs", type=int, default=220)
+    parser.add_argument("--epochs", type=int, default=180)
     parser.add_argument("--batch-size", type=int, default=512)
-    parser.add_argument("--learning-rate", type=float, default=5e-4)
+    parser.add_argument("--learning-rate", type=float, default=7e-4)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--model-version", type=str, default="0.5.0")
+    parser.add_argument("--model-version", type=str, default="0.5.1")
     return parser.parse_args()
 
 
