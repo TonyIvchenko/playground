@@ -87,6 +87,7 @@ def train_model(
     epochs: int,
     batch_size: int,
     learning_rate: float,
+    weight_decay: float,
     seed: int,
 ) -> tuple[WildfireMLP, torch.Tensor, torch.Tensor, float, float, float]:
     torch.manual_seed(seed)
@@ -101,7 +102,7 @@ def train_model(
     pos_count = max(float(y_train.sum().item()), 1.0)
     neg_count = max(float((1.0 - y_train).sum().item()), 1.0)
     pos_weight = torch.tensor([neg_count / pos_count], dtype=torch.float32)
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
     loss_fn = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
     loader = DataLoader(TensorDataset(x_train_norm, y_train), batch_size=batch_size, shuffle=True)
 
@@ -155,8 +156,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--epochs", type=int, default=260)
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--learning-rate", type=float, default=8e-4)
-    parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--model-version", type=str, default="0.5.1")
+    parser.add_argument("--weight-decay", type=float, default=0.0)
+    parser.add_argument("--seed", type=int, default=41, help="Random seed used to initialize model training.")
+    parser.add_argument(
+        "--split-seed",
+        type=int,
+        default=42,
+        help="Random seed used to shuffle rows before the train/validation split.",
+    )
+    parser.add_argument("--model-version", type=str, default="0.5.2")
     return parser.parse_args()
 
 
@@ -168,7 +176,7 @@ def main() -> None:
     args.processed_csv.parent.mkdir(parents=True, exist_ok=True)
     training_df.to_csv(args.processed_csv, index=False)
 
-    x_train, y_train, x_val, y_val = split_dataset(training_df, seed=args.seed)
+    x_train, y_train, x_val, y_val = split_dataset(training_df, seed=args.split_seed)
     model, feature_mean, feature_std, val_accuracy, val_balanced_accuracy, val_auc = train_model(
         x_train=x_train,
         y_train=y_train,
@@ -177,6 +185,7 @@ def main() -> None:
         epochs=args.epochs,
         batch_size=args.batch_size,
         learning_rate=args.learning_rate,
+        weight_decay=args.weight_decay,
         seed=args.seed,
     )
 
