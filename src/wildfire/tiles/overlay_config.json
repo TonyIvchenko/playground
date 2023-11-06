@@ -1,0 +1,11 @@
+{
+  "service": "wildfire",
+  "start_year": 2000,
+  "end_year": 2030,
+  "zoom": 2,
+  "training_end_year": 2018,
+  "eval_end_year": 2023,
+  "center_lat": 37.0,
+  "center_lon": -98.0,
+  "model_version": "0.5.2"
+}
