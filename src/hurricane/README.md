@@ -32,6 +32,13 @@ PYTHONPATH=src python3 src/hurricane/scripts/train_model.py --model-version 0.5.
 The trained artifact is loaded by the app from:
 
 - `src/hurricane/model/hurricane_model.pt`
+- `src/hurricane/tiles/` (pre-generated Google Maps overlay tiles, years 2000-2030)
+
+Generate or refresh overlay tiles:
+
+```bash
+PYTHONPATH=src python3 src/hurricane/scripts/generate_overlay_tiles.py
+```
 
 The model includes lag-aware dynamics:
 
@@ -42,7 +49,7 @@ The model includes lag-aware dynamics:
 ## Local Run
 
 ```bash
-PYTHONPATH=src API_PORT=8000 python3 -m hurricane.main
+PYTHONPATH=src GMAPS_API_KEY=<your_google_maps_js_api_key> API_PORT=8000 python3 -m hurricane.main
 ```
 
 Open `http://localhost:8000/`.
