@@ -1,6 +1,7 @@
 # Hurricane Service
 
 Standalone Gradio app backed by a PyTorch model trained on real hurricane tracks.
+The app includes a Google Maps monthly timeline overlay (2000-2030) with play/drag controls.
 
 ## Data + Modeling Workflow
 
@@ -32,13 +33,18 @@ PYTHONPATH=src python3 src/hurricane/scripts/train_model.py --model-version 0.5.
 The trained artifact is loaded by the app from:
 
 - `src/hurricane/model/hurricane_model.pt`
-- `src/hurricane/tiles/` (pre-generated Google Maps overlay tiles, years 2000-2030)
+- `src/hurricane/tiles/overlay_cube.npz` (precomputed monthly overlay data, years 2000-2030)
 
 Generate or refresh overlay tiles:
 
 ```bash
 PYTHONPATH=src python3 src/hurricane/scripts/generate_overlay_tiles.py
 ```
+
+The generator precomputes:
+
+- `src/hurricane/tiles/overlay_cube.npz`
+- `src/hurricane/tiles/overlay_config.json`
 
 The model includes lag-aware dynamics:
 
@@ -53,6 +59,11 @@ PYTHONPATH=src GMAPS_API_KEY=<your_google_maps_js_api_key> API_PORT=8000 python3
 ```
 
 Open `http://localhost:8000/`.
+
+Service endpoints:
+
+- `GET /health`
+- `GET /tiles/{layer}/{frame_idx}/{z}/{x}/{y}.png`
 
 ## Docker Run
 

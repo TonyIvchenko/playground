@@ -36,8 +36,8 @@ make clean
 ## Local Run (No Docker)
 
 ```bash
-PYTHONPATH=src API_PORT=8000 python3 -m hurricane.main
-PYTHONPATH=src API_PORT=8010 python3 -m wildfire.main
+PYTHONPATH=src GMAPS_API_KEY=<google_maps_js_api_key> API_PORT=8000 python3 -m hurricane.main
+PYTHONPATH=src GMAPS_API_KEY=<google_maps_js_api_key> API_PORT=8010 python3 -m wildfire.main
 REDIS_HOST=localhost REDIS_PORT=6379 python3 src/test/main.py
 ```
 
