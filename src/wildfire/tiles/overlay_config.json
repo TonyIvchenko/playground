@@ -14,6 +14,6 @@
   "lon_max": 12.5,
   "grid_h": 180,
   "grid_w": 260,
-  "model_version": "0.5.2",
+  "model_version": "0.5.3",
   "frame_count": 372
 }

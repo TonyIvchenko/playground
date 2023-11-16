@@ -19,6 +19,8 @@ def test_parse_algerian_line_targets():
 
     assert fire is not None
     assert not_fire is not None
+    assert fire["ffmc"] == 82.6
+    assert fire["dmc"] == 5.8
     assert fire["target"] == 1.0
     assert not_fire["target"] == 0.0
 
