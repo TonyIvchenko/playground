@@ -79,8 +79,9 @@ def _parse_algerian_line(line: str) -> dict[str, object] | None:
         temp_c = float(parts[3])
         humidity_pct = float(parts[4])
         wind_kph = float(parts[5])
-        ffmc = float(parts[6])
-        dmc = float(parts[7])
+        # Algerian columns: Rain, FFMC, DMC, DC, ISI, BUI, FWI
+        ffmc = float(parts[7])
+        dmc = float(parts[8])
         drought_code = float(parts[9])
         isi = float(parts[10])
     except ValueError:

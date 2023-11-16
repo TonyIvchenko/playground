@@ -164,7 +164,7 @@ def parse_args() -> argparse.Namespace:
         default=42,
         help="Random seed used to shuffle rows before the train/validation split.",
     )
-    parser.add_argument("--model-version", type=str, default="0.5.2")
+    parser.add_argument("--model-version", type=str, default="0.5.3")
     return parser.parse_args()
 
 
