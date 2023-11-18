@@ -41,6 +41,25 @@ PYTHONPATH=src GMAPS_API_KEY=<google_maps_js_api_key> API_PORT=8010 python3 -m w
 REDIS_HOST=localhost REDIS_PORT=6379 python3 src/test/main.py
 ```
 
+## Rebuild Data + Models
+
+```bash
+PYTHONPATH=src python src/hurricane/scripts/download_data.py
+PYTHONPATH=src python src/hurricane/scripts/train_model.py --model-version 0.5.2
+PYTHONPATH=src python src/hurricane/scripts/generate_overlay_tiles.py
+
+PYTHONPATH=src python src/wildfire/scripts/download_data.py
+PYTHONPATH=src python src/wildfire/scripts/train_model.py --model-version 0.5.3
+PYTHONPATH=src python src/wildfire/scripts/generate_overlay_tiles.py
+```
+
+Open notebooks for EDA/eval:
+
+```bash
+conda run -n playground jupyter lab src/hurricane/notebooks/hurricane_modeling.ipynb
+conda run -n playground jupyter lab src/wildfire/notebooks/wildfire_modeling.ipynb
+```
+
 ## Docker
 
 ```bash

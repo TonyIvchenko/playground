@@ -1,77 +1,82 @@
 # Wildfire Service
 
-Standalone Gradio app backed by a PyTorch model trained on real wildfire records.
-The app includes a Google Maps monthly timeline overlay (2000-2030) with play/drag controls.
+Gradio app + PyTorch model for 24h wildfire ignition-risk inference, with monthly Google Maps overlays (2000-2030).
 
-## Data + Modeling Workflow
+## End-to-end Local Workflow (No Docker)
 
-From repo root:
+Run from repo root.
+
+1. Download and merge wildfire datasets:
 
 ```bash
-PYTHONPATH=src python3 src/wildfire/scripts/download_data.py
+PYTHONPATH=src python src/wildfire/scripts/download_data.py
 ```
 
-This pulls and harmonizes multiple public sources:
+Sources used by the downloader:
 
 - UCI Forest Fires
 - UCI Algerian Forest Fires
 
-and writes merged canonical rows to:
+Merged output:
 
 - `src/wildfire/data/raw/wildfire_training_merged.csv`
 
-Explore and evaluate in notebook:
-
-- `src/wildfire/notebooks/wildfire_modeling.ipynb`
-
-Train from script:
+2. Open notebook for EDA and evaluation:
 
 ```bash
-PYTHONPATH=src python3 src/wildfire/scripts/train_model.py --model-version 0.5.2
+conda run -n playground jupyter lab src/wildfire/notebooks/wildfire_modeling.ipynb
 ```
 
-The trained artifact is loaded by the app from:
+Notebook responsibilities:
 
-- `src/wildfire/model/wildfire_model.pt`
-- `src/wildfire/tiles/overlay_cube.npz` (precomputed monthly overlay data, years 2000-2030)
+- data sanity checks and feature distributions
+- training/eval run with accuracy, balanced accuracy, and AUROC
+- optional artifact save back to `src/wildfire/model/wildfire_model.pt`
 
-Generate or refresh overlay tiles:
+3. Train model from script:
 
 ```bash
-PYTHONPATH=src python3 src/wildfire/scripts/generate_overlay_tiles.py
+PYTHONPATH=src python src/wildfire/scripts/train_model.py --model-version 0.5.3
 ```
 
-The generator precomputes:
+Script outputs:
+
+- processed training rows: `src/wildfire/data/processed/wildfire_training.csv`
+- model artifact: `src/wildfire/model/wildfire_model.pt`
+
+4. Regenerate monthly overlay cube:
+
+```bash
+PYTHONPATH=src python src/wildfire/scripts/generate_overlay_tiles.py
+```
+
+Overlay outputs:
 
 - `src/wildfire/tiles/overlay_cube.npz`
 - `src/wildfire/tiles/overlay_config.json`
 
-The model uses seven fire-weather inputs:
-
-- `temp_c`
-- `humidity_pct`
-- `wind_kph`
-- `ffmc`
-- `dmc`
-- `drought_code`
-- `isi`
-
-## Local Run
+5. Launch app locally:
 
 ```bash
-PYTHONPATH=src GMAPS_API_KEY=<your_google_maps_js_api_key> API_PORT=8010 python3 -m wildfire.main
+PYTHONPATH=src GMAPS_API_KEY=<google_maps_js_api_key> API_PORT=8010 python -m wildfire.main
 ```
 
-Open `http://localhost:8010/`.
+If `GMAPS_API_KEY` is omitted, inference still works and map area shows a clear setup message.
 
-Service endpoints:
+6. Smoke test:
+
+```bash
+curl http://localhost:8010/health
+```
+
+Open UI at `http://localhost:8010/`.
+
+## API Endpoints
 
 - `GET /health`
 - `GET /tiles/{layer}/{frame_idx}/{z}/{x}/{y}.png`
 
-## Docker Run
-
-From repo root:
+## Docker
 
 ```bash
 docker build -t wildfire -f src/wildfire/Dockerfile .
@@ -81,5 +86,5 @@ docker run --rm --name wildfire -p 8010:8010 -e API_PORT=8010 wildfire
 ## Tests
 
 ```bash
-pytest -q src/wildfire/tests
+PYTHONPATH=src pytest -q src/wildfire/tests
 ```
