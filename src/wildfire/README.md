@@ -21,6 +21,11 @@ Merged output:
 
 - `src/wildfire/data/raw/wildfire_training_merged.csv`
 
+Current merged row mix:
+
+- `uci_forestfires`: 517 rows
+- `uci_algerian`: 243 rows
+
 2. Open notebook for EDA and evaluation:
 
 ```bash
@@ -43,6 +48,14 @@ Script outputs:
 
 - processed training rows: `src/wildfire/data/processed/wildfire_training.csv`
 - model artifact: `src/wildfire/model/wildfire_model.pt`
+
+Current artifact snapshot (trained on March 7, 2026):
+
+- `model_version`: `0.5.3`
+- `dataset_rows`: `760`
+- `val_accuracy`: `0.7697`
+- `val_balanced_accuracy`: `0.7693`
+- `val_auc`: `0.8119`
 
 4. Regenerate monthly overlay cube:
 

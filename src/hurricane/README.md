@@ -21,6 +21,12 @@ Merged output:
 
 - `src/hurricane/data/raw/hurricane_tracks_merged.csv`
 
+Current merged row mix:
+
+- `merged` (matched records from both sources): 55,549 rows
+- `ibtracs` only: 52,885 rows
+- `hurdat2` only: 56 rows
+
 2. Open notebook for EDA and evaluation:
 
 ```bash
@@ -43,6 +49,14 @@ Script outputs:
 
 - processed training rows: `src/hurricane/data/processed/hurricane_training.csv`
 - model artifact: `src/hurricane/model/hurricane_model.pt`
+
+Current artifact snapshot (trained on March 7, 2026):
+
+- `model_version`: `0.5.2`
+- `dataset_rows`: `94,123`
+- `val_accuracy`: `0.8376`
+- `val_balanced_accuracy`: `0.7969`
+- `val_auc`: `0.8772`
 
 4. Regenerate monthly overlay cube:
 
