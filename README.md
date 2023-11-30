@@ -6,7 +6,7 @@ Minimal multi-service playground.
 
 - `src/test`: Redis write-loop service used for basic container/runtime checks
 - `src/hurricane`: Gradio hurricane intensity-risk service with PyTorch inference
-- `src/wildfire`: Gradio wildfire ignition-risk service with PyTorch inference
+- `src/wildfire`: Gradio wildfire ignition-risk service with PyTorch inference (demo data stack)
 
 ## Dependency Layout
 
