@@ -2,6 +2,11 @@
 
 Gradio app + PyTorch model for 24h wildfire ignition-risk inference, with monthly Google Maps overlays (2000-2030).
 
+Scope note:
+
+- current model is trained on public UCI wildfire tables (Portugal + Algeria), not a full U.S. nationwide feature stack yet
+- this service is a lightweight end-to-end reference implementation of the workflow
+
 ## End-to-end Local Workflow (No Docker)
 
 Run from repo root.
