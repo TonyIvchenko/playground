@@ -1,11 +1,11 @@
 # Wildfire Service
 
-Gradio app + PyTorch model for 24h wildfire ignition-risk inference, with monthly Google Maps overlays (2000-2030).
+Wildfire data + modeling pipeline for 24h ignition-risk training and overlay generation.
 
 Scope note:
 
 - current model is trained on public UCI wildfire tables (Portugal + Algeria), not a full U.S. nationwide feature stack yet
-- this service is a lightweight end-to-end reference implementation of the workflow
+- this is a lightweight end-to-end reference implementation of the workflow
 
 ## End-to-end Local Workflow (No Docker)
 
@@ -14,7 +14,7 @@ Run from repo root.
 1. Download and merge wildfire datasets:
 
 ```bash
-PYTHONPATH=src python src/wildfire/scripts/download_data.py
+python -m src.wildfire.scripts.download_data
 ```
 
 Sources used by the downloader:
@@ -46,7 +46,7 @@ Notebook responsibilities:
 3. Train model from script:
 
 ```bash
-PYTHONPATH=src python src/wildfire/scripts/train_model.py --model-version 0.5.3
+python -m src.wildfire.scripts.train_model --model-version 0.5.3
 ```
 
 Script outputs:
@@ -54,7 +54,7 @@ Script outputs:
 - processed training rows: `src/wildfire/data/processed/wildfire_training.csv`
 - model artifact: `src/wildfire/model/wildfire_model.pt`
 
-Current artifact snapshot (trained on March 7, 2026):
+Current artifact snapshot:
 
 - `model_version`: `0.5.3`
 - `dataset_rows`: `760`
@@ -65,7 +65,7 @@ Current artifact snapshot (trained on March 7, 2026):
 4. Regenerate monthly overlay cube:
 
 ```bash
-PYTHONPATH=src python src/wildfire/scripts/generate_overlay_tiles.py
+python -m src.wildfire.scripts.generate_overlay_tiles
 ```
 
 Overlay outputs:
@@ -73,36 +73,35 @@ Overlay outputs:
 - `src/wildfire/tiles/overlay_cube.npz`
 - `src/wildfire/tiles/overlay_config.json`
 
-5. Launch app locally:
+5. Launch combined app locally:
 
 ```bash
-PYTHONPATH=src GMAPS_API_KEY=<google_maps_js_api_key> API_PORT=8010 python -m wildfire.main
+GMAPS_API_KEY=<google_maps_js_api_key> API_PORT=8080 python -m src.riskmap.main
 ```
 
-If `GMAPS_API_KEY` is omitted, inference still works and map area shows a clear setup message.
+The wildfire layers are served through the unified `riskmap` service.
 
 6. Smoke test:
 
 ```bash
-curl http://localhost:8010/health
+curl http://localhost:8080/health
 ```
 
-Open UI at `http://localhost:8010/`.
+Open UI at `http://localhost:8080/`.
 
 ## API Endpoints
 
-- `GET /health`
-- `GET /tiles/{layer}/{frame_idx}/{z}/{x}/{y}.png`
+- `GET /tiles/wildfire/{layer}/{frame_idx}/{z}/{x}/{y}.png` (served by `riskmap`)
 
 ## Docker
 
 ```bash
-docker build -t wildfire -f src/wildfire/Dockerfile .
-docker run --rm --name wildfire -p 8010:8010 -e API_PORT=8010 wildfire
+docker build -t riskmap -f src/riskmap/Dockerfile .
+docker run --rm --name riskmap -p 8080:8080 -e API_PORT=8080 riskmap
 ```
 
 ## Tests
 
 ```bash
-PYTHONPATH=src pytest -q src/wildfire/tests
+pytest -q src/wildfire/tests
 ```

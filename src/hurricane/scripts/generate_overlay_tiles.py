@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from hurricane.model import load_model_bundle
+from src.hurricane.model import load_model_bundle
 
 
 TRAIN_END_YEAR = 2018

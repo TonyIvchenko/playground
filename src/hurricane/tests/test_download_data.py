@@ -1,13 +1,8 @@
 from pathlib import Path
-import sys
 
 import pandas as pd
 
-SRC_ROOT = Path(__file__).resolve().parents[2]
-if str(SRC_ROOT) not in sys.path:
-    sys.path.insert(0, str(SRC_ROOT))
-
-from hurricane.scripts.download_data import load_hurdat2, merge_sources, parse_lat_lon
+from src.hurricane.scripts.download_data import load_hurdat2, merge_sources, parse_lat_lon
 
 
 def test_parse_lat_lon():

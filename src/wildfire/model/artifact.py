@@ -4,7 +4,7 @@ from pathlib import Path
 
 import torch
 
-from .network import FEATURE_NAMES, WildfireMLP, create_model
+from .model import FEATURE_NAMES, WildfireMLP, create_model
 
 
 def save_model_bundle(

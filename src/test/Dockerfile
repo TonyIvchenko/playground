@@ -5,6 +5,6 @@ WORKDIR /app
 COPY src/test/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
-COPY src/test /app
+COPY src /app/src
 
-CMD ["python", "-u", "/app/main.py"]
+CMD ["python", "-m", "src.test.main"]

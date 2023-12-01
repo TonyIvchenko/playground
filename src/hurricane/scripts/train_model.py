@@ -11,7 +11,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from hurricane.model import FEATURE_NAMES, HurricaneMLP, create_model, save_model_bundle
+from src.hurricane.model import FEATURE_NAMES, HurricaneMLP, create_model, save_model_bundle
 
 
 TARGET_NAME = "target"
@@ -20,7 +20,7 @@ TARGET_NAME = "target"
 def load_raw_dataset(path: Path, max_rows: int | None = None) -> pd.DataFrame:
     if not path.exists():
         raise FileNotFoundError(
-            f"Dataset not found at {path}. Run: `python src/hurricane/scripts/download_data.py`"
+            f"Dataset not found at {path}. Run: `python -m src.hurricane.scripts.download_data`"
         )
 
     usecols = ["storm_id", "iso_time", "lat", "lon", "vmax_kt", "min_pressure_mb", "source"]

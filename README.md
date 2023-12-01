@@ -5,8 +5,9 @@ Minimal multi-service playground.
 ## Services
 
 - `src/test`: Redis write-loop service used for basic container/runtime checks
-- `src/hurricane`: Gradio hurricane intensity-risk service with PyTorch inference
-- `src/wildfire`: Gradio wildfire ignition-risk service with PyTorch inference (demo data stack)
+- `src/riskmap`: unified Gradio app service combining wildfire + hurricane overlays/inference
+- `src/hurricane`: hurricane data/model pipeline (download, notebook EDA/eval, training, overlay generation)
+- `src/wildfire`: wildfire data/model pipeline (download, notebook EDA/eval, training, overlay generation)
 
 ## Dependency Layout
 
@@ -36,21 +37,20 @@ make clean
 ## Local Run (No Docker)
 
 ```bash
-PYTHONPATH=src GMAPS_API_KEY=<google_maps_js_api_key> API_PORT=8000 python3 -m hurricane.main
-PYTHONPATH=src GMAPS_API_KEY=<google_maps_js_api_key> API_PORT=8010 python3 -m wildfire.main
-REDIS_HOST=localhost REDIS_PORT=6379 python3 src/test/main.py
+GMAPS_API_KEY=<google_maps_js_api_key> API_PORT=8080 python -m src.riskmap.main
+REDIS_HOST=localhost REDIS_PORT=6379 python -m src.test.main
 ```
 
 ## Rebuild Data + Models
 
 ```bash
-PYTHONPATH=src python src/hurricane/scripts/download_data.py
-PYTHONPATH=src python src/hurricane/scripts/train_model.py --model-version 0.5.2
-PYTHONPATH=src python src/hurricane/scripts/generate_overlay_tiles.py
+python -m src.hurricane.scripts.download_data
+python -m src.hurricane.scripts.train_model --model-version 0.5.2
+python -m src.hurricane.scripts.generate_overlay_tiles
 
-PYTHONPATH=src python src/wildfire/scripts/download_data.py
-PYTHONPATH=src python src/wildfire/scripts/train_model.py --model-version 0.5.3
-PYTHONPATH=src python src/wildfire/scripts/generate_overlay_tiles.py
+python -m src.wildfire.scripts.download_data
+python -m src.wildfire.scripts.train_model --model-version 0.5.3
+python -m src.wildfire.scripts.generate_overlay_tiles
 ```
 
 Open notebooks for EDA/eval:
@@ -60,26 +60,21 @@ conda run -n playground jupyter lab src/hurricane/notebooks/hurricane_modeling.i
 conda run -n playground jupyter lab src/wildfire/notebooks/wildfire_modeling.ipynb
 ```
 
-## Docker
+## Make Commands
 
 ```bash
-make build hurricane
-make start hurricane 8000
-make smoke 8000
-
-make build wildfire
-make start wildfire 8010
-make smoke 8010
+make run riskmap 8080
 ```
 
 ## Tests
 
 ```bash
-conda run -n playground pytest -q
+pytest -q
 ```
 
 ## Service Docs
 
+- `src/riskmap/README.md`
 - `src/hurricane/README.md`
 - `src/wildfire/README.md`
 - `src/test/README.md`
