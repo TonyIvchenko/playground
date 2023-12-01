@@ -10,7 +10,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from wildfire.model import FEATURE_NAMES, WildfireMLP, create_model, save_model_bundle
+from src.wildfire.model import FEATURE_NAMES, WildfireMLP, create_model, save_model_bundle
 
 
 TARGET_NAME = "target"
@@ -19,7 +19,7 @@ TARGET_NAME = "target"
 def load_raw_dataset(path: Path) -> pd.DataFrame:
     if not path.exists():
         raise FileNotFoundError(
-            f"Dataset not found at {path}. Run: `python src/wildfire/scripts/download_data.py`"
+            f"Dataset not found at {path}. Run: `python -m src.wildfire.scripts.download_data`"
         )
 
     df = pd.read_csv(path)

@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from wildfire.model import load_model_bundle
+from src.wildfire.model import load_model_bundle
 
 
 TRAIN_END_YEAR = 2018

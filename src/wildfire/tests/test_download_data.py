@@ -1,13 +1,8 @@
 from pathlib import Path
-import sys
 
 import pandas as pd
 
-SRC_ROOT = Path(__file__).resolve().parents[2]
-if str(SRC_ROOT) not in sys.path:
-    sys.path.insert(0, str(SRC_ROOT))
-
-from wildfire.scripts.download_data import _parse_algerian_line, load_forest_fires
+from src.wildfire.scripts.download_data import _parse_algerian_line, load_forest_fires
 
 
 def test_parse_algerian_line_targets():

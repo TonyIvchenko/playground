@@ -7,7 +7,7 @@ Minimal Redis write-loop service used for runtime/container smoke checks.
 From repo root:
 
 ```bash
-REDIS_HOST=localhost REDIS_PORT=6379 python3 src/test/main.py
+REDIS_HOST=localhost REDIS_PORT=6379 python -m src.test.main
 ```
 
 Environment variables:
