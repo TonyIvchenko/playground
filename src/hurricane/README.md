@@ -72,10 +72,10 @@ Overlay outputs:
 5. Launch combined app locally:
 
 ```bash
-GMAPS_API_KEY=<google_maps_js_api_key> API_PORT=8080 python -m src.riskmap.main
+GMAPS_API_KEY=<google_maps_js_api_key> API_PORT=8080 python -m src.disasters.main
 ```
 
-The hurricane layers are served through the unified `riskmap` service.
+The hurricane layers are served through the unified `disasters` service.
 
 6. Smoke test:
 
@@ -87,13 +87,13 @@ Open UI at `http://localhost:8080/`.
 
 ## API Endpoints
 
-- `GET /tiles/hurricane/{layer}/{frame_idx}/{z}/{x}/{y}.png` (served by `riskmap`)
+- `GET /tiles/hurricane/{layer}/{frame_idx}/{z}/{x}/{y}.png` (served by `disasters`)
 
 ## Docker
 
 ```bash
-docker build -t riskmap -f src/riskmap/Dockerfile .
-docker run --rm --name riskmap -p 8080:8080 -e API_PORT=8080 riskmap
+docker build -t disasters -f src/disasters/Dockerfile .
+docker run --rm --name disasters -p 8080:8080 -e API_PORT=8080 disasters
 ```
 
 ## Tests
