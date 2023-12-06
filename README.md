@@ -28,12 +28,6 @@ make setup
 make update
 ```
 
-## Clean Caches
-
-```bash
-make clean
-```
-
 ## Local Run (No Docker)
 
 ```bash
@@ -63,6 +57,8 @@ conda run -n playground jupyter lab src/wildfire/notebooks/wildfire_modeling.ipy
 ## Make Commands
 
 ```bash
+make setup
+make update
 make run riskmap 8080
 ```
 
