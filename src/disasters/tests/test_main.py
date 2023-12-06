@@ -1,4 +1,4 @@
-from src.riskmap.main import (
+from src.disasters.main import (
     HURRICANE_MODEL_VERSION,
     WILDFIRE_MODEL_VERSION,
     predict_hurricane,

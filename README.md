@@ -5,7 +5,7 @@ Minimal multi-service playground.
 ## Services
 
 - `src/test`: Redis write-loop service used for basic container/runtime checks
-- `src/riskmap`: unified Gradio app service combining wildfire + hurricane overlays/inference
+- `src/disasters`: unified Gradio app service combining wildfire + hurricane overlays/inference
 - `src/hurricane`: hurricane data/model pipeline (download, notebook EDA/eval, training, overlay generation)
 - `src/wildfire`: wildfire data/model pipeline (download, notebook EDA/eval, training, overlay generation)
 
@@ -31,7 +31,7 @@ make update
 ## Local Run (No Docker)
 
 ```bash
-GMAPS_API_KEY=<google_maps_js_api_key> API_PORT=8080 python -m src.riskmap.main
+GMAPS_API_KEY=<google_maps_js_api_key> API_PORT=8080 python -m src.disasters.main
 REDIS_HOST=localhost REDIS_PORT=6379 python -m src.test.main
 ```
 
@@ -59,7 +59,7 @@ conda run -n playground jupyter lab src/wildfire/notebooks/wildfire_modeling.ipy
 ```bash
 make setup
 make update
-make run riskmap 8080
+make run disasters 8080
 ```
 
 ## Tests
@@ -70,7 +70,7 @@ pytest -q
 
 ## Service Docs
 
-- `src/riskmap/README.md`
+- `src/disasters/README.md`
 - `src/hurricane/README.md`
 - `src/wildfire/README.md`
 - `src/test/README.md`

@@ -356,7 +356,7 @@ def _map_html() -> str:
     js_config = {
         "api_key": GMAPS_API_KEY,
         "frames": FRAMES,
-        "service_id": "riskmap",
+        "service_id": "disasters",
         "center_lat": 28.0,
         "center_lon": -35.0,
         "zoom_min": 3,
@@ -657,7 +657,7 @@ api = FastAPI(title=SERVICE_NAME)
 @api.get("/health")
 def health() -> dict[str, object]:
     return {
-        "service": "riskmap",
+        "service": "disasters",
         "status": "ok",
         "frames": len(FRAMES),
         "wildfire_model_version": WILDFIRE_MODEL_VERSION,
