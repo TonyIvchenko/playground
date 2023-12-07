@@ -1,0 +1,19 @@
+{
+  "service": "hurricane",
+  "start_year": 2000,
+  "end_year": 2030,
+  "zoom_min": 4,
+  "zoom_max": 8,
+  "training_end_year": 2018,
+  "eval_end_year": 2023,
+  "center_lat": 24.0,
+  "center_lon": -60.0,
+  "lat_min": 0.0,
+  "lat_max": 55.0,
+  "lon_min": -120.0,
+  "lon_max": 20.0,
+  "grid_h": 220,
+  "grid_w": 320,
+  "model_version": "0.5.2",
+  "frame_count": 372
+}
