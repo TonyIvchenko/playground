@@ -5,9 +5,11 @@ Minimal multi-service playground.
 ## Services
 
 - `src/test`: Redis write-loop service used for basic container/runtime checks
-- `src/disasters`: unified Gradio app service combining wildfire + hurricane overlays/inference
-- `src/disasters/hurricane`: hurricane data/model pipeline (download, notebook EDA/eval, training, overlay generation)
-- `src/disasters/wildfire`: wildfire data/model pipeline (download, notebook EDA/eval, training, overlay generation)
+- `src/disasters`: unified app + modeling workspace with this layout:
+- `src/disasters/models`: `wildfire_model.py`, `hurricane_model.py`, artifact loaders/savers, and `.pt` model files
+- `src/disasters/scripts`: `wildfire_*` and `hurricane_*` download/train/tile scripts
+- `src/disasters/notebooks`: wildfire/hurricane EDA + evaluation notebooks
+- `src/disasters/tests`: wildcard/hurricane parser tests and unified app inference tests
 
 ## Dependency Layout
 
@@ -38,20 +40,20 @@ REDIS_HOST=localhost REDIS_PORT=6379 python -m src.test.main
 ## Rebuild Data + Models
 
 ```bash
-python -m src.disasters.hurricane.scripts.download_data
-python -m src.disasters.hurricane.scripts.train_model --model-version 0.5.2
-python -m src.disasters.hurricane.scripts.generate_overlay_tiles
+python -m src.disasters.scripts.hurricane_download_data
+python -m src.disasters.scripts.hurricane_train_model --model-version 0.5.2
+python -m src.disasters.scripts.hurricane_generate_overlay_tiles
 
-python -m src.disasters.wildfire.scripts.download_data
-python -m src.disasters.wildfire.scripts.train_model --model-version 0.5.3
-python -m src.disasters.wildfire.scripts.generate_overlay_tiles
+python -m src.disasters.scripts.wildfire_download_data
+python -m src.disasters.scripts.wildfire_train_model --model-version 0.5.3
+python -m src.disasters.scripts.wildfire_generate_overlay_tiles
 ```
 
 Open notebooks for EDA/eval:
 
 ```bash
-conda run -n playground jupyter lab src/disasters/hurricane/notebooks/hurricane_modeling.ipynb
-conda run -n playground jupyter lab src/disasters/wildfire/notebooks/wildfire_modeling.ipynb
+conda run -n playground jupyter lab src/disasters/notebooks/hurricane_modeling.ipynb
+conda run -n playground jupyter lab src/disasters/notebooks/wildfire_modeling.ipynb
 ```
 
 ## Make Commands
@@ -71,6 +73,4 @@ pytest -q
 ## Service Docs
 
 - `src/disasters/README.md`
-- `src/disasters/hurricane/README.md`
-- `src/disasters/wildfire/README.md`
 - `src/test/README.md`

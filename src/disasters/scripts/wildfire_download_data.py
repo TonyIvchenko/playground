@@ -18,13 +18,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--raw-dir",
         type=Path,
-        default=Path("src/disasters/wildfire/data/raw"),
+        default=Path("src/disasters/data/wildfire/raw"),
         help="Directory where raw source files are stored.",
     )
     parser.add_argument(
         "--output-path",
         type=Path,
-        default=Path("src/disasters/wildfire/data/raw/wildfire_training_merged.csv"),
+        default=Path("src/disasters/data/wildfire/raw/wildfire_training_merged.csv"),
         help="Path for merged canonical wildfire training CSV.",
     )
     parser.add_argument(

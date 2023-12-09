@@ -4,12 +4,12 @@ from pathlib import Path
 
 import torch
 
-from .model import FEATURE_NAMES, HurricaneMLP, create_model
+from .wildfire_model import FEATURE_NAMES, WildfireMLP, create_model
 
 
 def save_model_bundle(
     path: Path,
-    model: HurricaneMLP,
+    model: WildfireMLP,
     feature_mean: torch.Tensor,
     feature_std: torch.Tensor,
     model_version: str,
@@ -34,7 +34,7 @@ def save_model_bundle(
     torch.save(bundle, path)
 
 
-def load_model_bundle(path: Path) -> tuple[HurricaneMLP, torch.Tensor, torch.Tensor, str]:
+def load_model_bundle(path: Path) -> tuple[WildfireMLP, torch.Tensor, torch.Tensor, str]:
     bundle = torch.load(path, map_location="cpu", weights_only=True)
     model = create_model()
     model.load_state_dict(bundle["state_dict"])
