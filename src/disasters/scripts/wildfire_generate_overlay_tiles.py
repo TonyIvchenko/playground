@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from src.disasters.wildfire.model import load_model_bundle
+from src.disasters.models.wildfire_artifact import load_model_bundle
 
 
 TRAIN_END_YEAR = 2018
@@ -46,25 +46,25 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model-path",
         type=Path,
-        default=Path("src/disasters/wildfire/model/wildfire_model.pt"),
+        default=Path("src/disasters/models/wildfire_model.pt"),
         help="Path to wildfire model artifact.",
     )
     parser.add_argument(
         "--forest-path",
         type=Path,
-        default=Path("src/disasters/wildfire/data/raw/forestfires_uci.csv"),
+        default=Path("src/disasters/data/wildfire/raw/forestfires_uci.csv"),
         help="Path to UCI forest fires csv.",
     )
     parser.add_argument(
         "--algerian-path",
         type=Path,
-        default=Path("src/disasters/wildfire/data/raw/algerian_forest_fires.csv"),
+        default=Path("src/disasters/data/wildfire/raw/algerian_forest_fires.csv"),
         help="Path to Algerian forest fires csv-like file.",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("src/disasters/wildfire/tiles"),
+        default=Path("src/disasters/tiles/wildfire"),
         help="Output directory for overlay cube + config.",
     )
     parser.add_argument("--start-year", type=int, default=2000)

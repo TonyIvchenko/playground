@@ -11,7 +11,8 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from src.disasters.hurricane.model import FEATURE_NAMES, HurricaneMLP, create_model, save_model_bundle
+from src.disasters.models.hurricane_artifact import save_model_bundle
+from src.disasters.models.hurricane_model import FEATURE_NAMES, HurricaneMLP, create_model
 
 
 TARGET_NAME = "target"
@@ -20,7 +21,7 @@ TARGET_NAME = "target"
 def load_raw_dataset(path: Path, max_rows: int | None = None) -> pd.DataFrame:
     if not path.exists():
         raise FileNotFoundError(
-            f"Dataset not found at {path}. Run: `python -m src.disasters.hurricane.scripts.download_data`"
+            f"Dataset not found at {path}. Run: `python -m src.disasters.scripts.hurricane_download_data`"
         )
 
     usecols = ["storm_id", "iso_time", "lat", "lon", "vmax_kt", "min_pressure_mb", "source"]
@@ -182,19 +183,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--input-csv",
         type=Path,
-        default=Path("src/disasters/hurricane/data/raw/hurricane_tracks_merged.csv"),
+        default=Path("src/disasters/data/hurricane/raw/hurricane_tracks_merged.csv"),
         help="Path to merged canonical tracks CSV produced by download_data.py.",
     )
     parser.add_argument(
         "--processed-csv",
         type=Path,
-        default=Path("src/disasters/hurricane/data/processed/hurricane_training.csv"),
+        default=Path("src/disasters/data/hurricane/processed/hurricane_training.csv"),
         help="Where to write processed training rows for inspection.",
     )
     parser.add_argument(
         "--output-path",
         type=Path,
-        default=Path("src/disasters/hurricane/model/hurricane_model.pt"),
+        default=Path("src/disasters/models/hurricane_model.pt"),
         help="Where to write trained model artifact.",
     )
     parser.add_argument(

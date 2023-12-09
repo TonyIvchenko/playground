@@ -16,8 +16,8 @@ from PIL import Image
 import torch
 import uvicorn
 
-from src.disasters.hurricane.model import load_model_bundle as load_hurricane_model_bundle
-from src.disasters.wildfire.model import load_model_bundle as load_wildfire_model_bundle
+from src.disasters.models.hurricane_artifact import load_model_bundle as load_hurricane_model_bundle
+from src.disasters.models.wildfire_artifact import load_model_bundle as load_wildfire_model_bundle
 
 
 HOST = os.getenv("API_HOST", "0.0.0.0")
@@ -26,14 +26,14 @@ GMAPS_API_KEY = os.getenv("GMAPS_API_KEY", "")
 SERVICE_NAME = os.getenv("SERVICE_NAME", "Climate Risk Map Service")
 
 WILDFIRE_MODEL_PATH = Path(
-    os.getenv("WILDFIRE_MODEL_PATH", str(Path(__file__).resolve().parent / "wildfire" / "model" / "wildfire_model.pt"))
+    os.getenv("WILDFIRE_MODEL_PATH", str(Path(__file__).resolve().parent / "models" / "wildfire_model.pt"))
 )
 HURRICANE_MODEL_PATH = Path(
-    os.getenv("HURRICANE_MODEL_PATH", str(Path(__file__).resolve().parent / "hurricane" / "model" / "hurricane_model.pt"))
+    os.getenv("HURRICANE_MODEL_PATH", str(Path(__file__).resolve().parent / "models" / "hurricane_model.pt"))
 )
 
-WILDFIRE_TILES_DIR = Path(__file__).resolve().parent / "wildfire" / "tiles"
-HURRICANE_TILES_DIR = Path(__file__).resolve().parent / "hurricane" / "tiles"
+WILDFIRE_TILES_DIR = Path(__file__).resolve().parent / "tiles" / "wildfire"
+HURRICANE_TILES_DIR = Path(__file__).resolve().parent / "tiles" / "hurricane"
 
 TILE_SIZE = 256
 SAMPLE_SIZE = 64

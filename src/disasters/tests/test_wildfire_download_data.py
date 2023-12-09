@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.disasters.wildfire.scripts.download_data import _parse_algerian_line, load_forest_fires
+from src.disasters.scripts.wildfire_download_data import _parse_algerian_line, load_forest_fires
 
 
 def test_parse_algerian_line_targets():

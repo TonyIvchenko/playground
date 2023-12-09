@@ -10,7 +10,8 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from src.disasters.wildfire.model import FEATURE_NAMES, WildfireMLP, create_model, save_model_bundle
+from src.disasters.models.wildfire_artifact import save_model_bundle
+from src.disasters.models.wildfire_model import FEATURE_NAMES, WildfireMLP, create_model
 
 
 TARGET_NAME = "target"
@@ -19,7 +20,7 @@ TARGET_NAME = "target"
 def load_raw_dataset(path: Path) -> pd.DataFrame:
     if not path.exists():
         raise FileNotFoundError(
-            f"Dataset not found at {path}. Run: `python -m src.disasters.wildfire.scripts.download_data`"
+            f"Dataset not found at {path}. Run: `python -m src.disasters.scripts.wildfire_download_data`"
         )
 
     df = pd.read_csv(path)
@@ -138,19 +139,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--input-csv",
         type=Path,
-        default=Path("src/disasters/wildfire/data/raw/wildfire_training_merged.csv"),
+        default=Path("src/disasters/data/wildfire/raw/wildfire_training_merged.csv"),
         help="Path to merged canonical wildfire CSV produced by download_data.py.",
     )
     parser.add_argument(
         "--processed-csv",
         type=Path,
-        default=Path("src/disasters/wildfire/data/processed/wildfire_training.csv"),
+        default=Path("src/disasters/data/wildfire/processed/wildfire_training.csv"),
         help="Where to write processed training rows for inspection.",
     )
     parser.add_argument(
         "--output-path",
         type=Path,
-        default=Path("src/disasters/wildfire/model/wildfire_model.pt"),
+        default=Path("src/disasters/models/wildfire_model.pt"),
         help="Where to store trained model artifact.",
     )
     parser.add_argument("--epochs", type=int, default=260)

@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from src.disasters.hurricane.model import load_model_bundle
+from src.disasters.models.hurricane_artifact import load_model_bundle
 
 
 TRAIN_END_YEAR = 2018
@@ -30,19 +30,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model-path",
         type=Path,
-        default=Path("src/disasters/hurricane/model/hurricane_model.pt"),
+        default=Path("src/disasters/models/hurricane_model.pt"),
         help="Path to hurricane model artifact.",
     )
     parser.add_argument(
         "--input-csv",
         type=Path,
-        default=Path("src/disasters/hurricane/data/raw/hurricane_tracks_merged.csv"),
+        default=Path("src/disasters/data/hurricane/raw/hurricane_tracks_merged.csv"),
         help="Path to merged hurricane tracks csv.",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("src/disasters/hurricane/tiles"),
+        default=Path("src/disasters/tiles/hurricane"),
         help="Output directory for overlay cube + config.",
     )
     parser.add_argument("--start-year", type=int, default=2000)

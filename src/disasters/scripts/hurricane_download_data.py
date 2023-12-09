@@ -24,13 +24,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--raw-dir",
         type=Path,
-        default=Path("src/disasters/hurricane/data/raw"),
+        default=Path("src/disasters/data/hurricane/raw"),
         help="Directory where raw source files are stored.",
     )
     parser.add_argument(
         "--output-path",
         type=Path,
-        default=Path("src/disasters/hurricane/data/raw/hurricane_tracks_merged.csv"),
+        default=Path("src/disasters/data/hurricane/raw/hurricane_tracks_merged.csv"),
         help="Path for merged canonical hurricane tracks CSV.",
     )
     parser.add_argument(
