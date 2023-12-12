@@ -1,4 +1,4 @@
-"""Generate a precomputed monthly wildfire overlay cube (2000-2030)."""
+"""Generate a precomputed monthly wildfires overlay cube (2000-2030)."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from src.disasters.models.wildfire_artifact import load_model_bundle
+from src.disasters.models.wildfires import load_model_bundle
 
 
 TRAIN_END_YEAR = 2018
@@ -42,29 +42,29 @@ MONTH_MAP = {
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Generate wildfire monthly overlay cube.")
+    parser = argparse.ArgumentParser(description="Generate wildfires monthly overlay cube.")
     parser.add_argument(
         "--model-path",
         type=Path,
-        default=Path("src/disasters/models/wildfire_model.pt"),
-        help="Path to wildfire model artifact.",
+        default=Path("src/disasters/models/wildfires.pt"),
+        help="Path to wildfires model artifact.",
     )
     parser.add_argument(
         "--forest-path",
         type=Path,
-        default=Path("src/disasters/data/wildfire/raw/forestfires_uci.csv"),
+        default=Path("src/disasters/data/wildfires/raw/forestfires_uci.csv"),
         help="Path to UCI forest fires csv.",
     )
     parser.add_argument(
         "--algerian-path",
         type=Path,
-        default=Path("src/disasters/data/wildfire/raw/algerian_forest_fires.csv"),
+        default=Path("src/disasters/data/wildfires/raw/algerian_forest_fires.csv"),
         help="Path to Algerian forest fires csv-like file.",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("src/disasters/tiles/wildfire"),
+        default=Path("src/disasters/tiles/wildfires"),
         help="Output directory for overlay cube + config.",
     )
     parser.add_argument("--start-year", type=int, default=2000)
@@ -309,7 +309,7 @@ def main() -> None:
 
     model_bundle = torch.load(args.model_path, map_location="cpu", weights_only=True)
     config = {
-        "service": "wildfire",
+        "service": "wildfires",
         "start_year": args.start_year,
         "end_year": args.end_year,
         "zoom_min": args.zoom_min,
@@ -330,8 +330,8 @@ def main() -> None:
     config_path = args.output_dir / "overlay_config.json"
     config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
 
-    print(f"Wrote wildfire overlay cube to: {cube_path}")
-    print(f"Wrote wildfire overlay config to: {config_path}")
+    print(f"Wrote wildfires overlay cube to: {cube_path}")
+    print(f"Wrote wildfires overlay config to: {config_path}")
 
 
 if __name__ == "__main__":

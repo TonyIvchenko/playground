@@ -1,8 +1,9 @@
-"""Train wildfire ignition PyTorch model from real wildfire records."""
+"""Train hiricaines rapid-intensification PyTorch model from real tracks."""
 
 from __future__ import annotations
 
 import argparse
+import math
 from pathlib import Path
 
 import pandas as pd
@@ -10,41 +11,84 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from src.disasters.models.wildfire_artifact import save_model_bundle
-from src.disasters.models.wildfire_model import FEATURE_NAMES, WildfireMLP, create_model
+from src.disasters.models.hiricaines import save_model_bundle
+from src.disasters.models.hiricaines import FEATURE_NAMES, HiricainesMLP, create_model
 
 
 TARGET_NAME = "target"
 
 
-def load_raw_dataset(path: Path) -> pd.DataFrame:
+def load_raw_dataset(path: Path, max_rows: int | None = None) -> pd.DataFrame:
     if not path.exists():
         raise FileNotFoundError(
-            f"Dataset not found at {path}. Run: `python -m src.disasters.scripts.wildfire_download_data`"
+            f"Dataset not found at {path}. Run: `python -m src.disasters.scripts.hiricaines_download_data`"
         )
 
-    df = pd.read_csv(path)
-    required = {"temp_c", "humidity_pct", "wind_kph", "ffmc", "dmc", "drought_code", "isi", "target"}
-    missing = sorted(required - set(df.columns))
-    if missing:
-        raise ValueError(f"Raw dataset is missing expected columns: {missing}")
+    usecols = ["storm_id", "iso_time", "lat", "lon", "vmax_kt", "min_pressure_mb", "source"]
+    df = pd.read_csv(path, usecols=usecols, low_memory=False, nrows=max_rows)
     return df
 
 
 def prepare_training_dataframe(raw_df: pd.DataFrame) -> pd.DataFrame:
-    training_df = pd.DataFrame(
-        {
-            "temp_c": pd.to_numeric(raw_df["temp_c"], errors="coerce"),
-            "humidity_pct": pd.to_numeric(raw_df["humidity_pct"], errors="coerce"),
-            "wind_kph": pd.to_numeric(raw_df["wind_kph"], errors="coerce"),
-            "ffmc": pd.to_numeric(raw_df["ffmc"], errors="coerce"),
-            "dmc": pd.to_numeric(raw_df["dmc"], errors="coerce"),
-            "drought_code": pd.to_numeric(raw_df["drought_code"], errors="coerce"),
-            "isi": pd.to_numeric(raw_df["isi"], errors="coerce"),
-            TARGET_NAME: pd.to_numeric(raw_df["target"], errors="coerce").clip(0.0, 1.0),
-        }
-    )
-    training_df = training_df.dropna().reset_index(drop=True)
+    df = raw_df.copy()
+    df["storm_id"] = df["storm_id"].astype(str).str.strip()
+    df["iso_time"] = pd.to_datetime(df["iso_time"], errors="coerce")
+    df["lat"] = pd.to_numeric(df["lat"], errors="coerce")
+    df["lon"] = pd.to_numeric(df["lon"], errors="coerce")
+    df["vmax_kt"] = pd.to_numeric(df["vmax_kt"], errors="coerce")
+    df["min_pressure_mb"] = pd.to_numeric(df["min_pressure_mb"], errors="coerce")
+
+    df = df.dropna(subset=["storm_id", "iso_time", "vmax_kt", "lat", "lon"]).copy()
+    df = df[df["vmax_kt"].between(0.0, 200.0)].copy()
+    df = df[df["lat"].between(-5.0, 70.0)].copy()
+    df = df[df["lon"].between(-120.0, 20.0)].copy()
+    df = df.sort_values(["storm_id", "iso_time"]).reset_index(drop=True)
+    df["month"] = df["iso_time"].dt.month.astype(float)
+    angle = 2.0 * math.pi * df["month"] / 12.0
+    df["month_sin"] = angle.map(math.sin)
+    df["month_cos"] = angle.map(math.cos)
+    df["abs_lat"] = df["lat"].abs()
+    df["pressure_deficit"] = 1010.0 - df["min_pressure_mb"]
+    df["target_time"] = df["iso_time"] + pd.Timedelta(hours=24)
+
+    merged_parts: list[pd.DataFrame] = []
+    for _, group in df.groupby("storm_id", sort=False):
+        group = group.sort_values("iso_time").copy()
+        group["prev_time"] = group["iso_time"].shift(1)
+        group["prev_vmax"] = group["vmax_kt"].shift(1)
+        group["prev_pressure"] = group["min_pressure_mb"].shift(1)
+        delta_hours = (group["iso_time"] - group["prev_time"]).dt.total_seconds() / 3600.0
+        step = (delta_hours / 6.0).where(delta_hours > 0.0)
+        group["dvmax_6h"] = (group["vmax_kt"] - group["prev_vmax"]) / step
+        group["dpres_6h"] = (group["min_pressure_mb"] - group["prev_pressure"]) / step
+
+        future = group[["iso_time", "vmax_kt"]].rename(
+            columns={"iso_time": "future_time", "vmax_kt": "future_vmax_kt"}
+        )
+        merged_group = pd.merge_asof(
+            group.sort_values("target_time"),
+            future.sort_values("future_time"),
+            left_on="target_time",
+            right_on="future_time",
+            tolerance=pd.Timedelta(hours=3),
+            direction="nearest",
+        )
+        merged_parts.append(merged_group)
+
+    merged = pd.concat(merged_parts, ignore_index=True)
+    merged = merged.dropna(subset=["future_vmax_kt"]).copy()
+    merged["target"] = (merged["future_vmax_kt"] - merged["vmax_kt"] >= 30.0).astype(float)
+    pressure_median = float(merged["min_pressure_mb"].median())
+    if pd.isna(pressure_median):
+        pressure_median = 1000.0
+    merged["min_pressure_mb"] = merged["min_pressure_mb"].fillna(pressure_median)
+    merged["pressure_deficit"] = merged["pressure_deficit"].fillna(1010.0 - pressure_median)
+    merged["dvmax_6h"] = pd.to_numeric(merged["dvmax_6h"], errors="coerce").fillna(0.0).clip(-60.0, 60.0)
+    merged["dpres_6h"] = pd.to_numeric(merged["dpres_6h"], errors="coerce").fillna(0.0).clip(-60.0, 60.0)
+
+    training_df = merged[FEATURE_NAMES + [TARGET_NAME]].dropna().reset_index(drop=True)
+    if training_df.empty:
+        raise ValueError("No usable training rows after preprocessing.")
     return training_df
 
 
@@ -90,7 +134,7 @@ def train_model(
     learning_rate: float,
     weight_decay: float,
     seed: int,
-) -> tuple[WildfireMLP, torch.Tensor, torch.Tensor, float, float, float]:
+) -> tuple[HiricainesMLP, torch.Tensor, torch.Tensor, float, float, float]:
     torch.manual_seed(seed)
 
     feature_mean = x_train.mean(dim=0, keepdim=True)
@@ -135,44 +179,58 @@ def train_model(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Train wildfire PyTorch model from real data.")
+    parser = argparse.ArgumentParser(description="Train hiricaines PyTorch model from real data.")
     parser.add_argument(
         "--input-csv",
         type=Path,
-        default=Path("src/disasters/data/wildfire/raw/wildfire_training_merged.csv"),
-        help="Path to merged canonical wildfire CSV produced by download_data.py.",
+        default=Path("src/disasters/data/hiricaines/raw/hiricaines_tracks_merged.csv"),
+        help="Path to merged canonical tracks CSV produced by download_data.py.",
     )
     parser.add_argument(
         "--processed-csv",
         type=Path,
-        default=Path("src/disasters/data/wildfire/processed/wildfire_training.csv"),
+        default=Path("src/disasters/data/hiricaines/processed/hiricaines_training.csv"),
         help="Where to write processed training rows for inspection.",
     )
     parser.add_argument(
         "--output-path",
         type=Path,
-        default=Path("src/disasters/models/wildfire_model.pt"),
-        help="Where to store trained model artifact.",
+        default=Path("src/disasters/models/hiricaines.pt"),
+        help="Where to write trained model artifact.",
     )
-    parser.add_argument("--epochs", type=int, default=260)
-    parser.add_argument("--batch-size", type=int, default=64)
-    parser.add_argument("--learning-rate", type=float, default=8e-4)
-    parser.add_argument("--weight-decay", type=float, default=0.0)
-    parser.add_argument("--seed", type=int, default=41, help="Random seed used to initialize model training.")
+    parser.add_argument(
+        "--max-rows",
+        type=int,
+        default=None,
+        help="Optional number of top raw rows to read. Default uses the full file.",
+    )
+    parser.add_argument(
+        "--max-samples",
+        type=int,
+        default=200000,
+        help="Max processed rows used for training (sampled after preprocessing).",
+    )
+    parser.add_argument("--epochs", type=int, default=140)
+    parser.add_argument("--batch-size", type=int, default=512)
+    parser.add_argument("--learning-rate", type=float, default=9e-4)
+    parser.add_argument("--weight-decay", type=float, default=1e-4)
+    parser.add_argument("--seed", type=int, default=42, help="Random seed used to initialize model training.")
     parser.add_argument(
         "--split-seed",
         type=int,
         default=42,
         help="Random seed used to shuffle rows before the train/validation split.",
     )
-    parser.add_argument("--model-version", type=str, default="0.5.3")
+    parser.add_argument("--model-version", type=str, default="0.5.2")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    raw_df = load_raw_dataset(args.input_csv)
+    raw_df = load_raw_dataset(args.input_csv, max_rows=args.max_rows)
     training_df = prepare_training_dataframe(raw_df)
+    if args.max_samples is not None and len(training_df) > args.max_samples:
+        training_df = training_df.sample(n=args.max_samples, random_state=args.split_seed).reset_index(drop=True)
 
     args.processed_csv.parent.mkdir(parents=True, exist_ok=True)
     training_df.to_csv(args.processed_csv, index=False)

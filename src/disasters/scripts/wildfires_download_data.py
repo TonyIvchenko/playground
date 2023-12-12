@@ -1,4 +1,4 @@
-"""Download and harmonize wildfire tabular data from multiple public sources."""
+"""Download and harmonize wildfires tabular data from multiple public sources."""
 
 from __future__ import annotations
 
@@ -14,18 +14,18 @@ ALGERIAN_FIRES_URL = "https://archive.ics.uci.edu/ml/machine-learning-databases/
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Download and harmonize wildfire training data.")
+    parser = argparse.ArgumentParser(description="Download and harmonize wildfires training data.")
     parser.add_argument(
         "--raw-dir",
         type=Path,
-        default=Path("src/disasters/data/wildfire/raw"),
+        default=Path("src/disasters/data/wildfires/raw"),
         help="Directory where raw source files are stored.",
     )
     parser.add_argument(
         "--output-path",
         type=Path,
-        default=Path("src/disasters/data/wildfire/raw/wildfire_training_merged.csv"),
-        help="Path for merged canonical wildfire training CSV.",
+        default=Path("src/disasters/data/wildfires/raw/wildfires_training_merged.csv"),
+        help="Path for merged canonical wildfires training CSV.",
     )
     parser.add_argument(
         "--forest-fires-url",
@@ -136,7 +136,7 @@ def main() -> None:
 
     print(f"Downloaded UCI Forest Fires to: {forest_path} ({len(forest_df)} rows)")
     print(f"Downloaded UCI Algerian Forest Fires to: {algerian_path} ({len(algerian_df)} rows)")
-    print(f"Wrote merged canonical wildfire rows to: {args.output_path} ({len(merged_df)} rows)")
+    print(f"Wrote merged canonical wildfires rows to: {args.output_path} ({len(merged_df)} rows)")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""Generate a precomputed monthly hurricane overlay cube (2000-2030)."""
+"""Generate a precomputed monthly hiricaines overlay cube (2000-2030)."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from src.disasters.models.hurricane_artifact import load_model_bundle
+from src.disasters.models.hiricaines import load_model_bundle
 
 
 TRAIN_END_YEAR = 2018
@@ -26,23 +26,23 @@ GRID_W = 320
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Generate hurricane monthly overlay cube.")
+    parser = argparse.ArgumentParser(description="Generate hiricaines monthly overlay cube.")
     parser.add_argument(
         "--model-path",
         type=Path,
-        default=Path("src/disasters/models/hurricane_model.pt"),
-        help="Path to hurricane model artifact.",
+        default=Path("src/disasters/models/hiricaines.pt"),
+        help="Path to hiricaines model artifact.",
     )
     parser.add_argument(
         "--input-csv",
         type=Path,
-        default=Path("src/disasters/data/hurricane/raw/hurricane_tracks_merged.csv"),
-        help="Path to merged hurricane tracks csv.",
+        default=Path("src/disasters/data/hiricaines/raw/hiricaines_tracks_merged.csv"),
+        help="Path to merged hiricaines tracks csv.",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("src/disasters/tiles/hurricane"),
+        default=Path("src/disasters/tiles/hiricaines"),
         help="Output directory for overlay cube + config.",
     )
     parser.add_argument("--start-year", type=int, default=2000)
@@ -66,7 +66,7 @@ def build_frames(start_year: int, end_year: int) -> list[tuple[int, int]]:
 
 def load_points(path: Path, model_path: Path) -> pd.DataFrame:
     if not path.exists():
-        raise FileNotFoundError(f"Hurricane tracks file not found: {path}")
+        raise FileNotFoundError(f"Hiricaines tracks file not found: {path}")
 
     usecols = ["storm_id", "iso_time", "lat", "lon", "vmax_kt", "min_pressure_mb"]
     df = pd.read_csv(path, usecols=usecols, low_memory=False)
@@ -249,7 +249,7 @@ def main() -> None:
 
     model_bundle = torch.load(args.model_path, map_location="cpu", weights_only=True)
     config = {
-        "service": "hurricane",
+        "service": "hiricaines",
         "start_year": args.start_year,
         "end_year": args.end_year,
         "zoom_min": args.zoom_min,
@@ -270,8 +270,8 @@ def main() -> None:
     config_path = args.output_dir / "overlay_config.json"
     config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
 
-    print(f"Wrote hurricane overlay cube to: {cube_path}")
-    print(f"Wrote hurricane overlay config to: {config_path}")
+    print(f"Wrote hiricaines overlay cube to: {cube_path}")
+    print(f"Wrote hiricaines overlay config to: {config_path}")
 
 
 if __name__ == "__main__":
