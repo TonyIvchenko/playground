@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.disasters.scripts.hiricaines_download_data import load_hurdat2, merge_sources, parse_lat_lon
+from src.disasters.scripts.huricaines.download_data import load_hurdat2, merge_sources, parse_lat_lon
 
 
 def test_parse_lat_lon():

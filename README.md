@@ -6,10 +6,13 @@ Minimal multi-service playground.
 
 - `src/test`: Redis write-loop service used for basic container/runtime checks
 - `src/disasters`: unified app + modeling workspace with this layout:
-- `src/disasters/models`: `wildfires.py`, `hiricaines.py`, `wildfires.pt`, `hiricaines.pt`
-- `src/disasters/scripts`: `wildfires_*` and `hiricaines_*` download/train/tile scripts
-- `src/disasters/notebooks`: wildfires/hiricaines EDA + evaluation notebooks
-- `src/disasters/tests`: wildfires/hiricaines parser tests and unified app inference tests
+- `src/disasters/models`: `wildfires.py`, `huricaines.py`, `wildfires.pt`, `huricaines.pt`
+- `src/disasters/scripts/wildfires`: `download_data.py`, `train_model.py`, `generate_tiles.py`
+- `src/disasters/scripts/huricaines`: `download_data.py`, `train_model.py`, `generate_tiles.py`
+- `src/disasters/notebooks`: wildfires/huricaines EDA + evaluation notebooks
+- `src/disasters/tests/wildfires`: download/train/tile tests
+- `src/disasters/tests/huricaines`: download/train/tile tests
+- `src/disasters/tests/test_disasters_main.py`: unified app inference tests
 
 ## Dependency Layout
 
@@ -40,20 +43,20 @@ REDIS_HOST=localhost REDIS_PORT=6379 python -m src.test.main
 ## Rebuild Data + Models
 
 ```bash
-python -m src.disasters.scripts.hiricaines_download_data
-python -m src.disasters.scripts.hiricaines_train_model --model-version 0.5.2
-python -m src.disasters.scripts.hiricaines_generate_overlay_tiles
+python -m src.disasters.scripts.huricaines.download_data
+python -m src.disasters.scripts.huricaines.train_model --model-version 0.5.2
+python -m src.disasters.scripts.huricaines.generate_tiles
 
-python -m src.disasters.scripts.wildfires_download_data
-python -m src.disasters.scripts.wildfires_train_model --model-version 0.5.3
-python -m src.disasters.scripts.wildfires_generate_overlay_tiles
+python -m src.disasters.scripts.wildfires.download_data
+python -m src.disasters.scripts.wildfires.train_model --model-version 0.5.3
+python -m src.disasters.scripts.wildfires.generate_tiles
 ```
 
 Open notebooks for EDA/eval:
 
 ```bash
-conda run -n playground jupyter lab src/disasters/notebooks/hiricaines_modeling.ipynb
-conda run -n playground jupyter lab src/disasters/notebooks/wildfires_modeling.ipynb
+conda run -n playground jupyter lab src/disasters/notebooks/huricaines.ipynb
+conda run -n playground jupyter lab src/disasters/notebooks/wildfires.ipynb
 ```
 
 ## Make Commands

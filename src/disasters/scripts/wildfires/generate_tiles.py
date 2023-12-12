@@ -299,7 +299,7 @@ def main() -> None:
         risk_cube[i] = frame_risk.astype(np.float32)
         activity_cube[i] = frame_activity.astype(np.float32)
 
-    cube_path = args.output_dir / "overlay_cube.npz"
+    cube_path = args.output_dir / "overlay.npz"
     np.savez_compressed(
         cube_path,
         risk=risk_cube.astype(np.float16),
@@ -327,7 +327,7 @@ def main() -> None:
         "model_version": str(model_bundle.get("model_version", "unknown")),
         "frame_count": len(frame_labels),
     }
-    config_path = args.output_dir / "overlay_config.json"
+    config_path = args.output_dir / "overlay.json"
     config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
 
     print(f"Wrote wildfires overlay cube to: {cube_path}")

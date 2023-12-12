@@ -1,4 +1,4 @@
-"""Unified climate-risk service with wildfires + hiricaines overlays and inference."""
+"""Unified climate-risk service with wildfires + huricaines overlays and inference."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from PIL import Image
 import torch
 import uvicorn
 
-from src.disasters.models.hiricaines import load_model_bundle as load_hiricaines_model_bundle
+from src.disasters.models.huricaines import load_model_bundle as load_huricaines_model_bundle
 from src.disasters.models.wildfires import load_model_bundle as load_wildfires_model_bundle
 
 
@@ -28,22 +28,22 @@ SERVICE_NAME = os.getenv("SERVICE_NAME", "Climate Risk Map Service")
 WILDFIRES_MODEL_PATH = Path(
     os.getenv("WILDFIRES_MODEL_PATH", str(Path(__file__).resolve().parent / "models" / "wildfires.pt"))
 )
-HIRICAINES_MODEL_PATH = Path(
-    os.getenv("HIRICAINES_MODEL_PATH", str(Path(__file__).resolve().parent / "models" / "hiricaines.pt"))
+HURICAINES_MODEL_PATH = Path(
+    os.getenv("HURICAINES_MODEL_PATH", str(Path(__file__).resolve().parent / "models" / "huricaines.pt"))
 )
 
 WILDFIRES_TILES_DIR = Path(__file__).resolve().parent / "tiles" / "wildfires"
-HIRICAINES_TILES_DIR = Path(__file__).resolve().parent / "tiles" / "hiricaines"
+HURICAINES_TILES_DIR = Path(__file__).resolve().parent / "tiles" / "huricaines"
 
 TILE_SIZE = 256
 SAMPLE_SIZE = 64
 
 
 wildfires_model, wildfires_mean, wildfires_std, WILDFIRES_MODEL_VERSION = load_wildfires_model_bundle(WILDFIRES_MODEL_PATH)
-hiricaines_model, hiricaines_mean, hiricaines_std, HIRICAINES_MODEL_VERSION = load_hiricaines_model_bundle(HIRICAINES_MODEL_PATH)
+huricaines_model, huricaines_mean, huricaines_std, HURICAINES_MODEL_VERSION = load_huricaines_model_bundle(HURICAINES_MODEL_PATH)
 
 WILDFIRES_MODEL_BUNDLE = torch.load(WILDFIRES_MODEL_PATH, map_location="cpu", weights_only=True)
-HIRICAINES_MODEL_BUNDLE = torch.load(HIRICAINES_MODEL_PATH, map_location="cpu", weights_only=True)
+HURICAINES_MODEL_BUNDLE = torch.load(HURICAINES_MODEL_PATH, map_location="cpu", weights_only=True)
 
 
 def _load_overlay(
@@ -79,8 +79,8 @@ def _load_overlay(
 
 
 WILDFIRES_OVERLAY = _load_overlay(
-    cube_path=WILDFIRES_TILES_DIR / "overlay_cube.npz",
-    config_path=WILDFIRES_TILES_DIR / "overlay_config.json",
+    cube_path=WILDFIRES_TILES_DIR / "overlay.npz",
+    config_path=WILDFIRES_TILES_DIR / "overlay.json",
     default_config={
         "start_year": 2000,
         "end_year": 2030,
@@ -98,9 +98,9 @@ WILDFIRES_OVERLAY = _load_overlay(
     default_shape=(120, 180),
 )
 
-HIRICAINES_OVERLAY = _load_overlay(
-    cube_path=HIRICAINES_TILES_DIR / "overlay_cube.npz",
-    config_path=HIRICAINES_TILES_DIR / "overlay_config.json",
+HURICAINES_OVERLAY = _load_overlay(
+    cube_path=HURICAINES_TILES_DIR / "overlay.npz",
+    config_path=HURICAINES_TILES_DIR / "overlay.json",
     default_config={
         "start_year": 2000,
         "end_year": 2030,
@@ -118,15 +118,15 @@ HIRICAINES_OVERLAY = _load_overlay(
     default_shape=(160, 220),
 )
 
-if len(WILDFIRES_OVERLAY["frames"]) <= len(HIRICAINES_OVERLAY["frames"]):
+if len(WILDFIRES_OVERLAY["frames"]) <= len(HURICAINES_OVERLAY["frames"]):
     FRAMES = list(WILDFIRES_OVERLAY["frames"])
 else:
-    FRAMES = list(HIRICAINES_OVERLAY["frames"])
+    FRAMES = list(HURICAINES_OVERLAY["frames"])
 
 
 OVERLAYS: dict[str, dict[str, object]] = {
     "wildfires": WILDFIRES_OVERLAY,
-    "hiricaines": HIRICAINES_OVERLAY,
+    "huricaines": HURICAINES_OVERLAY,
 }
 
 
@@ -140,11 +140,11 @@ def _phase_for_frame(frame: str) -> str:
     year = int(frame[:4])
     train_end = min(
         int(WILDFIRES_OVERLAY["config"]["training_end_year"]),
-        int(HIRICAINES_OVERLAY["config"]["training_end_year"]),
+        int(HURICAINES_OVERLAY["config"]["training_end_year"]),
     )
     eval_end = min(
         int(WILDFIRES_OVERLAY["config"]["eval_end_year"]),
-        int(HIRICAINES_OVERLAY["config"]["eval_end_year"]),
+        int(HURICAINES_OVERLAY["config"]["eval_end_year"]),
     )
     if year <= train_end:
         return "training"
@@ -163,7 +163,7 @@ def _risk_level_wildfires(probability: float) -> str:
     return "extreme"
 
 
-def _risk_level_hiricaines(probability: float) -> str:
+def _risk_level_huricaines(probability: float) -> str:
     if probability < 0.25:
         return "low"
     if probability < 0.50:
@@ -304,7 +304,7 @@ def predict_wildfires(
     }
 
 
-def predict_hiricaines(
+def predict_huricaines(
     storm_id: str,
     vmax_kt: float,
     min_pressure_mb: float,
@@ -333,17 +333,17 @@ def predict_hiricaines(
         ],
         dtype=torch.float32,
     )
-    x = (x - hiricaines_mean) / hiricaines_std
+    x = (x - huricaines_mean) / huricaines_std
 
     with torch.no_grad():
-        probability = float(torch.sigmoid(hiricaines_model(x))[0, 0].item())
+        probability = float(torch.sigmoid(huricaines_model(x))[0, 0].item())
         probability = max(0.0, min(1.0, probability))
 
     return {
         "storm_id": storm_id,
-        "model_version": HIRICAINES_MODEL_VERSION,
+        "model_version": HURICAINES_MODEL_VERSION,
         "ri_probability_24h": probability,
-        "risk_level": _risk_level_hiricaines(probability),
+        "risk_level": _risk_level_huricaines(probability),
     }
 
 
@@ -363,20 +363,20 @@ def _map_html() -> str:
         "zoom_max": 8,
         "training_end_year": min(
             int(WILDFIRES_OVERLAY["config"]["training_end_year"]),
-            int(HIRICAINES_OVERLAY["config"]["training_end_year"]),
+            int(HURICAINES_OVERLAY["config"]["training_end_year"]),
         ),
         "eval_end_year": min(
             int(WILDFIRES_OVERLAY["config"]["eval_end_year"]),
-            int(HIRICAINES_OVERLAY["config"]["eval_end_year"]),
+            int(HURICAINES_OVERLAY["config"]["eval_end_year"]),
         ),
         "hazards": {
             "wildfires": {
                 "zoom_min": int(WILDFIRES_OVERLAY["config"]["zoom_min"]),
                 "zoom_max": int(WILDFIRES_OVERLAY["config"]["zoom_max"]),
             },
-            "hiricaines": {
-                "zoom_min": int(HIRICAINES_OVERLAY["config"]["zoom_min"]),
-                "zoom_max": int(HIRICAINES_OVERLAY["config"]["zoom_max"]),
+            "huricaines": {
+                "zoom_min": int(HURICAINES_OVERLAY["config"]["zoom_min"]),
+                "zoom_max": int(HURICAINES_OVERLAY["config"]["zoom_max"]),
             },
         },
     }
@@ -402,7 +402,7 @@ def _map_html() -> str:
       </select>
     </div>
     <div class="overlay-card">
-      <label><input id="hu-enabled" type="checkbox" checked /> Hiricaines overlay</label>
+      <label><input id="hu-enabled" type="checkbox" checked /> Huricaines overlay</label>
       <select id="hu-layer">
         <option value="risk">Risk Probability</option>
         <option value="activity">Activity Intensity</option>
@@ -530,7 +530,7 @@ def _map_html() -> str:
       pushOverlay("wildfires", wfLayer.value, frameIdx, wfLayer.value === "risk" ? 0.58 : 0.46);
     }}
     if (huEnabled.checked) {{
-      pushOverlay("hiricaines", huLayer.value, frameIdx, huLayer.value === "risk" ? 0.62 : 0.50);
+      pushOverlay("huricaines", huLayer.value, frameIdx, huLayer.value === "risk" ? 0.62 : 0.50);
     }}
   }};
 
@@ -594,9 +594,9 @@ with gr.Blocks(title=SERVICE_NAME) as demo:
     gr.Markdown("## Training")
     gr.Markdown(
         f"- Wildfires model version: **{WILDFIRES_MODEL_VERSION}**\n"
-        f"- Hiricaines model version: **{HIRICAINES_MODEL_VERSION}**\n"
+        f"- Huricaines model version: **{HURICAINES_MODEL_VERSION}**\n"
         f"- Wildfires training rows: **{int(WILDFIRES_MODEL_BUNDLE.get('dataset_rows', 0))}**\n"
-        f"- Hiricaines training rows: **{int(HIRICAINES_MODEL_BUNDLE.get('dataset_rows', 0))}**"
+        f"- Huricaines training rows: **{int(HURICAINES_MODEL_BUNDLE.get('dataset_rows', 0))}**"
     )
 
     gr.Markdown("## Eval")
@@ -604,9 +604,9 @@ with gr.Blocks(title=SERVICE_NAME) as demo:
         f"- Wildfires val accuracy: **{_as_percent(WILDFIRES_MODEL_BUNDLE.get('val_accuracy'))}**\n"
         f"- Wildfires val balanced accuracy: **{_as_percent(WILDFIRES_MODEL_BUNDLE.get('val_balanced_accuracy'))}**\n"
         f"- Wildfires val AUROC: **{_as_percent(WILDFIRES_MODEL_BUNDLE.get('val_auc'))}**\n"
-        f"- Hiricaines val accuracy: **{_as_percent(HIRICAINES_MODEL_BUNDLE.get('val_accuracy'))}**\n"
-        f"- Hiricaines val balanced accuracy: **{_as_percent(HIRICAINES_MODEL_BUNDLE.get('val_balanced_accuracy'))}**\n"
-        f"- Hiricaines val AUROC: **{_as_percent(HIRICAINES_MODEL_BUNDLE.get('val_auc'))}**"
+        f"- Huricaines val accuracy: **{_as_percent(HURICAINES_MODEL_BUNDLE.get('val_accuracy'))}**\n"
+        f"- Huricaines val balanced accuracy: **{_as_percent(HURICAINES_MODEL_BUNDLE.get('val_balanced_accuracy'))}**\n"
+        f"- Huricaines val AUROC: **{_as_percent(HURICAINES_MODEL_BUNDLE.get('val_auc'))}**"
     )
 
     gr.Markdown("## Inference")
@@ -631,7 +631,7 @@ with gr.Blocks(title=SERVICE_NAME) as demo:
             outputs=wildfires_output,
         )
 
-    with gr.Tab("Hiricaines"):
+    with gr.Tab("Huricaines"):
         with gr.Row():
             storm_id = gr.Textbox(label="Storm ID", value="AL09")
             vmax_kt = gr.Number(label="Max Wind (kt)", value=70)
@@ -642,12 +642,12 @@ with gr.Blocks(title=SERVICE_NAME) as demo:
             dvmax_6h = gr.Number(label="Recent Wind Change (kt per 6h)", value=5.0)
             dpres_6h = gr.Number(label="Recent Pressure Change (mb per 6h)", value=-3.0)
 
-        hiricaines_output = gr.JSON(label="Hiricaines Prediction")
-        hiricaines_run = gr.Button("Predict Hiricaines")
-        hiricaines_run.click(
-            fn=predict_hiricaines,
+        huricaines_output = gr.JSON(label="Huricaines Prediction")
+        huricaines_run = gr.Button("Predict Huricaines")
+        huricaines_run.click(
+            fn=predict_huricaines,
             inputs=[storm_id, vmax_kt, min_pressure_mb, lat, lon, month, dvmax_6h, dpres_6h],
-            outputs=hiricaines_output,
+            outputs=huricaines_output,
         )
 
 
@@ -661,7 +661,7 @@ def health() -> dict[str, object]:
         "status": "ok",
         "frames": len(FRAMES),
         "wildfires_model_version": WILDFIRES_MODEL_VERSION,
-        "hiricaines_model_version": HIRICAINES_MODEL_VERSION,
+        "huricaines_model_version": HURICAINES_MODEL_VERSION,
     }
 
 
