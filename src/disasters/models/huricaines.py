@@ -21,7 +21,7 @@ FEATURE_NAMES = [
 ]
 
 
-class HiricainesMLP(nn.Module):
+class HuricainesMLP(nn.Module):
     def __init__(self) -> None:
         super().__init__()
         self.net = nn.Sequential(
@@ -36,13 +36,13 @@ class HiricainesMLP(nn.Module):
         return self.net(x)
 
 
-def create_model() -> HiricainesMLP:
-    return HiricainesMLP()
+def create_model() -> HuricainesMLP:
+    return HuricainesMLP()
 
 
 def save_model_bundle(
     path: Path,
-    model: HiricainesMLP,
+    model: HuricainesMLP,
     feature_mean: torch.Tensor,
     feature_std: torch.Tensor,
     model_version: str,
@@ -67,7 +67,7 @@ def save_model_bundle(
     torch.save(bundle, path)
 
 
-def load_model_bundle(path: Path) -> tuple[HiricainesMLP, torch.Tensor, torch.Tensor, str]:
+def load_model_bundle(path: Path) -> tuple[HuricainesMLP, torch.Tensor, torch.Tensor, str]:
     bundle = torch.load(path, map_location="cpu", weights_only=True)
     model = create_model()
     model.load_state_dict(bundle["state_dict"])

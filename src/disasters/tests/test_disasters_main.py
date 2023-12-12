@@ -1,7 +1,7 @@
 from src.disasters.main import (
-    HIRICAINES_MODEL_VERSION,
+    HURICAINES_MODEL_VERSION,
     WILDFIRES_MODEL_VERSION,
-    predict_hiricaines,
+    predict_huricaines,
     predict_wildfires,
 )
 
@@ -23,8 +23,8 @@ def test_predict_wildfires_shape_and_values():
     assert result["risk_level"] in {"low", "moderate", "high", "extreme"}
 
 
-def test_predict_hiricaines_shape_and_values():
-    result = predict_hiricaines(
+def test_predict_huricaines_shape_and_values():
+    result = predict_huricaines(
         storm_id="AL09",
         vmax_kt=70,
         min_pressure_mb=980,
@@ -35,6 +35,6 @@ def test_predict_hiricaines_shape_and_values():
         dpres_6h=-3.0,
     )
     assert result["storm_id"] == "AL09"
-    assert result["model_version"] == HIRICAINES_MODEL_VERSION
+    assert result["model_version"] == HURICAINES_MODEL_VERSION
     assert 0.0 <= result["ri_probability_24h"] <= 1.0
     assert result["risk_level"] in {"low", "moderate", "high", "extreme"}

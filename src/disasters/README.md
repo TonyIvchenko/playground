@@ -1,24 +1,28 @@
 # Disasters Service
 
-Unified Gradio app service that overlays wildfires and hiricaines predictions on one Google Map.
+Unified Gradio app service that overlays wildfires and huricaines predictions on one Google Map.
 
 ## Layout
 
 - `models/wildfires.py`
-- `models/hiricaines.py`
+- `models/huricaines.py`
 - `models/wildfires.pt`
-- `models/hiricaines.pt`
-- `scripts/wildfires_download_data.py`
-- `scripts/wildfires_train_model.py`
-- `scripts/wildfires_generate_overlay_tiles.py`
-- `scripts/hiricaines_download_data.py`
-- `scripts/hiricaines_train_model.py`
-- `scripts/hiricaines_generate_overlay_tiles.py`
-- `notebooks/wildfires_modeling.ipynb`
-- `notebooks/hiricaines_modeling.ipynb`
+- `models/huricaines.pt`
+- `scripts/wildfires/download_data.py`
+- `scripts/wildfires/train_model.py`
+- `scripts/wildfires/generate_tiles.py`
+- `scripts/huricaines/download_data.py`
+- `scripts/huricaines/train_model.py`
+- `scripts/huricaines/generate_tiles.py`
+- `notebooks/wildfires.ipynb`
+- `notebooks/huricaines.ipynb`
 - `tests/test_disasters_main.py`
-- `tests/test_wildfires_download_data.py`
-- `tests/test_hiricaines_download_data.py`
+- `tests/wildfires/test_download_data.py`
+- `tests/wildfires/test_train_model.py`
+- `tests/wildfires/test_generate_tiles.py`
+- `tests/huricaines/test_download_data.py`
+- `tests/huricaines/test_train_model.py`
+- `tests/huricaines/test_generate_tiles.py`
 
 ## Local Run
 
@@ -33,20 +37,20 @@ Open `http://localhost:8080/`.
 ## Data + Training
 
 ```bash
-python -m src.disasters.scripts.hiricaines_download_data
-python -m src.disasters.scripts.hiricaines_train_model --model-version 0.5.2
-python -m src.disasters.scripts.hiricaines_generate_overlay_tiles
+python -m src.disasters.scripts.huricaines.download_data
+python -m src.disasters.scripts.huricaines.train_model --model-version 0.5.2
+python -m src.disasters.scripts.huricaines.generate_tiles
 
-python -m src.disasters.scripts.wildfires_download_data
-python -m src.disasters.scripts.wildfires_train_model --model-version 0.5.3
-python -m src.disasters.scripts.wildfires_generate_overlay_tiles
+python -m src.disasters.scripts.wildfires.download_data
+python -m src.disasters.scripts.wildfires.train_model --model-version 0.5.3
+python -m src.disasters.scripts.wildfires.generate_tiles
 ```
 
 Notebooks:
 
 ```bash
-conda run -n playground jupyter lab src/disasters/notebooks/hiricaines_modeling.ipynb
-conda run -n playground jupyter lab src/disasters/notebooks/wildfires_modeling.ipynb
+conda run -n playground jupyter lab src/disasters/notebooks/huricaines.ipynb
+conda run -n playground jupyter lab src/disasters/notebooks/wildfires.ipynb
 ```
 
 ## Endpoints
@@ -56,7 +60,7 @@ conda run -n playground jupyter lab src/disasters/notebooks/wildfires_modeling.i
 
 Allowed values:
 
-- `hazard`: `wildfires` or `hiricaines`
+- `hazard`: `wildfires` or `huricaines`
 - `layer`: `risk`, `activity`, `confidence`
 
 ## Docker
