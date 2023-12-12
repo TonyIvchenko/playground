@@ -1,4 +1,4 @@
-"""Unified climate-risk service with wildfire + hurricane overlays and inference."""
+"""Unified climate-risk service with wildfires + hiricaines overlays and inference."""
 
 from __future__ import annotations
 
@@ -16,8 +16,8 @@ from PIL import Image
 import torch
 import uvicorn
 
-from src.disasters.models.hurricane_artifact import load_model_bundle as load_hurricane_model_bundle
-from src.disasters.models.wildfire_artifact import load_model_bundle as load_wildfire_model_bundle
+from src.disasters.models.hiricaines import load_model_bundle as load_hiricaines_model_bundle
+from src.disasters.models.wildfires import load_model_bundle as load_wildfires_model_bundle
 
 
 HOST = os.getenv("API_HOST", "0.0.0.0")
@@ -25,25 +25,25 @@ PORT = int(os.getenv("API_PORT", os.getenv("PORT", "8080")))
 GMAPS_API_KEY = os.getenv("GMAPS_API_KEY", "")
 SERVICE_NAME = os.getenv("SERVICE_NAME", "Climate Risk Map Service")
 
-WILDFIRE_MODEL_PATH = Path(
-    os.getenv("WILDFIRE_MODEL_PATH", str(Path(__file__).resolve().parent / "models" / "wildfire_model.pt"))
+WILDFIRES_MODEL_PATH = Path(
+    os.getenv("WILDFIRES_MODEL_PATH", str(Path(__file__).resolve().parent / "models" / "wildfires.pt"))
 )
-HURRICANE_MODEL_PATH = Path(
-    os.getenv("HURRICANE_MODEL_PATH", str(Path(__file__).resolve().parent / "models" / "hurricane_model.pt"))
+HIRICAINES_MODEL_PATH = Path(
+    os.getenv("HIRICAINES_MODEL_PATH", str(Path(__file__).resolve().parent / "models" / "hiricaines.pt"))
 )
 
-WILDFIRE_TILES_DIR = Path(__file__).resolve().parent / "tiles" / "wildfire"
-HURRICANE_TILES_DIR = Path(__file__).resolve().parent / "tiles" / "hurricane"
+WILDFIRES_TILES_DIR = Path(__file__).resolve().parent / "tiles" / "wildfires"
+HIRICAINES_TILES_DIR = Path(__file__).resolve().parent / "tiles" / "hiricaines"
 
 TILE_SIZE = 256
 SAMPLE_SIZE = 64
 
 
-wildfire_model, wildfire_mean, wildfire_std, WILDFIRE_MODEL_VERSION = load_wildfire_model_bundle(WILDFIRE_MODEL_PATH)
-hurricane_model, hurricane_mean, hurricane_std, HURRICANE_MODEL_VERSION = load_hurricane_model_bundle(HURRICANE_MODEL_PATH)
+wildfires_model, wildfires_mean, wildfires_std, WILDFIRES_MODEL_VERSION = load_wildfires_model_bundle(WILDFIRES_MODEL_PATH)
+hiricaines_model, hiricaines_mean, hiricaines_std, HIRICAINES_MODEL_VERSION = load_hiricaines_model_bundle(HIRICAINES_MODEL_PATH)
 
-WILDFIRE_MODEL_BUNDLE = torch.load(WILDFIRE_MODEL_PATH, map_location="cpu", weights_only=True)
-HURRICANE_MODEL_BUNDLE = torch.load(HURRICANE_MODEL_PATH, map_location="cpu", weights_only=True)
+WILDFIRES_MODEL_BUNDLE = torch.load(WILDFIRES_MODEL_PATH, map_location="cpu", weights_only=True)
+HIRICAINES_MODEL_BUNDLE = torch.load(HIRICAINES_MODEL_PATH, map_location="cpu", weights_only=True)
 
 
 def _load_overlay(
@@ -78,9 +78,9 @@ def _load_overlay(
     }
 
 
-WILDFIRE_OVERLAY = _load_overlay(
-    cube_path=WILDFIRE_TILES_DIR / "overlay_cube.npz",
-    config_path=WILDFIRE_TILES_DIR / "overlay_config.json",
+WILDFIRES_OVERLAY = _load_overlay(
+    cube_path=WILDFIRES_TILES_DIR / "overlay_cube.npz",
+    config_path=WILDFIRES_TILES_DIR / "overlay_config.json",
     default_config={
         "start_year": 2000,
         "end_year": 2030,
@@ -98,9 +98,9 @@ WILDFIRE_OVERLAY = _load_overlay(
     default_shape=(120, 180),
 )
 
-HURRICANE_OVERLAY = _load_overlay(
-    cube_path=HURRICANE_TILES_DIR / "overlay_cube.npz",
-    config_path=HURRICANE_TILES_DIR / "overlay_config.json",
+HIRICAINES_OVERLAY = _load_overlay(
+    cube_path=HIRICAINES_TILES_DIR / "overlay_cube.npz",
+    config_path=HIRICAINES_TILES_DIR / "overlay_config.json",
     default_config={
         "start_year": 2000,
         "end_year": 2030,
@@ -118,15 +118,15 @@ HURRICANE_OVERLAY = _load_overlay(
     default_shape=(160, 220),
 )
 
-if len(WILDFIRE_OVERLAY["frames"]) <= len(HURRICANE_OVERLAY["frames"]):
-    FRAMES = list(WILDFIRE_OVERLAY["frames"])
+if len(WILDFIRES_OVERLAY["frames"]) <= len(HIRICAINES_OVERLAY["frames"]):
+    FRAMES = list(WILDFIRES_OVERLAY["frames"])
 else:
-    FRAMES = list(HURRICANE_OVERLAY["frames"])
+    FRAMES = list(HIRICAINES_OVERLAY["frames"])
 
 
 OVERLAYS: dict[str, dict[str, object]] = {
-    "wildfire": WILDFIRE_OVERLAY,
-    "hurricane": HURRICANE_OVERLAY,
+    "wildfires": WILDFIRES_OVERLAY,
+    "hiricaines": HIRICAINES_OVERLAY,
 }
 
 
@@ -139,12 +139,12 @@ def _as_percent(metric: object) -> str:
 def _phase_for_frame(frame: str) -> str:
     year = int(frame[:4])
     train_end = min(
-        int(WILDFIRE_OVERLAY["config"]["training_end_year"]),
-        int(HURRICANE_OVERLAY["config"]["training_end_year"]),
+        int(WILDFIRES_OVERLAY["config"]["training_end_year"]),
+        int(HIRICAINES_OVERLAY["config"]["training_end_year"]),
     )
     eval_end = min(
-        int(WILDFIRE_OVERLAY["config"]["eval_end_year"]),
-        int(HURRICANE_OVERLAY["config"]["eval_end_year"]),
+        int(WILDFIRES_OVERLAY["config"]["eval_end_year"]),
+        int(HIRICAINES_OVERLAY["config"]["eval_end_year"]),
     )
     if year <= train_end:
         return "training"
@@ -153,7 +153,7 @@ def _phase_for_frame(frame: str) -> str:
     return "inference"
 
 
-def _risk_level_wildfire(probability: float) -> str:
+def _risk_level_wildfires(probability: float) -> str:
     if probability < 0.20:
         return "low"
     if probability < 0.40:
@@ -163,7 +163,7 @@ def _risk_level_wildfire(probability: float) -> str:
     return "extreme"
 
 
-def _risk_level_hurricane(probability: float) -> str:
+def _risk_level_hiricaines(probability: float) -> str:
     if probability < 0.25:
         return "low"
     if probability < 0.50:
@@ -276,7 +276,7 @@ def _render_tile_png(hazard: str, layer: str, frame_idx: int, z: int, x: int, y:
     return buffer.getvalue()
 
 
-def predict_wildfire(
+def predict_wildfires(
     region_id: str,
     temp_c: float,
     humidity_pct: float,
@@ -290,21 +290,21 @@ def predict_wildfire(
         [[float(temp_c), float(humidity_pct), float(wind_kph), float(ffmc), float(dmc), float(drought_code), float(isi)]],
         dtype=torch.float32,
     )
-    x = (x - wildfire_mean) / wildfire_std
+    x = (x - wildfires_mean) / wildfires_std
 
     with torch.no_grad():
-        probability = float(torch.sigmoid(wildfire_model(x))[0, 0].item())
+        probability = float(torch.sigmoid(wildfires_model(x))[0, 0].item())
         probability = max(0.0, min(1.0, probability))
 
     return {
         "region_id": region_id,
-        "model_version": WILDFIRE_MODEL_VERSION,
+        "model_version": WILDFIRES_MODEL_VERSION,
         "ignition_probability_24h": probability,
-        "risk_level": _risk_level_wildfire(probability),
+        "risk_level": _risk_level_wildfires(probability),
     }
 
 
-def predict_hurricane(
+def predict_hiricaines(
     storm_id: str,
     vmax_kt: float,
     min_pressure_mb: float,
@@ -333,17 +333,17 @@ def predict_hurricane(
         ],
         dtype=torch.float32,
     )
-    x = (x - hurricane_mean) / hurricane_std
+    x = (x - hiricaines_mean) / hiricaines_std
 
     with torch.no_grad():
-        probability = float(torch.sigmoid(hurricane_model(x))[0, 0].item())
+        probability = float(torch.sigmoid(hiricaines_model(x))[0, 0].item())
         probability = max(0.0, min(1.0, probability))
 
     return {
         "storm_id": storm_id,
-        "model_version": HURRICANE_MODEL_VERSION,
+        "model_version": HIRICAINES_MODEL_VERSION,
         "ri_probability_24h": probability,
-        "risk_level": _risk_level_hurricane(probability),
+        "risk_level": _risk_level_hiricaines(probability),
     }
 
 
@@ -362,21 +362,21 @@ def _map_html() -> str:
         "zoom_min": 3,
         "zoom_max": 8,
         "training_end_year": min(
-            int(WILDFIRE_OVERLAY["config"]["training_end_year"]),
-            int(HURRICANE_OVERLAY["config"]["training_end_year"]),
+            int(WILDFIRES_OVERLAY["config"]["training_end_year"]),
+            int(HIRICAINES_OVERLAY["config"]["training_end_year"]),
         ),
         "eval_end_year": min(
-            int(WILDFIRE_OVERLAY["config"]["eval_end_year"]),
-            int(HURRICANE_OVERLAY["config"]["eval_end_year"]),
+            int(WILDFIRES_OVERLAY["config"]["eval_end_year"]),
+            int(HIRICAINES_OVERLAY["config"]["eval_end_year"]),
         ),
         "hazards": {
-            "wildfire": {
-                "zoom_min": int(WILDFIRE_OVERLAY["config"]["zoom_min"]),
-                "zoom_max": int(WILDFIRE_OVERLAY["config"]["zoom_max"]),
+            "wildfires": {
+                "zoom_min": int(WILDFIRES_OVERLAY["config"]["zoom_min"]),
+                "zoom_max": int(WILDFIRES_OVERLAY["config"]["zoom_max"]),
             },
-            "hurricane": {
-                "zoom_min": int(HURRICANE_OVERLAY["config"]["zoom_min"]),
-                "zoom_max": int(HURRICANE_OVERLAY["config"]["zoom_max"]),
+            "hiricaines": {
+                "zoom_min": int(HIRICAINES_OVERLAY["config"]["zoom_min"]),
+                "zoom_max": int(HIRICAINES_OVERLAY["config"]["zoom_max"]),
             },
         },
     }
@@ -394,7 +394,7 @@ def _map_html() -> str:
 
   <div class="overlay-controls">
     <div class="overlay-card">
-      <label><input id="wf-enabled" type="checkbox" checked /> Wildfire overlay</label>
+      <label><input id="wf-enabled" type="checkbox" checked /> Wildfires overlay</label>
       <select id="wf-layer">
         <option value="risk">Risk Probability</option>
         <option value="activity">Activity Intensity</option>
@@ -402,7 +402,7 @@ def _map_html() -> str:
       </select>
     </div>
     <div class="overlay-card">
-      <label><input id="hu-enabled" type="checkbox" checked /> Hurricane overlay</label>
+      <label><input id="hu-enabled" type="checkbox" checked /> Hiricaines overlay</label>
       <select id="hu-layer">
         <option value="risk">Risk Probability</option>
         <option value="activity">Activity Intensity</option>
@@ -527,10 +527,10 @@ def _map_html() -> str:
 
     map.overlayMapTypes.clear();
     if (wfEnabled.checked) {{
-      pushOverlay("wildfire", wfLayer.value, frameIdx, wfLayer.value === "risk" ? 0.58 : 0.46);
+      pushOverlay("wildfires", wfLayer.value, frameIdx, wfLayer.value === "risk" ? 0.58 : 0.46);
     }}
     if (huEnabled.checked) {{
-      pushOverlay("hurricane", huLayer.value, frameIdx, huLayer.value === "risk" ? 0.62 : 0.50);
+      pushOverlay("hiricaines", huLayer.value, frameIdx, huLayer.value === "risk" ? 0.62 : 0.50);
     }}
   }};
 
@@ -593,26 +593,26 @@ with gr.Blocks(title=SERVICE_NAME) as demo:
 
     gr.Markdown("## Training")
     gr.Markdown(
-        f"- Wildfire model version: **{WILDFIRE_MODEL_VERSION}**\n"
-        f"- Hurricane model version: **{HURRICANE_MODEL_VERSION}**\n"
-        f"- Wildfire training rows: **{int(WILDFIRE_MODEL_BUNDLE.get('dataset_rows', 0))}**\n"
-        f"- Hurricane training rows: **{int(HURRICANE_MODEL_BUNDLE.get('dataset_rows', 0))}**"
+        f"- Wildfires model version: **{WILDFIRES_MODEL_VERSION}**\n"
+        f"- Hiricaines model version: **{HIRICAINES_MODEL_VERSION}**\n"
+        f"- Wildfires training rows: **{int(WILDFIRES_MODEL_BUNDLE.get('dataset_rows', 0))}**\n"
+        f"- Hiricaines training rows: **{int(HIRICAINES_MODEL_BUNDLE.get('dataset_rows', 0))}**"
     )
 
     gr.Markdown("## Eval")
     gr.Markdown(
-        f"- Wildfire val accuracy: **{_as_percent(WILDFIRE_MODEL_BUNDLE.get('val_accuracy'))}**\n"
-        f"- Wildfire val balanced accuracy: **{_as_percent(WILDFIRE_MODEL_BUNDLE.get('val_balanced_accuracy'))}**\n"
-        f"- Wildfire val AUROC: **{_as_percent(WILDFIRE_MODEL_BUNDLE.get('val_auc'))}**\n"
-        f"- Hurricane val accuracy: **{_as_percent(HURRICANE_MODEL_BUNDLE.get('val_accuracy'))}**\n"
-        f"- Hurricane val balanced accuracy: **{_as_percent(HURRICANE_MODEL_BUNDLE.get('val_balanced_accuracy'))}**\n"
-        f"- Hurricane val AUROC: **{_as_percent(HURRICANE_MODEL_BUNDLE.get('val_auc'))}**"
+        f"- Wildfires val accuracy: **{_as_percent(WILDFIRES_MODEL_BUNDLE.get('val_accuracy'))}**\n"
+        f"- Wildfires val balanced accuracy: **{_as_percent(WILDFIRES_MODEL_BUNDLE.get('val_balanced_accuracy'))}**\n"
+        f"- Wildfires val AUROC: **{_as_percent(WILDFIRES_MODEL_BUNDLE.get('val_auc'))}**\n"
+        f"- Hiricaines val accuracy: **{_as_percent(HIRICAINES_MODEL_BUNDLE.get('val_accuracy'))}**\n"
+        f"- Hiricaines val balanced accuracy: **{_as_percent(HIRICAINES_MODEL_BUNDLE.get('val_balanced_accuracy'))}**\n"
+        f"- Hiricaines val AUROC: **{_as_percent(HIRICAINES_MODEL_BUNDLE.get('val_auc'))}**"
     )
 
     gr.Markdown("## Inference")
     gr.HTML(_map_html())
 
-    with gr.Tab("Wildfire"):
+    with gr.Tab("Wildfires"):
         with gr.Row():
             region_id = gr.Textbox(label="Region ID", value="norcal")
             temp_c = gr.Number(label="Temperature (C)", value=34)
@@ -623,15 +623,15 @@ with gr.Blocks(title=SERVICE_NAME) as demo:
             drought_code = gr.Number(label="DC", value=640.0)
             isi = gr.Number(label="ISI", value=12.0)
 
-        wildfire_output = gr.JSON(label="Wildfire Prediction")
-        wildfire_run = gr.Button("Predict Wildfire")
-        wildfire_run.click(
-            fn=predict_wildfire,
+        wildfires_output = gr.JSON(label="Wildfires Prediction")
+        wildfires_run = gr.Button("Predict Wildfires")
+        wildfires_run.click(
+            fn=predict_wildfires,
             inputs=[region_id, temp_c, humidity_pct, wind_kph, ffmc, dmc, drought_code, isi],
-            outputs=wildfire_output,
+            outputs=wildfires_output,
         )
 
-    with gr.Tab("Hurricane"):
+    with gr.Tab("Hiricaines"):
         with gr.Row():
             storm_id = gr.Textbox(label="Storm ID", value="AL09")
             vmax_kt = gr.Number(label="Max Wind (kt)", value=70)
@@ -642,12 +642,12 @@ with gr.Blocks(title=SERVICE_NAME) as demo:
             dvmax_6h = gr.Number(label="Recent Wind Change (kt per 6h)", value=5.0)
             dpres_6h = gr.Number(label="Recent Pressure Change (mb per 6h)", value=-3.0)
 
-        hurricane_output = gr.JSON(label="Hurricane Prediction")
-        hurricane_run = gr.Button("Predict Hurricane")
-        hurricane_run.click(
-            fn=predict_hurricane,
+        hiricaines_output = gr.JSON(label="Hiricaines Prediction")
+        hiricaines_run = gr.Button("Predict Hiricaines")
+        hiricaines_run.click(
+            fn=predict_hiricaines,
             inputs=[storm_id, vmax_kt, min_pressure_mb, lat, lon, month, dvmax_6h, dpres_6h],
-            outputs=hurricane_output,
+            outputs=hiricaines_output,
         )
 
 
@@ -660,8 +660,8 @@ def health() -> dict[str, object]:
         "service": "disasters",
         "status": "ok",
         "frames": len(FRAMES),
-        "wildfire_model_version": WILDFIRE_MODEL_VERSION,
-        "hurricane_model_version": HURRICANE_MODEL_VERSION,
+        "wildfires_model_version": WILDFIRES_MODEL_VERSION,
+        "hiricaines_model_version": HIRICAINES_MODEL_VERSION,
     }
 
 

@@ -3,13 +3,46 @@ from __future__ import annotations
 from pathlib import Path
 
 import torch
+from torch import nn
 
-from .hurricane_model import FEATURE_NAMES, HurricaneMLP, create_model
+
+FEATURE_NAMES = [
+    "vmax_kt",
+    "min_pressure_mb",
+    "lat",
+    "lon",
+    "month",
+    "month_sin",
+    "month_cos",
+    "abs_lat",
+    "pressure_deficit",
+    "dvmax_6h",
+    "dpres_6h",
+]
+
+
+class HiricainesMLP(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(11, 64),
+            nn.ReLU(),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, 1),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x)
+
+
+def create_model() -> HiricainesMLP:
+    return HiricainesMLP()
 
 
 def save_model_bundle(
     path: Path,
-    model: HurricaneMLP,
+    model: HiricainesMLP,
     feature_mean: torch.Tensor,
     feature_std: torch.Tensor,
     model_version: str,
@@ -34,7 +67,7 @@ def save_model_bundle(
     torch.save(bundle, path)
 
 
-def load_model_bundle(path: Path) -> tuple[HurricaneMLP, torch.Tensor, torch.Tensor, str]:
+def load_model_bundle(path: Path) -> tuple[HiricainesMLP, torch.Tensor, torch.Tensor, str]:
     bundle = torch.load(path, map_location="cpu", weights_only=True)
     model = create_model()
     model.load_state_dict(bundle["state_dict"])

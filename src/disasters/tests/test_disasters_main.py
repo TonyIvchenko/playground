@@ -1,13 +1,13 @@
 from src.disasters.main import (
-    HURRICANE_MODEL_VERSION,
-    WILDFIRE_MODEL_VERSION,
-    predict_hurricane,
-    predict_wildfire,
+    HIRICAINES_MODEL_VERSION,
+    WILDFIRES_MODEL_VERSION,
+    predict_hiricaines,
+    predict_wildfires,
 )
 
 
-def test_predict_wildfire_shape_and_values():
-    result = predict_wildfire(
+def test_predict_wildfires_shape_and_values():
+    result = predict_wildfires(
         region_id="norcal",
         temp_c=34,
         humidity_pct=22,
@@ -18,13 +18,13 @@ def test_predict_wildfire_shape_and_values():
         isi=12.0,
     )
     assert result["region_id"] == "norcal"
-    assert result["model_version"] == WILDFIRE_MODEL_VERSION
+    assert result["model_version"] == WILDFIRES_MODEL_VERSION
     assert 0.0 <= result["ignition_probability_24h"] <= 1.0
     assert result["risk_level"] in {"low", "moderate", "high", "extreme"}
 
 
-def test_predict_hurricane_shape_and_values():
-    result = predict_hurricane(
+def test_predict_hiricaines_shape_and_values():
+    result = predict_hiricaines(
         storm_id="AL09",
         vmax_kt=70,
         min_pressure_mb=980,
@@ -35,6 +35,6 @@ def test_predict_hurricane_shape_and_values():
         dpres_6h=-3.0,
     )
     assert result["storm_id"] == "AL09"
-    assert result["model_version"] == HURRICANE_MODEL_VERSION
+    assert result["model_version"] == HIRICAINES_MODEL_VERSION
     assert 0.0 <= result["ri_probability_24h"] <= 1.0
     assert result["risk_level"] in {"low", "moderate", "high", "extreme"}

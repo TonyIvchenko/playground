@@ -3,13 +3,34 @@ from __future__ import annotations
 from pathlib import Path
 
 import torch
+from torch import nn
 
-from .wildfire_model import FEATURE_NAMES, WildfireMLP, create_model
+
+FEATURE_NAMES = ["temp_c", "humidity_pct", "wind_kph", "ffmc", "dmc", "drought_code", "isi"]
+
+
+class WildfiresMLP(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(7, 96),
+            nn.ReLU(),
+            nn.Linear(96, 48),
+            nn.ReLU(),
+            nn.Linear(48, 1),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x)
+
+
+def create_model() -> WildfiresMLP:
+    return WildfiresMLP()
 
 
 def save_model_bundle(
     path: Path,
-    model: WildfireMLP,
+    model: WildfiresMLP,
     feature_mean: torch.Tensor,
     feature_std: torch.Tensor,
     model_version: str,
@@ -34,7 +55,7 @@ def save_model_bundle(
     torch.save(bundle, path)
 
 
-def load_model_bundle(path: Path) -> tuple[WildfireMLP, torch.Tensor, torch.Tensor, str]:
+def load_model_bundle(path: Path) -> tuple[WildfiresMLP, torch.Tensor, torch.Tensor, str]:
     bundle = torch.load(path, map_location="cpu", weights_only=True)
     model = create_model()
     model.load_state_dict(bundle["state_dict"])
