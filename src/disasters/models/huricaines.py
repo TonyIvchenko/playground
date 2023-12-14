@@ -25,7 +25,9 @@ class HuricainesMLP(nn.Module):
     def __init__(self) -> None:
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(11, 64),
+            nn.Linear(11, 96),
+            nn.ReLU(),
+            nn.Linear(96, 64),
             nn.ReLU(),
             nn.Linear(64, 32),
             nn.ReLU(),

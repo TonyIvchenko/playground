@@ -44,7 +44,7 @@ REDIS_HOST=localhost REDIS_PORT=6379 python -m src.test.main
 
 ```bash
 python -m src.disasters.scripts.huricaines.download_data
-python -m src.disasters.scripts.huricaines.train_model --model-version 0.5.2
+python -m src.disasters.scripts.huricaines.train_model --model-version 0.5.4
 python -m src.disasters.scripts.huricaines.generate_tiles
 
 python -m src.disasters.scripts.wildfires.download_data
