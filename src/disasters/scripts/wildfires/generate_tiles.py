@@ -65,17 +65,13 @@ def parse_args() -> argparse.Namespace:
         "--output-dir",
         type=Path,
         default=Path("src/disasters/tiles/wildfires"),
-        help="Output directory for overlay cube + config.",
+        help="Output directory for overlay + metadata.",
     )
     parser.add_argument("--start-year", type=int, default=2000)
     parser.add_argument("--end-year", type=int, default=2030)
     parser.add_argument("--zoom-min", type=int, default=4)
     parser.add_argument("--zoom-max", type=int, default=8)
     return parser.parse_args()
-
-
-def clamp(v: float, lo: float, hi: float) -> float:
-    return max(lo, min(hi, v))
 
 
 def load_forest_points(path: Path) -> pd.DataFrame:
@@ -330,8 +326,8 @@ def main() -> None:
     config_path = args.output_dir / "overlay.json"
     config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
 
-    print(f"Wrote wildfires overlay cube to: {cube_path}")
-    print(f"Wrote wildfires overlay config to: {config_path}")
+    print(f"Wrote wildfires overlay to: {cube_path}")
+    print(f"Wrote wildfires overlay metadata to: {config_path}")
 
 
 if __name__ == "__main__":

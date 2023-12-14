@@ -38,7 +38,7 @@ Open `http://localhost:8080/`.
 
 ```bash
 python -m src.disasters.scripts.huricaines.download_data
-python -m src.disasters.scripts.huricaines.train_model --model-version 0.5.2
+python -m src.disasters.scripts.huricaines.train_model --model-version 0.5.4
 python -m src.disasters.scripts.huricaines.generate_tiles
 
 python -m src.disasters.scripts.wildfires.download_data
