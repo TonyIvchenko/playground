@@ -29,7 +29,7 @@ Unified Gradio app service that overlays wildfires and huricaines predictions on
 From repo root:
 
 ```bash
-GMAPS_API_KEY=<google_maps_js_api_key> API_PORT=8080 python -m src.disasters.main
+GMAPS_API_KEY=<google_maps_js_api_key> PORT=8080 python -m src.disasters.main
 ```
 
 Open `http://localhost:8080/`.
@@ -67,7 +67,7 @@ Allowed values:
 
 ```bash
 docker build -t disasters -f src/disasters/Dockerfile .
-docker run --rm --name disasters -p 8080:8080 -e API_PORT=8080 disasters
+docker run --rm --name disasters -p 8080:8080 -e PORT=8080 disasters
 ```
 
 ## Tests

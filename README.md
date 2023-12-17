@@ -36,7 +36,7 @@ make update
 ## Local Run (No Docker)
 
 ```bash
-GMAPS_API_KEY=<google_maps_js_api_key> API_PORT=8080 python -m src.disasters.main
+GMAPS_API_KEY=<google_maps_js_api_key> PORT=8080 python -m src.disasters.main
 REDIS_HOST=localhost REDIS_PORT=6379 python -m src.test.main
 ```
 
