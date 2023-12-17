@@ -1,4 +1,3 @@
-goal := $(firstword $(MAKECMDGOALS))
 app := $(word 2,$(MAKECMDGOALS))
 port := $(or $(word 3,$(MAKECMDGOALS)),8080)
 
@@ -11,7 +10,7 @@ update: environment.yml
 	conda env update -f environment.yml --prune
 
 run:
-	API_PORT=$(port) python -m src.$(app).main
+	PORT=$(port) python -m src.$(app).main
 
 %:
 	@:

@@ -21,7 +21,7 @@ from src.disasters.models.wildfires import load_model_bundle as load_wildfires_m
 
 
 HOST = os.getenv("API_HOST", "0.0.0.0")
-PORT = int(os.getenv("API_PORT", os.getenv("PORT", "8080")))
+PORT = int(os.getenv("PORT", "8080"))
 GMAPS_API_KEY = os.getenv("GMAPS_API_KEY", "")
 SERVICE_NAME = os.getenv("SERVICE_NAME", "Climate Risk Map Service")
 

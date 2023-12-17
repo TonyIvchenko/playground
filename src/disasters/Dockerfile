@@ -7,7 +7,7 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 COPY src /app/src
 
-ENV API_PORT=8080
+ENV PORT=8080
 
 EXPOSE 8080
 
