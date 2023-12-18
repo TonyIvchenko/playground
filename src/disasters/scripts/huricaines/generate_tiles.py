@@ -6,12 +6,17 @@ import argparse
 import json
 import math
 from pathlib import Path
+import sys
+
+DISASTERS_ROOT = Path(__file__).resolve().parents[2]
+if str(DISASTERS_ROOT) not in sys.path:
+    sys.path.insert(0, str(DISASTERS_ROOT))
 
 import numpy as np
 import pandas as pd
 import torch
 
-from src.disasters.models.huricaines import load_model_bundle
+from models.huricaines import load_model_bundle
 
 
 TRAIN_END_YEAR = 2018
@@ -30,19 +35,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model-path",
         type=Path,
-        default=Path("src/disasters/models/huricaines.pt"),
+        default=DISASTERS_ROOT / "models" / "huricaines.pt",
         help="Path to huricaines model artifact.",
     )
     parser.add_argument(
         "--input-csv",
         type=Path,
-        default=Path("src/disasters/data/huricaines/raw/huricaines_tracks_merged.csv"),
+        default=DISASTERS_ROOT / "data" / "huricaines" / "raw" / "huricaines_tracks_merged.csv",
         help="Path to merged huricaines tracks csv.",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("src/disasters/tiles/huricaines"),
+        default=DISASTERS_ROOT / "tiles" / "huricaines",
         help="Output directory for overlay + metadata.",
     )
     parser.add_argument("--start-year", type=int, default=2000)
@@ -195,14 +200,14 @@ def main() -> None:
 
     # Monthly climatology from historical observations.
     month_clim_risk: dict[int, np.ndarray] = {}
-    month_clim_activity: dict[int, np.ndarray] = {}
+    month_clim_confidence: dict[int, np.ndarray] = {}
     for month in range(1, 13):
         base_points = points_df[points_df["month"] == float(month)]
         s, c = accumulate_points(base_points, kernel)
         risk = np.divide(s, c, out=np.zeros_like(s, dtype=np.float32), where=c > 1e-6).astype(np.float32)
         activity = np.clip(np.log1p(c) / np.log1p(max(float(c.max()), 1.0)), 0.0, 1.0).astype(np.float32)
         month_clim_risk[month] = risk
-        month_clim_activity[month] = activity
+        month_clim_confidence[month] = activity
 
     max_hist_year = int(points_df["year"].max()) if not points_df.empty else EVAL_END_YEAR
     yearly_mean = points_df.groupby(points_df["year"].astype(int))["prob"].mean() if not points_df.empty else pd.Series(dtype=float)
@@ -213,7 +218,7 @@ def main() -> None:
         trend_per_year = float(np.polyfit(x, y, 1)[0])
 
     risk_cube = np.zeros((len(frames), GRID_H, GRID_W), dtype=np.float32)
-    activity_cube = np.zeros((len(frames), GRID_H, GRID_W), dtype=np.float32)
+    confidence_cube = np.zeros((len(frames), GRID_H, GRID_W), dtype=np.float32)
 
     for i, (year, month) in enumerate(frames):
         monthly_points = points_df[(points_df["year"] == float(year)) & (points_df["month"] == float(month))]
@@ -221,25 +226,26 @@ def main() -> None:
 
         if float(c.max()) > 0.0:
             frame_risk = np.divide(s, c, out=month_clim_risk[month].copy(), where=c > 1e-6)
-            frame_activity = np.clip(np.log1p(c) / np.log1p(max(float(c.max()), 1.0)), 0.0, 1.0)
-            frame_activity = 0.7 * frame_activity + 0.3 * month_clim_activity[month]
+            frame_conf = np.clip(np.log1p(c) / np.log1p(max(float(c.max()), 1.0)), 0.0, 1.0)
+            frame_conf = 0.7 * frame_conf + 0.3 * month_clim_confidence[month]
         else:
             frame_risk = month_clim_risk[month].copy()
-            frame_activity = month_clim_activity[month].copy()
+            frame_conf = month_clim_confidence[month].copy()
 
         if year > max_hist_year:
             years_ahead = year - max_hist_year
             frame_risk = np.clip(frame_risk + (trend_per_year * years_ahead * 0.6), 0.0, 1.0)
-            frame_activity = np.clip(frame_activity * (1.0 + 0.004 * years_ahead), 0.0, 1.0)
+            frame_conf = np.clip(frame_conf * (1.0 + 0.004 * years_ahead), 0.0, 1.0)
 
         risk_cube[i] = frame_risk.astype(np.float32)
-        activity_cube[i] = frame_activity.astype(np.float32)
+        confidence_cube[i] = frame_conf.astype(np.float32)
 
     cube_path = args.output_dir / "overlay.npz"
     np.savez_compressed(
         cube_path,
         risk=risk_cube.astype(np.float16),
-        activity=activity_cube.astype(np.float16),
+        confidence=confidence_cube.astype(np.float16),
+        activity=confidence_cube.astype(np.float16),
         frames=np.array(frame_labels),
     )
 

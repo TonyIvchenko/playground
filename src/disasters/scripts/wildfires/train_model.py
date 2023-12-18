@@ -4,14 +4,18 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import sys
+
+DISASTERS_ROOT = Path(__file__).resolve().parents[2]
+if str(DISASTERS_ROOT) not in sys.path:
+    sys.path.insert(0, str(DISASTERS_ROOT))
 
 import pandas as pd
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from src.disasters.models.wildfires import save_model_bundle
-from src.disasters.models.wildfires import FEATURE_NAMES, WildfiresMLP, create_model
+from models.wildfires import FEATURE_NAMES, WildfiresMLP, create_model, save_model_bundle
 
 
 TARGET_NAME = "target"
@@ -19,9 +23,7 @@ TARGET_NAME = "target"
 
 def load_raw_dataset(path: Path) -> pd.DataFrame:
     if not path.exists():
-        raise FileNotFoundError(
-            f"Dataset not found at {path}. Run: `python -m src.disasters.scripts.wildfires.download_data`"
-        )
+        raise FileNotFoundError(f"Dataset not found at {path}. Run: `python scripts/wildfires/download_data.py`")
 
     df = pd.read_csv(path)
     required = {"temp_c", "humidity_pct", "wind_kph", "ffmc", "dmc", "drought_code", "isi", "target"}
@@ -139,19 +141,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--input-csv",
         type=Path,
-        default=Path("src/disasters/data/wildfires/raw/wildfires_training_merged.csv"),
+        default=DISASTERS_ROOT / "data" / "wildfires" / "raw" / "wildfires_training_merged.csv",
         help="Path to merged canonical wildfires CSV produced by download_data.py.",
     )
     parser.add_argument(
         "--processed-csv",
         type=Path,
-        default=Path("src/disasters/data/wildfires/processed/wildfires_training.csv"),
+        default=DISASTERS_ROOT / "data" / "wildfires" / "processed" / "wildfires_training.csv",
         help="Where to write processed training rows for inspection.",
     )
     parser.add_argument(
         "--output-path",
         type=Path,
-        default=Path("src/disasters/models/wildfires.pt"),
+        default=DISASTERS_ROOT / "models" / "wildfires.pt",
         help="Where to store trained model artifact.",
     )
     parser.add_argument("--epochs", type=int, default=260)

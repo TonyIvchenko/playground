@@ -10,7 +10,7 @@ update: environment.yml
 	conda env update -f environment.yml --prune
 
 run:
-	PORT=$(port) python -m src.$(app).main
+	cd src/$(app) && PORT=$(port) python main.py
 
 %:
 	@:
