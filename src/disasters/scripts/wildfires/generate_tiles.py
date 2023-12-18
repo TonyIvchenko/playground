@@ -1,10 +1,9 @@
-"""Generate a precomputed monthly wildfires overlay cube (2000-2030)."""
+"""Generate a precomputed monthly wildfires overlay cube (US-focused, 2000-2030)."""
 
 from __future__ import annotations
 
 import argparse
 import json
-import math
 from pathlib import Path
 import sys
 
@@ -14,57 +13,26 @@ if str(DISASTERS_ROOT) not in sys.path:
 
 import numpy as np
 import pandas as pd
-import torch
-
-from models.wildfires import load_model_bundle
 
 
 TRAIN_END_YEAR = 2018
 EVAL_END_YEAR = 2023
 
-LAT_MIN = 30.0
-LAT_MAX = 45.5
-LON_MIN = -12.5
-LON_MAX = 12.5
-GRID_H = 180
-GRID_W = 260
-
-
-MONTH_MAP = {
-    "jan": 1,
-    "feb": 2,
-    "mar": 3,
-    "apr": 4,
-    "may": 5,
-    "jun": 6,
-    "jul": 7,
-    "aug": 8,
-    "sep": 9,
-    "oct": 10,
-    "nov": 11,
-    "dec": 12,
-}
+LAT_MIN = 24.0
+LAT_MAX = 50.0
+LON_MIN = -125.0
+LON_MAX = -66.0
+GRID_H = 220
+GRID_W = 360
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Generate wildfires monthly overlay cube.")
     parser.add_argument(
-        "--model-path",
+        "--input-csv",
         type=Path,
-        default=DISASTERS_ROOT / "models" / "wildfires.pt",
-        help="Path to wildfires model artifact.",
-    )
-    parser.add_argument(
-        "--forest-path",
-        type=Path,
-        default=DISASTERS_ROOT / "data" / "wildfires" / "raw" / "forestfires_uci.csv",
-        help="Path to UCI forest fires csv.",
-    )
-    parser.add_argument(
-        "--algerian-path",
-        type=Path,
-        default=DISASTERS_ROOT / "data" / "wildfires" / "raw" / "algerian_forest_fires.csv",
-        help="Path to Algerian forest fires csv-like file.",
+        default=DISASTERS_ROOT / "data" / "wildfires" / "raw" / "wildfires_us_overlay.csv",
+        help="Path to US wildfire overlay points CSV from download_data.py.",
     )
     parser.add_argument(
         "--output-dir",
@@ -79,118 +47,45 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_forest_points(path: Path) -> pd.DataFrame:
+def load_us_points(path: Path) -> pd.DataFrame:
     if not path.exists():
-        raise FileNotFoundError(f"Forest fires csv not found: {path}")
+        raise FileNotFoundError(f"US wildfire points csv not found: {path}")
 
-    df = pd.read_csv(path)
-    month = df["month"].astype(str).str.lower().str[:3].map(MONTH_MAP)
+    raw = pd.read_csv(path)
+    required = {"year", "month", "lat", "lon", "fire_size"}
+    missing = sorted(required - set(raw.columns))
+    if missing:
+        raise ValueError(f"US wildfire points csv is missing columns: {missing}")
 
-    # Approximate coordinates for Montesinho park, Portugal where this grid comes from.
-    lat = 41.5 + (pd.to_numeric(df["Y"], errors="coerce") - 2.0) * 0.08
-    lon = -8.2 + (pd.to_numeric(df["X"], errors="coerce") - 1.0) * 0.08
-
-    out = pd.DataFrame(
+    points = pd.DataFrame(
         {
-            "year": np.nan,
-            "month": pd.to_numeric(month, errors="coerce"),
-            "lat": pd.to_numeric(lat, errors="coerce"),
-            "lon": pd.to_numeric(lon, errors="coerce"),
-            "temp_c": pd.to_numeric(df["temp"], errors="coerce"),
-            "humidity_pct": pd.to_numeric(df["RH"], errors="coerce"),
-            "wind_kph": pd.to_numeric(df["wind"], errors="coerce"),
-            "ffmc": pd.to_numeric(df["FFMC"], errors="coerce"),
-            "dmc": pd.to_numeric(df["DMC"], errors="coerce"),
-            "drought_code": pd.to_numeric(df["DC"], errors="coerce"),
-            "isi": pd.to_numeric(df["ISI"], errors="coerce"),
-            "source_weight": 0.55,
+            "year": pd.to_numeric(raw["year"], errors="coerce"),
+            "month": pd.to_numeric(raw["month"], errors="coerce"),
+            "lat": pd.to_numeric(raw["lat"], errors="coerce"),
+            "lon": pd.to_numeric(raw["lon"], errors="coerce"),
+            "fire_size": pd.to_numeric(raw["fire_size"], errors="coerce"),
         }
     )
-    out = out.dropna().reset_index(drop=True)
-    out = out[out["month"].between(1, 12)]
-    return out
+    points = points.dropna().reset_index(drop=True)
+    points = points[
+        points["month"].between(1.0, 12.0)
+        & points["lat"].between(LAT_MIN, LAT_MAX)
+        & points["lon"].between(LON_MIN, LON_MAX)
+        & (points["fire_size"] > 0.0)
+    ].reset_index(drop=True)
 
+    if points.empty:
+        return pd.DataFrame(columns=["year", "month", "lat", "lon", "prob_weight", "conf_weight", "source_weight"])
 
-def load_algerian_points(path: Path) -> pd.DataFrame:
-    if not path.exists():
-        raise FileNotFoundError(f"Algerian dataset not found: {path}")
+    size_cap = float(points["fire_size"].quantile(0.98))
+    size_cap = max(size_cap, 10.0)
+    size_norm = np.log1p(points["fire_size"]) / np.log1p(size_cap)
+    size_norm = np.clip(size_norm, 0.0, 1.0)
 
-    rows: list[dict[str, float]] = []
-    region = "bejaia"
-
-    with path.open("r", encoding="utf-8", errors="replace") as f:
-        for line in f:
-            text = line.strip()
-            if not text:
-                continue
-            low = text.lower()
-            if "bejaia region dataset" in low:
-                region = "bejaia"
-                continue
-            if "sidi-bel abbes region dataset" in low or "sidi bel-abbes region dataset" in low:
-                region = "sidi_bel_abbes"
-                continue
-            if low.startswith("day,month,year"):
-                continue
-
-            parts = [p.strip() for p in text.split(",")]
-            if len(parts) < 14:
-                continue
-
-            try:
-                day = int(parts[0])
-                month = int(parts[1])
-                year = int(parts[2])
-                temp_c = float(parts[3])
-                humidity_pct = float(parts[4])
-                wind_kph = float(parts[5])
-                ffmc = float(parts[7])
-                dmc = float(parts[8])
-                drought_code = float(parts[9])
-                isi = float(parts[10])
-            except ValueError:
-                continue
-
-            if region == "bejaia":
-                base_lat, base_lon = 36.75, 5.05
-            else:
-                base_lat, base_lon = 34.68, -0.63
-
-            # Light deterministic spatial jitter to avoid full overlap.
-            lat = base_lat + ((day % 7) - 3) * 0.05
-            lon = base_lon + ((day % 5) - 2) * 0.05
-
-            rows.append(
-                {
-                    "year": float(year),
-                    "month": float(month),
-                    "lat": float(lat),
-                    "lon": float(lon),
-                    "temp_c": temp_c,
-                    "humidity_pct": humidity_pct,
-                    "wind_kph": wind_kph,
-                    "ffmc": ffmc,
-                    "dmc": dmc,
-                    "drought_code": drought_code,
-                    "isi": isi,
-                    "source_weight": 1.0,
-                }
-            )
-
-    return pd.DataFrame(rows).dropna().reset_index(drop=True)
-
-
-def predict_probabilities(df: pd.DataFrame, model_path: Path) -> pd.DataFrame:
-    model, feature_mean, feature_std, _ = load_model_bundle(model_path)
-    feature_cols = ["temp_c", "humidity_pct", "wind_kph", "ffmc", "dmc", "drought_code", "isi"]
-    x = torch.tensor(df[feature_cols].values, dtype=torch.float32)
-    x = (x - feature_mean) / feature_std
-    with torch.no_grad():
-        probs = torch.sigmoid(model(x)).reshape(-1).cpu().numpy()
-
-    out = df.copy()
-    out["prob"] = probs
-    return out
+    points["prob_weight"] = np.clip(0.08 + 0.92 * size_norm, 0.05, 1.0)
+    points["conf_weight"] = np.clip(0.25 + 0.75 * size_norm, 0.25, 1.0)
+    points["source_weight"] = 1.0
+    return points[["year", "month", "lat", "lon", "prob_weight", "conf_weight", "source_weight"]]
 
 
 def gaussian_kernel(radius: int, sigma: float) -> np.ndarray:
@@ -210,13 +105,14 @@ def latlon_to_grid(lat: float, lon: float) -> tuple[int, int] | None:
     return iy, ix
 
 
-def accumulate_points(points: pd.DataFrame, kernel: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def _accumulate_weighted(points: pd.DataFrame, kernel: np.ndarray, value_col: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     k_radius = kernel.shape[0] // 2
     weighted_sum = np.zeros((GRID_H, GRID_W), dtype=np.float32)
     weighted_count = np.zeros((GRID_H, GRID_W), dtype=np.float32)
+    hit_count = np.zeros((GRID_H, GRID_W), dtype=np.float32)
 
     if points.empty:
-        return weighted_sum, weighted_count
+        return weighted_sum, weighted_count, hit_count
 
     for row in points.itertuples(index=False):
         idx = latlon_to_grid(float(row.lat), float(row.lon))
@@ -224,7 +120,7 @@ def accumulate_points(points: pd.DataFrame, kernel: np.ndarray) -> tuple[np.ndar
             continue
         iy, ix = idx
         point_weight = float(row.source_weight)
-        point_prob = float(row.prob)
+        point_value = float(getattr(row, value_col))
 
         y0 = max(0, iy - k_radius)
         y1 = min(GRID_H, iy + k_radius + 1)
@@ -237,10 +133,27 @@ def accumulate_points(points: pd.DataFrame, kernel: np.ndarray) -> tuple[np.ndar
         kx1 = kx0 + (x1 - x0)
 
         k_slice = kernel[ky0:ky1, kx0:kx1] * point_weight
-        weighted_sum[y0:y1, x0:x1] += point_prob * k_slice
+        weighted_sum[y0:y1, x0:x1] += point_value * k_slice
         weighted_count[y0:y1, x0:x1] += k_slice
+        hit_count[y0:y1, x0:x1] += point_weight
 
-    return weighted_sum, weighted_count
+    return weighted_sum, weighted_count, hit_count
+
+
+def _build_frame(points: pd.DataFrame, kernel: np.ndarray, fallback_risk: np.ndarray, fallback_conf: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    risk_sum, risk_count, risk_hits = _accumulate_weighted(points, kernel, "prob_weight")
+    conf_sum, conf_count, conf_hits = _accumulate_weighted(points, kernel, "conf_weight")
+
+    if float(risk_count.max()) <= 0.0:
+        return fallback_risk.copy(), fallback_conf.copy()
+
+    risk = np.divide(risk_sum, risk_count, out=fallback_risk.copy(), where=risk_count > 1e-6)
+    conf_mean = np.divide(conf_sum, conf_count, out=fallback_conf.copy(), where=conf_count > 1e-6)
+
+    hits = np.maximum(risk_hits, conf_hits)
+    density = np.clip(np.log1p(hits) / np.log1p(max(float(hits.max()), 1.0)), 0.0, 1.0)
+    confidence = np.clip(0.35 * conf_mean + 0.65 * density, 0.0, 1.0)
+    return risk.astype(np.float32), confidence.astype(np.float32)
 
 
 def build_frames(start_year: int, end_year: int) -> list[tuple[int, int]]:
@@ -255,60 +168,65 @@ def main() -> None:
     args = parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
-    forest_df = load_forest_points(args.forest_path)
-    algerian_df = load_algerian_points(args.algerian_path)
-    points_df = pd.concat([forest_df, algerian_df], ignore_index=True).dropna().reset_index(drop=True)
-    points_df = predict_probabilities(points_df, model_path=args.model_path)
-
+    points_df = load_us_points(args.input_csv)
     frames = build_frames(args.start_year, args.end_year)
     frame_labels = [f"{y:04d}-{m:02d}" for y, m in frames]
 
     kernel = gaussian_kernel(radius=2, sigma=1.15)
 
-    # Monthly climatology from all available source points.
     month_clim_risk: dict[int, np.ndarray] = {}
-    month_clim_activity: dict[int, np.ndarray] = {}
+    month_clim_conf: dict[int, np.ndarray] = {}
     for month in range(1, 13):
-        base_points = points_df[points_df["month"] == float(month)]
-        s, c = accumulate_points(base_points, kernel)
-        risk = np.divide(s, c, out=np.zeros_like(s, dtype=np.float32), where=c > 1e-6).astype(np.float32)
-        activity = np.clip(np.log1p(c) / np.log1p(max(float(c.max()), 1.0)), 0.0, 1.0).astype(np.float32)
+        month_points = points_df[points_df["month"] == float(month)]
+        risk, conf = _build_frame(
+            points=month_points,
+            kernel=kernel,
+            fallback_risk=np.zeros((GRID_H, GRID_W), dtype=np.float32),
+            fallback_conf=np.zeros((GRID_H, GRID_W), dtype=np.float32),
+        )
         month_clim_risk[month] = risk
-        month_clim_activity[month] = activity
+        month_clim_conf[month] = conf
 
     risk_cube = np.zeros((len(frames), GRID_H, GRID_W), dtype=np.float32)
-    activity_cube = np.zeros((len(frames), GRID_H, GRID_W), dtype=np.float32)
+    conf_cube = np.zeros((len(frames), GRID_H, GRID_W), dtype=np.float32)
+
+    max_hist_year = int(points_df["year"].max()) if not points_df.empty else EVAL_END_YEAR
+    yearly_counts = points_df.groupby(points_df["year"].astype(int)).size() if not points_df.empty else pd.Series(dtype=float)
+    trend_per_year = 0.0
+    if len(yearly_counts) >= 3:
+        x = yearly_counts.index.values.astype(float)
+        y = yearly_counts.values.astype(float)
+        trend_per_year = float(np.polyfit(x, y, 1)[0] / max(float(y.mean()), 1.0))
 
     for i, (year, month) in enumerate(frames):
-        # Use year-specific Algerian observations when available, always blended with monthly climatology.
-        year_points = points_df[(points_df["year"] == float(year)) & (points_df["month"] == float(month))]
-        s, c = accumulate_points(year_points, kernel)
-        if float(c.max()) > 0.0:
-            frame_risk = np.divide(s, c, out=month_clim_risk[month].copy(), where=c > 1e-6)
-            frame_activity = np.clip(np.log1p(c) / np.log1p(max(float(c.max()), 1.0)), 0.0, 1.0)
-            frame_activity = 0.65 * frame_activity + 0.35 * month_clim_activity[month]
-        else:
-            frame_risk = month_clim_risk[month].copy()
-            frame_activity = month_clim_activity[month].copy()
+        frame_points = points_df[(points_df["year"] == float(year)) & (points_df["month"] == float(month))]
+        frame_risk, frame_conf = _build_frame(
+            points=frame_points,
+            kernel=kernel,
+            fallback_risk=month_clim_risk[month],
+            fallback_conf=month_clim_conf[month],
+        )
 
-        # Light forward trend for inference years.
-        if year > EVAL_END_YEAR:
-            years_ahead = year - EVAL_END_YEAR
-            frame_risk = np.clip(frame_risk * (1.0 + 0.006 * years_ahead), 0.0, 1.0)
-            frame_activity = np.clip(frame_activity * (1.0 + 0.004 * years_ahead), 0.0, 1.0)
+        if not frame_points.empty:
+            frame_conf = np.clip(0.7 * frame_conf + 0.3 * month_clim_conf[month], 0.0, 1.0)
+
+        if year > max_hist_year:
+            years_ahead = year - max_hist_year
+            frame_risk = np.clip(frame_risk * (1.0 + 0.012 * years_ahead) + trend_per_year * years_ahead * 0.25, 0.0, 1.0)
+            frame_conf = np.clip(frame_conf * (1.0 - 0.003 * years_ahead), 0.18, 1.0)
 
         risk_cube[i] = frame_risk.astype(np.float32)
-        activity_cube[i] = frame_activity.astype(np.float32)
+        conf_cube[i] = frame_conf.astype(np.float32)
 
     cube_path = args.output_dir / "overlay.npz"
     np.savez_compressed(
         cube_path,
         risk=risk_cube.astype(np.float16),
-        activity=activity_cube.astype(np.float16),
+        confidence=conf_cube.astype(np.float16),
+        activity=conf_cube.astype(np.float16),
         frames=np.array(frame_labels),
     )
 
-    model_bundle = torch.load(args.model_path, map_location="cpu", weights_only=True)
     config = {
         "service": "wildfires",
         "start_year": args.start_year,
@@ -317,15 +235,14 @@ def main() -> None:
         "zoom_max": args.zoom_max,
         "training_end_year": TRAIN_END_YEAR,
         "eval_end_year": EVAL_END_YEAR,
-        "center_lat": 36.5,
-        "center_lon": 0.5,
+        "center_lat": 39.5,
+        "center_lon": -98.35,
         "lat_min": LAT_MIN,
         "lat_max": LAT_MAX,
         "lon_min": LON_MIN,
         "lon_max": LON_MAX,
         "grid_h": GRID_H,
         "grid_w": GRID_W,
-        "model_version": str(model_bundle.get("model_version", "unknown")),
         "frame_count": len(frame_labels),
     }
     config_path = args.output_dir / "overlay.json"

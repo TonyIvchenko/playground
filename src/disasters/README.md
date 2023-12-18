@@ -46,6 +46,10 @@ python scripts/wildfires/train_model.py --model-version 0.5.3
 python scripts/wildfires/generate_tiles.py
 ```
 
+Notes:
+- `scripts/wildfires/download_data.py` now also downloads USFS historical wildfire points and writes `data/wildfires/raw/wildfires_us_overlay.csv` for map overlays.
+- Wildfire map overlays are generated over CONUS bounds.
+
 Notebooks:
 
 ```bash
@@ -56,12 +60,13 @@ conda run -n playground jupyter lab src/disasters/notebooks/wildfires.ipynb
 ## Endpoints
 
 - `GET /health`
+- `GET /tiles/{hazard}/{frame_idx}/{z}/{x}/{y}.png`
 - `GET /tiles/{hazard}/{layer}/{frame_idx}/{z}/{x}/{y}.png`
 
 Allowed values:
 
 - `hazard`: `wildfires` or `huricaines`
-- `layer`: `risk`, `activity`, `confidence`
+- Legacy `layer`: `risk`, `activity`, `confidence` (all map to the same single hazard overlay)
 
 ## Docker
 

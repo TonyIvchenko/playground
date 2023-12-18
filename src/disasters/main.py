@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+import html
 import io
 import json
 import math
@@ -63,8 +64,13 @@ def _load_overlay(
     if cube_path.exists():
         cube = np.load(cube_path)
         risk = cube["risk"].astype(np.float32)
-        activity = cube["activity"].astype(np.float32)
-        frames = [str(x) for x in cube["frames".strip()].tolist()]
+        if "confidence" in cube:
+            confidence = cube["confidence"].astype(np.float32)
+        elif "activity" in cube:
+            confidence = cube["activity"].astype(np.float32)
+        else:
+            confidence = np.zeros_like(risk, dtype=np.float32)
+        frames = [str(x) for x in cube["frames"].tolist()]
     else:
         frames = [
             f"{year:04d}-{month:02d}"
@@ -72,11 +78,11 @@ def _load_overlay(
             for month in range(1, 13)
         ]
         risk = np.zeros((len(frames), default_shape[0], default_shape[1]), dtype=np.float32)
-        activity = np.zeros_like(risk)
+        confidence = np.zeros_like(risk)
 
     return {
         "risk": risk,
-        "activity": activity,
+        "confidence": confidence,
         "frames": frames,
         "config": config,
     }
@@ -92,14 +98,14 @@ WILDFIRES_OVERLAY = _load_overlay(
         "zoom_max": 8,
         "training_end_year": 2018,
         "eval_end_year": 2023,
-        "center_lat": 36.5,
-        "center_lon": 0.5,
-        "lat_min": 30.0,
-        "lat_max": 45.5,
-        "lon_min": -12.5,
-        "lon_max": 12.5,
+        "center_lat": 39.5,
+        "center_lon": -98.35,
+        "lat_min": 24.0,
+        "lat_max": 50.0,
+        "lon_min": -125.0,
+        "lon_max": -66.0,
     },
-    default_shape=(120, 180),
+    default_shape=(220, 360),
 )
 
 HURICAINES_OVERLAY = _load_overlay(
@@ -222,38 +228,25 @@ def _sample_layer(
     return sampled, valid_mask
 
 
-def _colorize(layer: str, sampled: np.ndarray, valid_mask: np.ndarray) -> np.ndarray:
+def _colorize(sampled_risk: np.ndarray, sampled_conf: np.ndarray, valid_mask: np.ndarray) -> np.ndarray:
     rgba = np.zeros((SAMPLE_SIZE, SAMPLE_SIZE, 4), dtype=np.uint8)
+    low = sampled_risk < 0.33
+    mid = (sampled_risk >= 0.33) & (sampled_risk < 0.66)
+    high = sampled_risk >= 0.66
 
-    if layer == "risk":
-        low = sampled < 0.33
-        mid = (sampled >= 0.33) & (sampled < 0.66)
-        high = sampled >= 0.66
+    rgba[low, 0:3] = np.array([46, 204, 113], dtype=np.uint8)
+    rgba[mid, 0:3] = np.array([241, 196, 15], dtype=np.uint8)
+    rgba[high, 0:3] = np.array([231, 76, 60], dtype=np.uint8)
 
-        rgba[low, 0:3] = np.array([46, 204, 113], dtype=np.uint8)
-        rgba[mid, 0:3] = np.array([241, 196, 15], dtype=np.uint8)
-        rgba[high, 0:3] = np.array([231, 76, 60], dtype=np.uint8)
-        rgba[..., 3] = np.clip((70.0 + sampled * 165.0), 0, 255).astype(np.uint8)
-    elif layer == "activity":
-        rgba[..., 0] = np.clip(30 + sampled * 110, 0, 255).astype(np.uint8)
-        rgba[..., 1] = np.clip(90 + sampled * 80, 0, 255).astype(np.uint8)
-        rgba[..., 2] = np.clip(210 + sampled * 45, 0, 255).astype(np.uint8)
-        rgba[..., 3] = np.clip(60 + sampled * 170, 0, 255).astype(np.uint8)
-    elif layer == "confidence":
-        confidence = np.sqrt(np.clip(sampled, 0.0, 1.0))
-        rgba[..., 0] = np.clip(215 - confidence * 95, 0, 255).astype(np.uint8)
-        rgba[..., 1] = np.clip(215 - confidence * 95, 0, 255).astype(np.uint8)
-        rgba[..., 2] = np.clip(215, 0, 255).astype(np.uint8)
-        rgba[..., 3] = np.clip(55 + confidence * 180, 0, 255).astype(np.uint8)
-    else:
-        raise ValueError(f"Unsupported layer: {layer}")
+    conf = np.clip(sampled_conf, 0.0, 1.0)
+    rgba[..., 3] = np.clip(25.0 + conf * 225.0, 0, 255).astype(np.uint8)
 
     rgba[~valid_mask, 3] = 0
     return rgba
 
 
 @lru_cache(maxsize=80000)
-def _render_tile_png(hazard: str, layer: str, frame_idx: int, z: int, x: int, y: int) -> bytes:
+def _render_tile_png(hazard: str, frame_idx: int, z: int, x: int, y: int) -> bytes:
     if hazard not in OVERLAYS:
         raise ValueError("unknown hazard")
 
@@ -262,17 +255,12 @@ def _render_tile_png(hazard: str, layer: str, frame_idx: int, z: int, x: int, y:
     if frame_idx < 0 or frame_idx >= len(frames):
         raise ValueError("frame index out of range")
 
-    if layer == "risk":
-        grid = overlay["risk"][frame_idx]
-    elif layer == "activity":
-        grid = overlay["activity"][frame_idx]
-    elif layer == "confidence":
-        grid = np.clip(overlay["activity"][frame_idx], 0.0, 1.0)
-    else:
-        raise ValueError("unknown layer")
+    risk_grid = overlay["risk"][frame_idx]
+    conf_grid = np.clip(overlay["confidence"][frame_idx], 0.0, 1.0)
 
-    sampled, valid_mask = _sample_layer(grid, config=overlay["config"], z=z, x=x, y=y)
-    rgba_small = _colorize(layer=layer, sampled=sampled, valid_mask=valid_mask)
+    sampled_risk, valid_mask = _sample_layer(risk_grid, config=overlay["config"], z=z, x=x, y=y)
+    sampled_conf, _ = _sample_layer(conf_grid, config=overlay["config"], z=z, x=x, y=y)
+    rgba_small = _colorize(sampled_risk=sampled_risk, sampled_conf=sampled_conf, valid_mask=valid_mask)
     image = Image.fromarray(rgba_small, mode="RGBA").resize((TILE_SIZE, TILE_SIZE), resample=Image.Resampling.BILINEAR)
 
     buffer = io.BytesIO()
@@ -356,109 +344,162 @@ def _map_html() -> str:
     train_frames = sum(1 for f in FRAMES if _phase_for_frame(f) == "training")
     eval_frames = sum(1 for f in FRAMES if _phase_for_frame(f) == "eval")
     infer_frames = max(1, frame_count - train_frames - eval_frames)
+    train_end_year = min(
+        int(WILDFIRES_OVERLAY["config"]["training_end_year"]),
+        int(HURICAINES_OVERLAY["config"]["training_end_year"]),
+    )
+    eval_end_year = min(
+        int(WILDFIRES_OVERLAY["config"]["eval_end_year"]),
+        int(HURICAINES_OVERLAY["config"]["eval_end_year"]),
+    )
+    start_year = int(FRAMES[0][:4])
+    end_year = int(FRAMES[-1][:4])
+    default_zoom = max(
+        int(WILDFIRES_OVERLAY["config"]["zoom_min"]),
+        int(HURICAINES_OVERLAY["config"]["zoom_min"]),
+    )
 
     js_config = {
         "api_key": GMAPS_API_KEY,
         "frames": FRAMES,
         "service_id": "disasters",
-        "center_lat": 28.0,
-        "center_lon": -35.0,
-        "zoom_min": 3,
-        "zoom_max": 8,
-        "training_end_year": min(
-            int(WILDFIRES_OVERLAY["config"]["training_end_year"]),
-            int(HURICAINES_OVERLAY["config"]["training_end_year"]),
-        ),
-        "eval_end_year": min(
-            int(WILDFIRES_OVERLAY["config"]["eval_end_year"]),
-            int(HURICAINES_OVERLAY["config"]["eval_end_year"]),
-        ),
+        "center_lat": 36.0,
+        "center_lon": -95.0,
+        "default_zoom": default_zoom,
+        "zoom_min": 2,
+        "zoom_max": 10,
+        "training_end_year": train_end_year,
+        "eval_end_year": eval_end_year,
         "hazards": {
             "wildfires": {
-                "zoom_min": int(WILDFIRES_OVERLAY["config"]["zoom_min"]),
-                "zoom_max": int(WILDFIRES_OVERLAY["config"]["zoom_max"]),
+                "lat_min": float(WILDFIRES_OVERLAY["config"]["lat_min"]),
+                "lat_max": float(WILDFIRES_OVERLAY["config"]["lat_max"]),
+                "lon_min": float(WILDFIRES_OVERLAY["config"]["lon_min"]),
+                "lon_max": float(WILDFIRES_OVERLAY["config"]["lon_max"]),
             },
             "huricaines": {
-                "zoom_min": int(HURICAINES_OVERLAY["config"]["zoom_min"]),
-                "zoom_max": int(HURICAINES_OVERLAY["config"]["zoom_max"]),
+                "lat_min": float(HURICAINES_OVERLAY["config"]["lat_min"]),
+                "lat_max": float(HURICAINES_OVERLAY["config"]["lat_max"]),
+                "lon_min": float(HURICAINES_OVERLAY["config"]["lon_min"]),
+                "lon_max": float(HURICAINES_OVERLAY["config"]["lon_max"]),
             },
         },
     }
+    config_blob = html.escape(json.dumps(js_config), quote=True)
 
     return f"""
-<div id="risk-map-shell" class="risk-map-shell">
-  <div class="risk-map-header">
-    <div class="control-row">
-      <label for="risk-time-slider"><strong>Time:</strong> <span id="risk-time-value">{FRAMES[0]}</span></label>
-      <button id="risk-play" type="button">Play</button>
-      <span class="risk-phase">Section: <span id="risk-phase">training</span></span>
-    </div>
-    <input id="risk-time-slider" type="range" min="0" max="{frame_count - 1}" value="0" step="1" />
-  </div>
+<div id="risk-map-shell" class="risk-map-shell" data-config="{config_blob}">
+  <div class="risk-layout">
+    <section class="risk-map-pane">
+      <div class="risk-map-header">
+        <div class="control-row">
+          <label for="risk-time-slider"><strong>Time:</strong> <span id="risk-time-value">{FRAMES[0]}</span></label>
+          <button id="risk-play" type="button">Play</button>
+          <span class="risk-phase">Section: <span id="risk-phase">training</span></span>
+        </div>
+        <input id="risk-time-slider" type="range" min="0" max="{frame_count - 1}" value="0" step="1" />
+      </div>
 
-  <div class="overlay-controls">
-    <div class="overlay-card">
-      <label><input id="wf-enabled" type="checkbox" checked /> Wildfires overlay</label>
-      <select id="wf-layer">
-        <option value="risk">Risk Probability</option>
-        <option value="activity">Activity Intensity</option>
-        <option value="confidence">Confidence</option>
-      </select>
-    </div>
-    <div class="overlay-card">
-      <label><input id="hu-enabled" type="checkbox" checked /> Huricaines overlay</label>
-      <select id="hu-layer">
-        <option value="risk">Risk Probability</option>
-        <option value="activity">Activity Intensity</option>
-        <option value="confidence">Confidence</option>
-      </select>
-    </div>
-  </div>
+      <div class="risk-timeline">
+        <div class="seg train" style="flex:{max(1, train_frames)};">Training</div>
+        <div class="seg eval" style="flex:{max(1, eval_frames)};">Eval</div>
+        <div class="seg infer" style="flex:{max(1, infer_frames)};">Inference</div>
+      </div>
 
-  <div class="risk-timeline">
-    <div class="seg train" style="flex:{max(1, train_frames)};">Training</div>
-    <div class="seg eval" style="flex:{max(1, eval_frames)};">Eval</div>
-    <div class="seg infer" style="flex:{max(1, infer_frames)};">Inference</div>
-  </div>
+      <div id="risk-map" class="risk-map"></div>
+      <div id="risk-map-status" class="risk-map-status"></div>
 
-  <div id="risk-map" class="risk-map"></div>
-  <div id="risk-map-status" class="risk-map-status"></div>
+      <div class="risk-legend">
+        <span class="legend-item"><i class="dot green"></i> Low</span>
+        <span class="legend-item"><i class="dot yellow"></i> Medium</span>
+        <span class="legend-item"><i class="dot red"></i> High</span>
+      </div>
+    </section>
 
-  <div class="risk-legend">
-    <span class="legend-item"><i class="dot green"></i> Low</span>
-    <span class="legend-item"><i class="dot yellow"></i> Medium</span>
-    <span class="legend-item"><i class="dot red"></i> High</span>
+    <aside class="risk-side-panel">
+      <h3>Layers</h3>
+      <div class="layer-card">
+        <div class="layer-head">
+          <label><input id="wf-enabled" type="checkbox" checked /> Wildfires</label>
+        </div>
+        <div>Overlay enabled: color = probability, opacity = confidence/intensity.</div>
+      </div>
+
+      <div class="layer-card">
+        <div class="layer-head">
+          <label><input id="hu-enabled" type="checkbox" checked /> Huricaines</label>
+        </div>
+        <div>Overlay enabled: color = probability, opacity = confidence/intensity.</div>
+      </div>
+
+      <h3>Sections</h3>
+      <div class="section-card">
+        <div><strong>Training:</strong> {start_year}-{train_end_year}</div>
+        <div><strong>Eval:</strong> {train_end_year + 1}-{eval_end_year}</div>
+        <div><strong>Inference:</strong> {eval_end_year + 1}-{end_year}</div>
+      </div>
+
+      <h3>Model Summary</h3>
+      <div class="section-card">
+        <div><strong>Wildfires:</strong> v{WILDFIRES_MODEL_VERSION}</div>
+        <div>Rows: {int(WILDFIRES_MODEL_BUNDLE.get("dataset_rows", 0))}</div>
+        <div>AUROC: {_as_percent(WILDFIRES_MODEL_BUNDLE.get("val_auc"))}</div>
+        <hr />
+        <div><strong>Huricaines:</strong> v{HURICAINES_MODEL_VERSION}</div>
+        <div>Rows: {int(HURICAINES_MODEL_BUNDLE.get("dataset_rows", 0))}</div>
+        <div>AUROC: {_as_percent(HURICAINES_MODEL_BUNDLE.get("val_auc"))}</div>
+      </div>
+    </aside>
   </div>
 </div>
 <style>
-  .risk-map-shell {{ border: 1px solid #d7dde4; border-radius: 10px; padding: 12px; }}
+  .risk-map-shell {{ border: 1px solid #d7dde4; border-radius: 10px; padding: 10px; background: #ffffff; }}
+  .risk-layout {{ display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr) 320px; }}
+  .risk-map-pane {{ min-width: 0; }}
+  .risk-side-panel {{ border: 1px solid #d7dde4; border-radius: 8px; padding: 10px; background: #f8fafc; height: fit-content; }}
+  .risk-side-panel h3 {{ margin: 8px 0 8px; font-size: 16px; }}
   .risk-map-header {{ display: grid; gap: 8px; margin-bottom: 10px; }}
   .control-row {{ display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }}
   .risk-map-header input[type="range"] {{ width: 100%; }}
   .risk-phase {{ font-size: 13px; color: #334155; }}
-  .overlay-controls {{ display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }}
-  .overlay-card {{ border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; display: flex; gap: 10px; align-items: center; }}
-  .risk-timeline {{ display: flex; height: 22px; overflow: hidden; border-radius: 999px; margin-bottom: 10px; font-size: 12px; }}
+  .risk-timeline {{ display: flex; height: 24px; overflow: hidden; border-radius: 999px; margin-bottom: 10px; font-size: 12px; border: 1px solid #e2e8f0; }}
   .risk-timeline .seg {{ display: flex; align-items: center; justify-content: center; color: #0f172a; }}
   .risk-timeline .train {{ background: #c9f7d7; }}
   .risk-timeline .eval {{ background: #fde68a; }}
   .risk-timeline .infer {{ background: #fecaca; }}
-  .risk-map {{ width: 100%; height: 560px; border-radius: 8px; }}
-  .risk-map-status {{ margin-top: 8px; font-size: 13px; color: #0f172a; }}
+  .risk-map {{ width: 100%; height: 640px; border-radius: 8px; border: 1px solid #d7dde4; }}
+  .risk-map-status {{ margin-top: 8px; font-size: 13px; color: #0f172a; min-height: 18px; }}
+  .risk-map-status.error {{ color: #b91c1c; font-weight: 600; }}
   .risk-legend {{ margin-top: 8px; display: flex; gap: 14px; align-items: center; font-size: 13px; }}
   .legend-item {{ display: inline-flex; align-items: center; gap: 6px; }}
   .dot {{ width: 12px; height: 12px; border-radius: 999px; display: inline-block; border: 1px solid rgba(15, 23, 42, 0.25); }}
-  .dot.green {{ background: rgba(46, 204, 113, 0.65); }}
-  .dot.yellow {{ background: rgba(241, 196, 15, 0.7); }}
-  .dot.red {{ background: rgba(231, 76, 60, 0.75); }}
+  .dot.green {{ background: rgba(46, 204, 113, 0.85); }}
+  .dot.yellow {{ background: rgba(241, 196, 15, 0.85); }}
+  .dot.red {{ background: rgba(231, 76, 60, 0.85); }}
+  .layer-card, .section-card {{ border: 1px solid #d7dde4; border-radius: 8px; padding: 8px; background: #ffffff; display: grid; gap: 8px; margin-bottom: 8px; }}
+  .layer-head {{ display: flex; align-items: center; justify-content: space-between; gap: 8px; }}
+  @media (max-width: 1100px) {{
+    .risk-layout {{ grid-template-columns: 1fr; }}
+    .risk-map {{ height: 500px; }}
+  }}
 </style>
-<script>
-(() => {{
+"""
+
+
+def _map_bootstrap_js() -> str:
+    return """
+() => {
   const root = document.getElementById("risk-map-shell");
-  if (!root || root.dataset.ready === "1") return;
+  if (!root || root.dataset.ready === "1") return [];
   root.dataset.ready = "1";
 
-  const cfg = {json.dumps(js_config)};
+  let cfg = {};
+  try {
+    cfg = JSON.parse(root.dataset.config || "{}");
+  } catch (err) {
+    console.error("Failed to parse map config", err);
+  }
+
   const slider = root.querySelector("#risk-time-slider");
   const valueNode = root.querySelector("#risk-time-value");
   const phaseNode = root.querySelector("#risk-phase");
@@ -467,154 +508,243 @@ def _map_html() -> str:
   const statusNode = root.querySelector("#risk-map-status");
 
   const wfEnabled = root.querySelector("#wf-enabled");
-  const wfLayer = root.querySelector("#wf-layer");
   const huEnabled = root.querySelector("#hu-enabled");
-  const huLayer = root.querySelector("#hu-layer");
 
   let timer = null;
   let map = null;
+  let mapEngine = "";
+  let leafletOverlays = [];
 
-  const phaseForFrame = (frame) => {{
-    const year = Number(frame.slice(0, 4));
-    if (year <= cfg.training_end_year) return "training";
-    if (year <= cfg.eval_end_year) return "eval";
+  const updateStatus = (text, isError = false) => {
+    statusNode.textContent = text;
+    statusNode.classList.toggle("error", Boolean(isError));
+  };
+
+  const phaseForFrame = (frame) => {
+    const year = Number((frame || "").slice(0, 4));
+    if (year <= Number(cfg.training_end_year)) return "training";
+    if (year <= Number(cfg.eval_end_year)) return "eval";
     return "inference";
-  }};
+  };
 
-  const currentFrame = () => cfg.frames[Number(slider.value)] ?? cfg.frames[0];
+  const currentFrame = () => (cfg.frames && cfg.frames[Number(slider.value)]) || (cfg.frames ? cfg.frames[0] : "n/a");
 
-  const updateLabels = () => {{
+  const updateLabels = () => {
     const frame = currentFrame();
     valueNode.textContent = frame;
     phaseNode.textContent = phaseForFrame(frame);
-  }};
+  };
 
-  const setPlaying = (on) => {{
-    if (on && !timer) {{
+  const setPlaying = (on) => {
+    if (on && !timer) {
       playBtn.textContent = "Pause";
-      timer = setInterval(() => {{
+      timer = setInterval(() => {
         const next = (Number(slider.value) + 1) % cfg.frames.length;
         slider.value = String(next);
         installOverlay();
-      }}, 900);
+      }, 900);
       return;
-    }}
-    if (!on && timer) {{
+    }
+    if (!on && timer) {
       clearInterval(timer);
       timer = null;
       playBtn.textContent = "Play";
-    }}
-  }};
+    }
+  };
 
-  const tileUrl = (hazard, layer, frameIdx, z, x, y) => `/tiles/${{hazard}}/${{layer}}/${{frameIdx}}/${{z}}/${{x}}/${{y}}.png`;
+  const tileUrl = (hazard, frameIdx, z, x, y) =>
+    `/tiles/${hazard}/${frameIdx}/${z}/${x}/${y}.png`;
 
-  const pushOverlay = (hazard, layer, frameIdx, opacity) => {{
-    const overlay = new google.maps.ImageMapType({{
-      tileSize: new google.maps.Size(256, 256),
-      opacity,
-      getTileUrl: (coord, zoom) => {{
-        const bound = 1 << zoom;
-        if (coord.y < 0 || coord.y >= bound) return "";
-        const limits = cfg.hazards[hazard];
-        if (zoom < limits.zoom_min || zoom > limits.zoom_max) return "";
-        const wrappedX = ((coord.x % bound) + bound) % bound;
-        return tileUrl(hazard, layer, frameIdx, zoom, wrappedX, coord.y);
-      }},
-    }});
-    map.overlayMapTypes.push(overlay);
-  }};
+  const clearOverlays = () => {
+    if (!map) return;
+    if (mapEngine === "google") {
+      map.overlayMapTypes.clear();
+      return;
+    }
+    if (mapEngine === "leaflet") {
+      leafletOverlays.forEach((layer) => map.removeLayer(layer));
+      leafletOverlays = [];
+    }
+  };
 
-  const installOverlay = () => {{
-    const frameIdx = Number(slider.value);
+  const pushOverlay = (hazard, frameIdx) => {
+    if (!map) return;
+    if (mapEngine === "google") {
+      const overlay = new google.maps.ImageMapType({
+        tileSize: new google.maps.Size(256, 256),
+        opacity: 1.0,
+        getTileUrl: (coord, zoom) => {
+          if (coord.y < 0 || coord.y >= (1 << zoom)) return "";
+          const wrappedX = ((coord.x % (1 << zoom)) + (1 << zoom)) % (1 << zoom);
+          return tileUrl(hazard, frameIdx, zoom, wrappedX, coord.y);
+        },
+      });
+      map.overlayMapTypes.push(overlay);
+      return;
+    }
+    if (mapEngine === "leaflet") {
+      const layer = window.L.tileLayer(`/tiles/${hazard}/${frameIdx}/{z}/{x}/{y}.png`, {
+        opacity: 1.0,
+        maxZoom: Number(cfg.zoom_max || 10),
+        minZoom: Number(cfg.zoom_min || 2),
+      });
+      layer.addTo(map);
+      leafletOverlays.push(layer);
+    }
+  };
+
+  const installOverlay = () => {
     updateLabels();
     if (!map) return;
 
-    map.overlayMapTypes.clear();
-    if (wfEnabled.checked) {{
-      pushOverlay("wildfires", wfLayer.value, frameIdx, wfLayer.value === "risk" ? 0.58 : 0.46);
-    }}
-    if (huEnabled.checked) {{
-      pushOverlay("huricaines", huLayer.value, frameIdx, huLayer.value === "risk" ? 0.62 : 0.50);
-    }}
-  }};
+    const frameIdx = Number(slider.value);
+    clearOverlays();
 
-  const initMap = () => {{
-    map = new google.maps.Map(mapNode, {{
-      center: {{ lat: cfg.center_lat, lng: cfg.center_lon }},
-      zoom: cfg.zoom_min,
-      minZoom: cfg.zoom_min,
-      maxZoom: cfg.zoom_max,
-      mapTypeControl: false,
+    let active = 0;
+    if (wfEnabled.checked) {
+      active += 1;
+      pushOverlay("wildfires", frameIdx);
+    }
+    if (huEnabled.checked) {
+      active += 1;
+      pushOverlay("huricaines", frameIdx);
+    }
+    if (active === 0) {
+      updateStatus("No layers enabled. Turn on at least one layer.");
+    } else {
+      updateStatus(`Showing ${active} layer(s) for ${currentFrame()}.`);
+    }
+  };
+
+  const initGoogleMap = () => {
+    mapEngine = "google";
+    map = new google.maps.Map(mapNode, {
+      center: { lat: Number(cfg.center_lat || 36.0), lng: Number(cfg.center_lon || -95.0) },
+      zoom: Number(cfg.default_zoom || 4),
+      minZoom: Number(cfg.zoom_min || 2),
+      maxZoom: Number(cfg.zoom_max || 10),
+      mapTypeControl: true,
       streetViewControl: false,
-      fullscreenControl: false,
+      fullscreenControl: true,
       clickableIcons: false,
-    }});
-    statusNode.textContent = `Precomputed monthly overlays loaded (${{cfg.frames.length}} frames).`;
+    });
+    setTimeout(() => {
+      if (window.google && window.google.maps) {
+        google.maps.event.trigger(map, "resize");
+      }
+    }, 150);
     installOverlay();
-  }};
+  };
 
-  const loadGoogleMaps = () => {{
-    if (!cfg.api_key) {{
-      statusNode.textContent = "Set GMAPS_API_KEY to render Google Maps overlays.";
-      updateLabels();
+  const initLeafletMap = () => {
+    mapEngine = "leaflet";
+    map = window.L.map(mapNode, {
+      center: [Number(cfg.center_lat || 36.0), Number(cfg.center_lon || -95.0)],
+      zoom: Number(cfg.default_zoom || 4),
+      minZoom: Number(cfg.zoom_min || 2),
+      maxZoom: Number(cfg.zoom_max || 10),
+      zoomControl: true,
+    });
+    window.L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "&copy; OpenStreetMap contributors",
+    }).addTo(map);
+    setTimeout(() => map.invalidateSize(), 150);
+    updateStatus("Using OpenStreetMap fallback. Set GMAPS_API_KEY to use Google base map.");
+    installOverlay();
+  };
+
+  const ensureLeaflet = () =>
+    new Promise((resolve, reject) => {
+      if (window.L && window.L.map) {
+        resolve();
+        return;
+      }
+
+      if (!document.getElementById("leaflet-css")) {
+        const link = document.createElement("link");
+        link.id = "leaflet-css";
+        link.rel = "stylesheet";
+        link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+        document.head.appendChild(link);
+      }
+
+      const existing = document.getElementById("leaflet-js");
+      if (existing) {
+        existing.addEventListener("load", () => resolve(), { once: true });
+        existing.addEventListener("error", () => reject(new Error("Leaflet JS failed to load")), { once: true });
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.id = "leaflet-js";
+      script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("Leaflet JS failed to load"));
+      document.head.appendChild(script);
+    });
+
+  const loadGoogleMaps = () => {
+    if (!cfg.api_key) {
+      ensureLeaflet()
+        .then(initLeafletMap)
+        .catch(() => updateStatus("Failed to load map libraries.", true));
       return;
-    }}
-    if (window.google && window.google.maps) {{
-      initMap();
+    }
+    if (window.google && window.google.maps) {
+      initGoogleMap();
       return;
-    }}
-    const callbackName = `gmapsInit_${{cfg.service_id}}`;
-    window[callbackName] = () => {{
+    }
+    const callbackName = `gmapsInit_${cfg.service_id}_${Date.now()}`;
+    const fallbackTimer = setTimeout(() => {
+      if (!map) {
+        ensureLeaflet()
+          .then(initLeafletMap)
+          .catch(() => updateStatus("Failed to initialize Google Maps and fallback map.", true));
+      }
+    }, 5000);
+    window[callbackName] = () => {
+      clearTimeout(fallbackTimer);
       delete window[callbackName];
-      initMap();
-    }};
+      initGoogleMap();
+    };
     const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${{cfg.api_key}}&callback=${{callbackName}}`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${cfg.api_key}&callback=${callbackName}&v=weekly`;
     script.async = true;
     script.defer = true;
-    script.onerror = () => {{
-      statusNode.textContent = "Failed to load Google Maps JavaScript API.";
-    }};
+    script.onerror = () => {
+      clearTimeout(fallbackTimer);
+      ensureLeaflet()
+        .then(initLeafletMap)
+        .catch(() => updateStatus("Failed to load Google Maps and fallback map.", true));
+    };
     document.head.appendChild(script);
-  }};
+  };
 
   slider.addEventListener("input", installOverlay);
   wfEnabled.addEventListener("change", installOverlay);
   huEnabled.addEventListener("change", installOverlay);
-  wfLayer.addEventListener("change", installOverlay);
-  huLayer.addEventListener("change", installOverlay);
   playBtn.addEventListener("click", () => setPlaying(!timer));
 
   updateLabels();
   loadGoogleMaps();
-}})();
-</script>
+  return [];
+}
 """
 
 
 with gr.Blocks(title=SERVICE_NAME) as demo:
     gr.Markdown(f"# {SERVICE_NAME}")
-
-    gr.Markdown("## Training")
-    gr.Markdown(
-        f"- Wildfires model version: **{WILDFIRES_MODEL_VERSION}**\n"
-        f"- Huricaines model version: **{HURICAINES_MODEL_VERSION}**\n"
-        f"- Wildfires training rows: **{int(WILDFIRES_MODEL_BUNDLE.get('dataset_rows', 0))}**\n"
-        f"- Huricaines training rows: **{int(HURICAINES_MODEL_BUNDLE.get('dataset_rows', 0))}**"
-    )
-
-    gr.Markdown("## Eval")
-    gr.Markdown(
-        f"- Wildfires val accuracy: **{_as_percent(WILDFIRES_MODEL_BUNDLE.get('val_accuracy'))}**\n"
-        f"- Wildfires val balanced accuracy: **{_as_percent(WILDFIRES_MODEL_BUNDLE.get('val_balanced_accuracy'))}**\n"
-        f"- Wildfires val AUROC: **{_as_percent(WILDFIRES_MODEL_BUNDLE.get('val_auc'))}**\n"
-        f"- Huricaines val accuracy: **{_as_percent(HURICAINES_MODEL_BUNDLE.get('val_accuracy'))}**\n"
-        f"- Huricaines val balanced accuracy: **{_as_percent(HURICAINES_MODEL_BUNDLE.get('val_balanced_accuracy'))}**\n"
-        f"- Huricaines val AUROC: **{_as_percent(HURICAINES_MODEL_BUNDLE.get('val_auc'))}**"
-    )
-
-    gr.Markdown("## Inference")
     gr.HTML(_map_html())
+    demo.load(
+        fn=None,
+        inputs=None,
+        outputs=None,
+        js=_map_bootstrap_js(),
+        queue=False,
+        show_progress="hidden",
+    )
 
     with gr.Tab("Wildfires"):
         with gr.Row():
@@ -669,24 +799,18 @@ def health() -> dict[str, object]:
     }
 
 
-@api.get("/tiles/{hazard}/{layer}/{frame_idx}/{z}/{x}/{y}.png")
-def tile(hazard: str, layer: str, frame_idx: int, z: int, x: int, y: int) -> Response:
+def _serve_tile(hazard: str, frame_idx: int, z: int, x: int, y: int) -> Response:
     if hazard not in OVERLAYS:
         raise HTTPException(status_code=404, detail="unknown hazard")
-    if layer not in {"risk", "activity", "confidence"}:
-        raise HTTPException(status_code=404, detail="unknown layer")
 
-    config = OVERLAYS[hazard]["config"]
-    z_min = int(config["zoom_min"])
-    z_max = int(config["zoom_max"])
-    if z < z_min or z > z_max:
+    if z < 0 or z > 12:
         blank = Image.new("RGBA", (TILE_SIZE, TILE_SIZE), (0, 0, 0, 0))
         buffer = io.BytesIO()
         blank.save(buffer, format="PNG")
         return Response(content=buffer.getvalue(), media_type="image/png")
 
     try:
-        png = _render_tile_png(hazard=hazard, layer=layer, frame_idx=frame_idx, z=z, x=x, y=y)
+        png = _render_tile_png(hazard=hazard, frame_idx=frame_idx, z=z, x=x, y=y)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -695,6 +819,19 @@ def tile(hazard: str, layer: str, frame_idx: int, z: int, x: int, y: int) -> Res
         media_type="image/png",
         headers={"Cache-Control": "public, max-age=86400"},
     )
+
+
+@api.get("/tiles/{hazard}/{frame_idx}/{z}/{x}/{y}.png")
+def tile(hazard: str, frame_idx: int, z: int, x: int, y: int) -> Response:
+    return _serve_tile(hazard=hazard, frame_idx=frame_idx, z=z, x=x, y=y)
+
+
+@api.get("/tiles/{hazard}/{layer}/{frame_idx}/{z}/{x}/{y}.png")
+def tile_legacy(hazard: str, layer: str, frame_idx: int, z: int, x: int, y: int) -> Response:
+    # Backward-compatible path; the service now exposes one overlay per hazard.
+    if layer not in {"risk", "activity", "confidence"}:
+        raise HTTPException(status_code=404, detail="unknown layer")
+    return _serve_tile(hazard=hazard, frame_idx=frame_idx, z=z, x=x, y=y)
 
 
 app = gr.mount_gradio_app(api, demo, path="/")
