@@ -136,7 +136,11 @@ def test_fetch_us_fod_overlay_points_paginates(monkeypatch):
 
     calls = {"i": 0}
 
-    def fake_query(_query_url: str, _params: dict[str, object]) -> dict[str, object]:
+    def fake_query(
+        _query_url: str,
+        _params: dict[str, object],
+        **_kwargs: object,
+    ) -> dict[str, object]:
         i = calls["i"]
         calls["i"] += 1
         return pages[i] if i < len(pages) else {"features": [], "exceededTransferLimit": False}
@@ -148,6 +152,9 @@ def test_fetch_us_fod_overlay_points_paginates(monkeypatch):
         min_fire_size=50.0,
         page_size=1,
         max_rows=None,
+        timeout_sec=30.0,
+        retries=1,
+        backoff_sec=0.0,
     )
     assert len(df) == 2
     assert sorted(df["year"].astype(int).tolist()) == [2018, 2019]
