@@ -65,18 +65,28 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--us-min-fire-size", type=float, default=50.0)
     parser.add_argument("--us-page-size", type=int, default=2000)
     parser.add_argument("--us-max-rows", type=int, default=None)
+    parser.add_argument("--us-timeout-sec", type=float, default=30.0)
+    parser.add_argument("--us-retries", type=int, default=2)
+    parser.add_argument("--us-backoff-sec", type=float, default=1.0)
     return parser.parse_args()
 
 
-def _arcgis_query_json(query_url: str, params: dict[str, object]) -> dict[str, object]:
+def _arcgis_query_json(
+    query_url: str,
+    params: dict[str, object],
+    timeout_sec: float,
+    retries: int,
+    backoff_sec: float,
+) -> dict[str, object]:
     last_error: Exception | None = None
-    for attempt in range(4):
+    attempts = max(1, int(retries) + 1)
+    for attempt in range(attempts):
         try:
             resp = requests.get(
                 query_url,
                 params=params,
                 headers={"User-Agent": "playground-disasters/1.0"},
-                timeout=120,
+                timeout=timeout_sec,
             )
             payload = resp.text
             data = json.loads(payload)
@@ -85,8 +95,8 @@ def _arcgis_query_json(query_url: str, params: dict[str, object]) -> dict[str, o
             return data
         except Exception as exc:
             last_error = exc
-            if attempt < 3:
-                time.sleep(1.5 * (attempt + 1))
+            if attempt < attempts - 1:
+                time.sleep(max(0.0, backoff_sec) * (attempt + 1))
                 continue
             break
     raise RuntimeError(f"ArcGIS query failed after retries: {last_error}")
@@ -123,13 +133,21 @@ def fetch_us_fod_overlay_points(
     min_fire_size: float,
     page_size: int,
     max_rows: int | None,
+    timeout_sec: float,
+    retries: int,
+    backoff_sec: float,
 ) -> pd.DataFrame:
     out_fields = "OBJECTID,FIRE_YEAR,DISCOVERY_DATE,FIRE_SIZE,LATITUDE,LONGITUDE,STATE"
 
+    print(f"Fetching US wildfire overlay points from ArcGIS ({min_year}-2020)...")
     rows: list[dict[str, object]] = []
     for year in range(int(min_year), 2021):
+        print(f"  Year {year}: start")
+        year_start_rows = len(rows)
         offset = 0
+        page_idx = 0
         while True:
+            page_idx += 1
             where = f"FIRE_YEAR = {year} AND FIRE_SIZE >= {float(min_fire_size)}"
             try:
                 page = _arcgis_query_json(
@@ -143,6 +161,9 @@ def fetch_us_fod_overlay_points(
                         "resultOffset": offset,
                         "resultRecordCount": page_size,
                     },
+                    timeout_sec=timeout_sec,
+                    retries=retries,
+                    backoff_sec=backoff_sec,
                 )
             except RuntimeError as exc:
                 # ArcGIS occasionally returns transient "Layer not found" under heavy load.
@@ -162,12 +183,17 @@ def fetch_us_fod_overlay_points(
 
             if max_rows is not None and len(rows) >= max_rows:
                 rows = rows[:max_rows]
+                print(f"Reached us-max-rows={max_rows}; stopping early.")
                 return _normalize_us_fod_rows(rows)
 
             offset += len(features)
+            print(f"    page {page_idx}: +{len(features)} rows (total={len(rows)})")
             if len(features) < page_size:
                 break
 
+        print(f"  Year {year}: +{len(rows) - year_start_rows} rows")
+
+    print(f"Finished ArcGIS fetch. Raw rows collected: {len(rows)}")
     return _normalize_us_fod_rows(rows)
 
 
@@ -269,6 +295,9 @@ def main() -> None:
         min_fire_size=args.us_min_fire_size,
         page_size=args.us_page_size,
         max_rows=args.us_max_rows,
+        timeout_sec=args.us_timeout_sec,
+        retries=args.us_retries,
+        backoff_sec=args.us_backoff_sec,
     )
     us_overlay_df.to_csv(args.us_overlay_path, index=False)
 
