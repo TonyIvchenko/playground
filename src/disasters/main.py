@@ -420,14 +420,22 @@ def _map_html() -> str:
       <h3>Layers</h3>
       <div class="layer-card">
         <div class="layer-head">
-          <label><input id="wf-enabled" type="checkbox" checked /> Wildfires</label>
+          <label for="wf-visibility">Wildfires</label>
+          <select id="wf-visibility">
+            <option value="on" selected>Show</option>
+            <option value="off">Hide</option>
+          </select>
         </div>
         <div>Overlay enabled: color = probability, opacity = confidence/intensity.</div>
       </div>
 
       <div class="layer-card">
         <div class="layer-head">
-          <label><input id="hu-enabled" type="checkbox" checked /> Huricaines</label>
+          <label for="hu-visibility">Huricaines</label>
+          <select id="hu-visibility">
+            <option value="on" selected>Show</option>
+            <option value="off">Hide</option>
+          </select>
         </div>
         <div>Overlay enabled: color = probability, opacity = confidence/intensity.</div>
       </div>
@@ -507,8 +515,8 @@ def _map_bootstrap_js() -> str:
   const mapNode = root.querySelector("#risk-map");
   const statusNode = root.querySelector("#risk-map-status");
 
-  const wfEnabled = root.querySelector("#wf-enabled");
-  const huEnabled = root.querySelector("#hu-enabled");
+  const wfVisibility = root.querySelector("#wf-visibility");
+  const huVisibility = root.querySelector("#hu-visibility");
 
   let timer = null;
   let map = null;
@@ -601,11 +609,11 @@ def _map_bootstrap_js() -> str:
     clearOverlays();
 
     let active = 0;
-    if (wfEnabled.checked) {
+    if (wfVisibility.value === "on") {
       active += 1;
       pushOverlay("wildfires", frameIdx);
     }
-    if (huEnabled.checked) {
+    if (huVisibility.value === "on") {
       active += 1;
       pushOverlay("huricaines", frameIdx);
     }
@@ -723,8 +731,8 @@ def _map_bootstrap_js() -> str:
   };
 
   slider.addEventListener("input", installOverlay);
-  wfEnabled.addEventListener("change", installOverlay);
-  huEnabled.addEventListener("change", installOverlay);
+  wfVisibility.addEventListener("change", installOverlay);
+  huVisibility.addEventListener("change", installOverlay);
   playBtn.addEventListener("click", () => setPlaying(!timer));
 
   updateLabels();
