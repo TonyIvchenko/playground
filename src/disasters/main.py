@@ -420,21 +420,11 @@ def _map_html() -> str:
       <h3>Layers</h3>
       <div class="layer-card">
         <div class="layer-head">
-          <label for="wf-visibility">Wildfires</label>
-          <select id="wf-visibility">
-            <option value="on" selected>Show</option>
-            <option value="off">Hide</option>
-          </select>
-        </div>
-        <div>Overlay enabled: color = probability, opacity = confidence/intensity.</div>
-      </div>
-
-      <div class="layer-card">
-        <div class="layer-head">
-          <label for="hu-visibility">Huricaines</label>
-          <select id="hu-visibility">
-            <option value="on" selected>Show</option>
-            <option value="off">Hide</option>
+          <label for="hazard-select">Overlay</label>
+          <select id="hazard-select">
+            <option value="wildfires" selected>Wildfires</option>
+            <option value="huricaines">Huricaines</option>
+            <option value="none">Hide all</option>
           </select>
         </div>
         <div>Overlay enabled: color = probability, opacity = confidence/intensity.</div>
@@ -515,8 +505,7 @@ def _map_bootstrap_js() -> str:
   const mapNode = root.querySelector("#risk-map");
   const statusNode = root.querySelector("#risk-map-status");
 
-  const wfVisibility = root.querySelector("#wf-visibility");
-  const huVisibility = root.querySelector("#hu-visibility");
+  const hazardSelect = root.querySelector("#hazard-select");
 
   let timer = null;
   let map = null;
@@ -608,19 +597,21 @@ def _map_bootstrap_js() -> str:
     const frameIdx = Number(slider.value);
     clearOverlays();
 
-    let active = 0;
-    if (wfVisibility.value === "on") {
-      active += 1;
+    const selectedHazard = hazardSelect.value;
+    if (selectedHazard === "wildfires") {
       pushOverlay("wildfires", frameIdx);
+      updateStatus(`Showing wildfires for ${currentFrame()}.`);
+      return;
     }
-    if (huVisibility.value === "on") {
-      active += 1;
+    if (selectedHazard === "huricaines") {
       pushOverlay("huricaines", frameIdx);
+      updateStatus(`Showing huricaines for ${currentFrame()}.`);
+      return;
     }
-    if (active === 0) {
+    if (selectedHazard === "none") {
       updateStatus("No layers enabled. Turn on at least one layer.");
     } else {
-      updateStatus(`Showing ${active} layer(s) for ${currentFrame()}.`);
+      updateStatus("Unknown layer selection.", true);
     }
   };
 
@@ -731,8 +722,7 @@ def _map_bootstrap_js() -> str:
   };
 
   slider.addEventListener("input", installOverlay);
-  wfVisibility.addEventListener("change", installOverlay);
-  huVisibility.addEventListener("change", installOverlay);
+  hazardSelect.addEventListener("change", installOverlay);
   playBtn.addEventListener("click", () => setPlaying(!timer));
 
   updateLabels();
