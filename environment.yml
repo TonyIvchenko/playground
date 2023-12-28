@@ -6,3 +6,4 @@ dependencies:
       - -r requirements.txt
       - -r src/test/requirements.txt
       - -r src/disasters/requirements.txt
+      - -r src/ctscan/requirements.txt
