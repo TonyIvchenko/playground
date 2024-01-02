@@ -134,5 +134,8 @@ dmypy.json
 # Service data downloads
 src/*/data/raw/
 src/*/data/processed/
+src/*/data/*/raw/
+src/*/data/*/processed/
+src/*/data/*/samples/
 src/disasters/data/*/raw/
 src/disasters/data/*/processed/
