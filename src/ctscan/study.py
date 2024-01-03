@@ -26,6 +26,7 @@ class LoadedStudy:
     spacing: tuple[float, float, float]
     metadata: dict[str, Any]
     qc_reasons: list[str]
+    sop_uid_to_index: dict[str, int]
 
 
 def _safe_str(value: Any) -> str:
@@ -226,7 +227,7 @@ def generate_candidates(volume_hu: np.ndarray, lung_mask: np.ndarray, max_candid
     return sorted(candidates, key=lambda item: item["slice_index"])
 
 
-def load_study_from_zip_bytes(zip_bytes: bytes) -> LoadedStudy:
+def load_study_from_zip_bytes(zip_bytes: bytes, resample: bool = True) -> LoadedStudy:
     qc_reasons: list[str] = []
     datasets: list[FileDataset] = []
     with zipfile.ZipFile(io.BytesIO(zip_bytes), "r") as archive:
@@ -282,8 +283,13 @@ def load_study_from_zip_bytes(zip_bytes: bytes) -> LoadedStudy:
         intercept = float(getattr(ds, "RescaleIntercept", 0.0))
         slices.append(pixels * slope + intercept)
 
+    sop_uid_to_index = {
+        _safe_str(getattr(ds, "SOPInstanceUID", "")): index for index, ds in enumerate(selected)
+    }
     volume_hu = np.stack(slices, axis=0).astype(np.float32)
-    volume_hu, spacing = resample_volume(volume_hu, (spacing_z, spacing_y, spacing_x))
+    spacing = (spacing_z, spacing_y, spacing_x)
+    if resample:
+        volume_hu, spacing = resample_volume(volume_hu, spacing)
 
     metadata = {
         "patient_id": _safe_str(getattr(selected[0], "PatientID", "")),
@@ -298,7 +304,13 @@ def load_study_from_zip_bytes(zip_bytes: bytes) -> LoadedStudy:
         "spacing": [float(x) for x in spacing],
     }
 
-    return LoadedStudy(volume_hu=volume_hu, spacing=spacing, metadata=metadata, qc_reasons=qc_reasons)
+    return LoadedStudy(
+        volume_hu=volume_hu,
+        spacing=spacing,
+        metadata=metadata,
+        qc_reasons=qc_reasons,
+        sop_uid_to_index=sop_uid_to_index,
+    )
 
 
 def match_prior_findings(

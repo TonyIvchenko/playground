@@ -32,9 +32,16 @@ python scripts/nodules/download_data.py
 This does three things:
 - writes a public dataset manifest for `LIDC-IDRI`, `LUNA16`, and `LNDb`
 - downloads two de-identified TCIA chest CT demo studies for the UI sample dropdown
-- generates a deterministic smoke training dataset for local training/tests
+- downloads a small real `LIDC-IDRI` training subset and converts XML annotations into canonical 3D nodule patches
+- generates a deterministic smoke fallback dataset for tests/offline fallback
 
-If you only want the smoke training dataset and not the TCIA sample studies:
+By default the real training subset uses `3` LIDC studies so the first run stays practical. Increase it when you want more real patches:
+
+```bash
+python scripts/nodules/download_data.py --lidc-study-limit 6
+```
+
+If you only want the real training subset and not the demo studies:
 
 ```bash
 python scripts/nodules/download_data.py --skip-samples
@@ -43,10 +50,10 @@ python scripts/nodules/download_data.py --skip-samples
 ## Train
 
 ```bash
-python scripts/nodules/train_model.py --model-version 0.1.0
+python scripts/nodules/train_model.py --model-version 0.2.0
 ```
 
-The shipped checkpoint is trained on the deterministic smoke dataset so the app boots locally. It is not a clinically meaningful public-data model. The manifest created by `download_data.py` is the starting point for replacing that smoke dataset with staged `LIDC-IDRI` / `LUNA16` / `LNDb` data.
+The shipped checkpoint is now trained on a small real `LIDC-IDRI` subset built by `download_data.py`. It is still a lightweight prototype model, not a clinically meaningful detector, but it is no longer trained on synthetic-only patches. The smoke dataset remains in the repo only as an offline fallback for tests and local recovery.
 
 ## Notebook
 
