@@ -9,6 +9,22 @@ from torch import nn
 PATCH_SHAPE = (24, 24, 24)
 
 
+class SqueezeExcite3D(nn.Module):
+    def __init__(self, channels: int, reduction: int = 8) -> None:
+        super().__init__()
+        hidden = max(8, channels // reduction)
+        self.pool = nn.AdaptiveAvgPool3d(1)
+        self.proj = nn.Sequential(
+            nn.Conv3d(channels, hidden, kernel_size=1),
+            nn.SiLU(),
+            nn.Conv3d(hidden, channels, kernel_size=1),
+            nn.Sigmoid(),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return x * self.proj(self.pool(x))
+
+
 class ResidualBlock3D(nn.Module):
     def __init__(self, in_channels: int, out_channels: int, stride: int = 1) -> None:
         super().__init__()
@@ -16,6 +32,7 @@ class ResidualBlock3D(nn.Module):
         self.norm1 = nn.GroupNorm(num_groups=max(1, out_channels // 8), num_channels=out_channels)
         self.conv2 = nn.Conv3d(out_channels, out_channels, kernel_size=3, padding=1, bias=False)
         self.norm2 = nn.GroupNorm(num_groups=max(1, out_channels // 8), num_channels=out_channels)
+        self.se = SqueezeExcite3D(out_channels)
         self.act = nn.SiLU()
         if stride != 1 or in_channels != out_channels:
             self.skip = nn.Sequential(
@@ -28,7 +45,7 @@ class ResidualBlock3D(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         residual = self.skip(x)
         x = self.act(self.norm1(self.conv1(x)))
-        x = self.norm2(self.conv2(x))
+        x = self.se(self.norm2(self.conv2(x)))
         return self.act(x + residual)
 
 
@@ -36,35 +53,40 @@ class NoduleResNet(nn.Module):
     def __init__(self) -> None:
         super().__init__()
         self.stem = nn.Sequential(
-            nn.Conv3d(1, 24, kernel_size=5, stride=1, padding=2, bias=False),
-            nn.GroupNorm(num_groups=3, num_channels=24),
+            nn.Conv3d(1, 32, kernel_size=5, stride=1, padding=2, bias=False),
+            nn.GroupNorm(num_groups=4, num_channels=32),
             nn.SiLU(),
         )
         self.stage1 = nn.Sequential(
-            ResidualBlock3D(24, 24),
-            ResidualBlock3D(24, 24),
+            ResidualBlock3D(32, 32),
+            ResidualBlock3D(32, 32),
         )
         self.stage2 = nn.Sequential(
-            ResidualBlock3D(24, 48, stride=2),
-            ResidualBlock3D(48, 48),
+            ResidualBlock3D(32, 64, stride=2),
+            ResidualBlock3D(64, 64),
         )
         self.stage3 = nn.Sequential(
-            ResidualBlock3D(48, 96, stride=2),
-            ResidualBlock3D(96, 96),
-        )
-        self.stage4 = nn.Sequential(
-            ResidualBlock3D(96, 128, stride=2),
+            ResidualBlock3D(64, 128, stride=2),
             ResidualBlock3D(128, 128),
         )
-        self.pool = nn.AdaptiveAvgPool3d(1)
+        self.stage4 = nn.Sequential(
+            ResidualBlock3D(128, 192, stride=2),
+            ResidualBlock3D(192, 192),
+        )
+        self.pool = nn.Sequential(
+            nn.Conv3d(192, 192, kernel_size=1, bias=False),
+            nn.GroupNorm(num_groups=8, num_channels=192),
+            nn.SiLU(),
+            nn.AdaptiveAvgPool3d(1),
+        )
         self.embedding = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(128, 64),
+            nn.Linear(192, 96),
             nn.SiLU(),
-            nn.Dropout(p=0.2),
+            nn.Dropout(p=0.25),
         )
-        self.nodule_head = nn.Linear(64, 1)
-        self.malignancy_head = nn.Linear(64, 1)
+        self.nodule_head = nn.Linear(96, 1)
+        self.malignancy_head = nn.Linear(96, 1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.stem(x)

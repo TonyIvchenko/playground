@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import argparse
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 import json
+import os
 from pathlib import Path
 import sys
 import time
@@ -95,6 +96,12 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=6,
         help="Concurrent workers for TCIA study downloads.",
+    )
+    parser.add_argument(
+        "--process-workers",
+        type=int,
+        default=max(1, min(8, max(1, (os.cpu_count() or 2) // 2))),
+        help="Parallel workers for patch extraction once raw series are cached.",
     )
     parser.add_argument(
         "--skip-samples",
@@ -214,6 +221,7 @@ def parse_lidc_xml_bytes(xml_bytes: bytes) -> dict[str, Any] | None:
         return None
 
     annotations: list[dict[str, Any]] = []
+    non_nodules: list[dict[str, Any]] = []
     for session in root.findall("nih:readingSession", XML_NS):
         reader_id = _text(session, "servicingRadiologistID")
         for nodule in session.findall("nih:unblindedReadNodule", XML_NS):
@@ -259,13 +267,33 @@ def parse_lidc_xml_bytes(xml_bytes: bytes) -> dict[str, Any] | None:
                 }
             )
 
-    if not annotations:
+        for non_nodule in session.findall("nih:nonNodule", XML_NS):
+            sop_uid = _text(non_nodule, "imageSOP_UID")
+            locus = non_nodule.find("nih:locus", XML_NS)
+            x_coord = _text(locus, "xCoord")
+            y_coord = _text(locus, "yCoord")
+            if not sop_uid or not x_coord or not y_coord:
+                continue
+            non_nodules.append(
+                {
+                    "series_instance_uid": series_uid,
+                    "study_instance_uid": study_uid,
+                    "reader_id": reader_id,
+                    "non_nodule_id": _text(non_nodule, "nonNoduleID"),
+                    "sop_uid": sop_uid,
+                    "x_coord": int(float(x_coord)),
+                    "y_coord": int(float(y_coord)),
+                }
+            )
+
+    if not annotations and not non_nodules:
         return None
 
     return {
         "series_instance_uid": series_uid,
         "study_instance_uid": study_uid,
         "annotations": annotations,
+        "non_nodules": non_nodules,
     }
 
 
@@ -319,13 +347,21 @@ def sync_lidc_series(raw_dir: Path, series_uids: list[str], download_workers: in
         return series_uid
 
     completed = 0
+    failures: list[tuple[str, str]] = []
     with ThreadPoolExecutor(max_workers=max(1, download_workers)) as executor:
-        futures = [executor.submit(_task, series_uid) for series_uid in missing]
+        futures = {executor.submit(_task, series_uid): series_uid for series_uid in missing}
         for future in as_completed(futures):
-            future.result()
+            series_uid = futures[future]
+            try:
+                future.result()
+            except Exception as exc:
+                failures.append((series_uid, str(exc)))
+                print(f"  failed download: {series_uid}: {exc}")
             completed += 1
             if completed <= 10 or completed % 25 == 0 or completed == len(missing):
                 print(f"  downloaded {completed}/{len(missing)} series")
+    if failures:
+        print(f"Skipped {len(failures)} failed series downloads.")
 
 
 def _center_from_annotation(annotation: dict[str, Any], sop_uid_to_index: dict[str, int]) -> tuple[int, int, int] | None:
@@ -336,6 +372,17 @@ def _center_from_annotation(annotation: dict[str, Any], sop_uid_to_index: dict[s
     center_y = int(round(float(np.mean(annotation["y_coords"]))))
     center_x = int(round(float(np.mean(annotation["x_coords"]))))
     return center_z, center_y, center_x
+
+
+def _center_from_non_nodule(annotation: dict[str, Any], sop_uid_to_index: dict[str, int]) -> tuple[int, int, int] | None:
+    sop_uid = str(annotation["sop_uid"])
+    if sop_uid not in sop_uid_to_index:
+        return None
+    return (
+        int(sop_uid_to_index[sop_uid]),
+        int(annotation["y_coord"]),
+        int(annotation["x_coord"]),
+    )
 
 
 def cluster_annotations_for_study(
@@ -396,6 +443,39 @@ def cluster_annotations_for_study(
     return outputs
 
 
+def cluster_non_nodules_for_study(
+    study_manifest: dict[str, Any],
+    sop_uid_to_index: dict[str, int],
+    spacing: tuple[float, float, float],
+) -> list[tuple[int, int, int]]:
+    spacing_vec = np.array(spacing, dtype=np.float32)
+    clusters: list[dict[str, Any]] = []
+    for annotation in study_manifest.get("non_nodules", []):
+        center = _center_from_non_nodule(annotation, sop_uid_to_index)
+        if center is None:
+            continue
+        raw_center = np.array(center, dtype=np.float32)
+        mm_center = raw_center * spacing_vec
+        assigned = False
+        for cluster in clusters:
+            if float(np.linalg.norm(mm_center - cluster["mm_center"])) <= 6.0:
+                cluster["members"].append(raw_center)
+                member_raw = np.stack(cluster["members"], axis=0)
+                cluster["raw_center"] = member_raw.mean(axis=0)
+                cluster["mm_center"] = cluster["raw_center"] * spacing_vec
+                assigned = True
+                break
+        if not assigned:
+            clusters.append(
+                {
+                    "members": [raw_center],
+                    "raw_center": raw_center,
+                    "mm_center": mm_center,
+                }
+            )
+    return [tuple(int(round(x)) for x in cluster["raw_center"].tolist()) for cluster in clusters]
+
+
 def _sample_negative_centers(
     volume_hu: np.ndarray,
     spacing: tuple[float, float, float],
@@ -428,17 +508,19 @@ def process_lidc_series(
     raw_dir: Path,
     study_manifest: dict[str, Any],
     negatives_per_positive: int,
-) -> tuple[list[np.ndarray], list[float], list[float], list[str], list[dict[str, Any]]]:
+) -> tuple[list[np.ndarray], list[float], list[float], list[float], list[str], list[dict[str, Any]]]:
     series_uid = str(study_manifest["series_instance_uid"])
     study_zip_path = _series_zip_path(raw_dir, series_uid)
     study = load_study_from_zip_bytes(study_zip_path.read_bytes(), resample=False)
     lesion_clusters = cluster_annotations_for_study(study_manifest, study.sop_uid_to_index, study.spacing)
-    if not lesion_clusters:
-        return [], [], [], [], []
+    hard_negative_centers = cluster_non_nodules_for_study(study_manifest, study.sop_uid_to_index, study.spacing)
+    if not lesion_clusters and not hard_negative_centers:
+        return [], [], [], [], [], []
 
     patches: list[np.ndarray] = []
     nodule_target: list[float] = []
     malignancy_target: list[float] = []
+    malignancy_mask: list[float] = []
     series_ids: list[str] = []
     manifest_rows: list[dict[str, Any]] = []
 
@@ -447,7 +529,8 @@ def process_lidc_series(
         patch = extract_resampled_patch(study.volume_hu, cluster["center"], study.spacing, PATCH_SHAPE)
         patches.append(np.clip(np.rint(patch), -2000, 2000).astype(np.int16))
         nodule_target.append(1.0)
-        malignancy_target.append(1.0 if cluster["malignancy_mean"] >= 4.0 else 0.0)
+        malignancy_target.append(float(np.clip((cluster["malignancy_mean"] - 1.0) / 4.0, 0.0, 1.0)))
+        malignancy_mask.append(1.0)
         series_ids.append(series_uid)
         manifest_rows.append(
             {
@@ -460,11 +543,29 @@ def process_lidc_series(
             }
         )
 
+    for index, center in enumerate(hard_negative_centers):
+        patch = extract_resampled_patch(study.volume_hu, center, study.spacing, PATCH_SHAPE)
+        patches.append(np.clip(np.rint(patch), -2000, 2000).astype(np.int16))
+        nodule_target.append(0.0)
+        malignancy_target.append(0.0)
+        malignancy_mask.append(0.0)
+        series_ids.append(series_uid)
+        manifest_rows.append(
+            {
+                "series_instance_uid": series_uid,
+                "lesion_id": f"non-nodule-{index + 1}",
+                "patch_type": "hard_negative",
+                "reader_count": 0,
+                "malignancy_mean": 0.0,
+                "malignancy_std": 0.0,
+            }
+        )
+
     negative_centers = _sample_negative_centers(
         study.volume_hu,
         spacing=study.spacing,
         positive_centers=positive_centers,
-        count=max(1, negatives_per_positive * len(lesion_clusters)),
+        count=max(0, negatives_per_positive * len(lesion_clusters) - len(hard_negative_centers)),
         seed=sum(ord(ch) for ch in series_uid) % (2**32),
     )
     for index, center in enumerate(negative_centers):
@@ -472,6 +573,7 @@ def process_lidc_series(
         patches.append(np.clip(np.rint(patch), -2000, 2000).astype(np.int16))
         nodule_target.append(0.0)
         malignancy_target.append(0.0)
+        malignancy_mask.append(0.0)
         series_ids.append(series_uid)
         manifest_rows.append(
             {
@@ -484,7 +586,19 @@ def process_lidc_series(
             }
         )
 
-    return patches, nodule_target, malignancy_target, series_ids, manifest_rows
+    return patches, nodule_target, malignancy_target, malignancy_mask, series_ids, manifest_rows
+
+
+def _process_lidc_series_task(
+    raw_dir_str: str,
+    study_manifest: dict[str, Any],
+    negatives_per_positive: int,
+) -> tuple[list[np.ndarray], list[float], list[float], list[float], list[str], list[dict[str, Any]]]:
+    return process_lidc_series(
+        raw_dir=Path(raw_dir_str),
+        study_manifest=study_manifest,
+        negatives_per_positive=negatives_per_positive,
+    )
 
 
 def build_real_training_dataset(
@@ -493,6 +607,7 @@ def build_real_training_dataset(
     study_limit: int | None,
     negatives_per_positive: int,
     download_workers: int = 6,
+    process_workers: int = 1,
 ) -> tuple[Path, Path]:
     xml_zip_path = download_lidc_xml(raw_dir)
     manifest_entries = collect_real_annotation_manifest(xml_zip_path, study_limit=study_limit)
@@ -505,22 +620,62 @@ def build_real_training_dataset(
     all_patches: list[np.ndarray] = []
     all_nodule_target: list[float] = []
     all_malignancy_target: list[float] = []
+    all_malignancy_mask: list[float] = []
     all_series_ids: list[str] = []
     all_manifest_rows: list[dict[str, Any]] = []
+    failures: list[dict[str, str]] = []
 
-    for study_index, study_manifest in enumerate(manifest_entries):
-        series_uid = str(study_manifest["series_instance_uid"])
-        if study_index < 10 or (study_index + 1) % 25 == 0 or study_index + 1 == len(manifest_entries):
-            print(f"[{study_index + 1}/{len(manifest_entries)}] Building patches for series {series_uid}")
+    if process_workers <= 1:
+        iterable: list[tuple[int, dict[str, Any], tuple[list[np.ndarray], list[float], list[float], list[float], list[str], list[dict[str, Any]]]]] = []
+        for study_index, study_manifest in enumerate(manifest_entries):
+            series_uid = str(study_manifest["series_instance_uid"])
+            if study_index < 10 or (study_index + 1) % 25 == 0 or study_index + 1 == len(manifest_entries):
+                print(f"[{study_index + 1}/{len(manifest_entries)}] Building patches for series {series_uid}")
+            try:
+                result = process_lidc_series(
+                    raw_dir=raw_dir,
+                    study_manifest=study_manifest,
+                    negatives_per_positive=negatives_per_positive,
+                )
+                iterable.append((study_index, study_manifest, result))
+            except Exception as exc:
+                failures.append({"series_instance_uid": series_uid, "error": str(exc)})
+                print(f"  failed to process {series_uid}: {exc}")
+    else:
+        iterable = []
+        print(f"Extracting patches with {process_workers} workers.")
+        with ProcessPoolExecutor(max_workers=process_workers) as executor:
+            futures = {
+                executor.submit(
+                    _process_lidc_series_task,
+                    str(raw_dir),
+                    study_manifest,
+                    negatives_per_positive,
+                ): (study_index, study_manifest)
+                for study_index, study_manifest in enumerate(manifest_entries)
+            }
+            completed = 0
+            for future in as_completed(futures):
+                study_index, study_manifest = futures[future]
+                series_uid = str(study_manifest["series_instance_uid"])
+                completed += 1
+                try:
+                    result = future.result()
+                    iterable.append((study_index, study_manifest, result))
+                except Exception as exc:
+                    failures.append({"series_instance_uid": series_uid, "error": str(exc)})
+                    print(f"  failed to process {series_uid}: {exc}")
+                if completed <= 10 or completed % 25 == 0 or completed == len(manifest_entries):
+                    print(f"  processed {completed}/{len(manifest_entries)} series")
 
-        patches, nodule_target, malignancy_target, series_ids, manifest_rows = process_lidc_series(
-            raw_dir=raw_dir,
-            study_manifest=study_manifest,
-            negatives_per_positive=negatives_per_positive,
-        )
+        iterable.sort(key=lambda item: item[0])
+
+    for _study_index, _study_manifest, result in iterable:
+        patches, nodule_target, malignancy_target, malignancy_mask, series_ids, manifest_rows = result
         all_patches.extend(patches)
         all_nodule_target.extend(nodule_target)
         all_malignancy_target.extend(malignancy_target)
+        all_malignancy_mask.extend(malignancy_mask)
         all_series_ids.extend(series_ids)
         all_manifest_rows.extend(manifest_rows)
 
@@ -533,10 +688,14 @@ def build_real_training_dataset(
         patches=np.stack(all_patches, axis=0).astype(np.int16)[:, None, :, :, :],
         nodule_target=np.array(all_nodule_target, dtype=np.float32),
         malignancy_target=np.array(all_malignancy_target, dtype=np.float32),
+        malignancy_mask=np.array(all_malignancy_mask, dtype=np.float32),
         series_ids=np.array(all_series_ids),
     )
     manifest_path = processed_dir / "nodules_training_manifest.json"
     manifest_path.write_text(json.dumps(all_manifest_rows, indent=2), encoding="utf-8")
+    if failures:
+        failure_path = processed_dir / "nodules_failed_series.json"
+        failure_path.write_text(json.dumps(failures, indent=2), encoding="utf-8")
     return dataset_path, manifest_path
 
 
@@ -558,6 +717,7 @@ def build_smoke_training_dataset(processed_dir: Path, rows: int = 192) -> Path:
     patches = np.zeros((rows, 1, *PATCH_SHAPE), dtype=np.int16)
     nodule_target = np.zeros((rows,), dtype=np.float32)
     malignancy_target = np.zeros((rows,), dtype=np.float32)
+    malignancy_mask = np.zeros((rows,), dtype=np.float32)
     series_ids = np.array([f"smoke-{index // 2}" for index in range(rows)])
 
     for index in range(rows):
@@ -565,7 +725,8 @@ def build_smoke_training_dataset(processed_dir: Path, rows: int = 192) -> Path:
         radius = 2 + (index % 4)
         patches[index, 0] = np.clip(np.rint(_make_patch(radius=radius, seed=index + 17, positive=positive)), -2000, 2000).astype(np.int16)
         nodule_target[index] = 1.0 if positive else 0.0
-        malignancy_target[index] = 1.0 if positive and radius >= 4 else 0.0
+        malignancy_target[index] = 1.0 if positive and radius >= 4 else 0.25 if positive else 0.0
+        malignancy_mask[index] = 1.0 if positive else 0.0
 
     output_path = processed_dir / "nodules_training_smoke.npz"
     np.savez_compressed(
@@ -573,6 +734,7 @@ def build_smoke_training_dataset(processed_dir: Path, rows: int = 192) -> Path:
         patches=patches,
         nodule_target=nodule_target,
         malignancy_target=malignancy_target,
+        malignancy_mask=malignancy_mask,
         series_ids=series_ids,
     )
     return output_path
@@ -595,6 +757,7 @@ def main() -> None:
             study_limit=study_limit,
             negatives_per_positive=args.negatives_per_positive,
             download_workers=args.download_workers,
+            process_workers=args.process_workers,
         )
         print(f"Prepared real LIDC training dataset: {dataset_path}")
         print(f"Prepared real LIDC dataset manifest: {dataset_manifest}")
