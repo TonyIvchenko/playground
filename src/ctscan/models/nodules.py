@@ -9,6 +9,31 @@ from torch import nn
 PATCH_SHAPE = (24, 24, 24)
 
 
+class LegacyPatchNet(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.encoder = nn.Sequential(
+            nn.Conv3d(1, 8, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool3d(2),
+            nn.Conv3d(8, 16, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool3d(2),
+            nn.Conv3d(16, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.AdaptiveAvgPool3d(1),
+        )
+        self.head = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(32, 32),
+            nn.ReLU(),
+            nn.Linear(32, 2),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.head(self.encoder(x))
+
+
 class SqueezeExcite3D(nn.Module):
     def __init__(self, channels: int, reduction: int = 8) -> None:
         super().__init__()
@@ -127,10 +152,14 @@ def save_model_bundle(
     torch.save(bundle, path)
 
 
-def load_model_bundle(path: Path) -> tuple[NoduleResNet, float, float, str, dict[str, float | list[int]]]:
+def load_model_bundle(path: Path) -> tuple[nn.Module, float, float, str, dict[str, float | list[int]]]:
     bundle = torch.load(path, map_location="cpu", weights_only=True)
-    model = create_model()
-    model.load_state_dict(bundle["state_dict"])
+    state_dict = bundle["state_dict"]
+    if any(key.startswith("encoder.") for key in state_dict):
+        model = LegacyPatchNet()
+    else:
+        model = create_model()
+    model.load_state_dict(state_dict)
     model.eval()
     metrics: dict[str, float | list[int]] = {
         "nodule_accuracy": float(bundle.get("nodule_accuracy", 0.0)),
@@ -149,7 +178,7 @@ def load_model_bundle(path: Path) -> tuple[NoduleResNet, float, float, str, dict
 
 
 def predict_logits(
-    model: NoduleResNet,
+    model: nn.Module,
     patches: torch.Tensor,
     patch_mean: float,
     patch_std: float,
