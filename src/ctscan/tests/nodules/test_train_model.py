@@ -31,18 +31,20 @@ def test_split_and_train_model_runs(tmp_path: Path):
     dataset_path = tmp_path / "train.npz"
     patches = np.random.default_rng(7).normal(size=(20, 1, *PATCH_SHAPE)).astype(np.int16)
     nodule_target = np.array([0, 1] * 10, dtype=np.float32)
-    malignancy_target = np.array([0, 0, 0, 1] * 5, dtype=np.float32)
+    malignancy_target = np.array([0, 0.25, 0, 1] * 5, dtype=np.float32)
+    malignancy_mask = np.array([0, 1] * 10, dtype=np.float32)
     series_ids = np.array([f"study-{index // 2}" for index in range(20)])
     np.savez_compressed(
         dataset_path,
         patches=patches,
         nodule_target=nodule_target,
         malignancy_target=malignancy_target,
+        malignancy_mask=malignancy_mask,
         series_ids=series_ids,
     )
 
-    x, y_nodule, y_malignancy, loaded_series_ids = load_training_dataset(dataset_path)
-    split = split_dataset(x, y_nodule, y_malignancy, loaded_series_ids, split_seed=3)
+    x, y_nodule, y_malignancy, y_malignancy_mask, loaded_series_ids = load_training_dataset(dataset_path)
+    split = split_dataset(x, y_nodule, y_malignancy, y_malignancy_mask, loaded_series_ids, split_seed=3)
     result = train_model(
         *split,
         epochs=2,
@@ -57,8 +59,10 @@ def test_split_and_train_model_runs(tmp_path: Path):
     assert 0.0 <= result.nodule_accuracy <= 1.0
     assert 0.0 <= result.nodule_auc <= 1.0 or np.isnan(result.nodule_auc)
     assert 0.0 <= result.malignancy_auc <= 1.0 or np.isnan(result.malignancy_auc)
+    assert 0.0 <= result.nodule_sensitivity <= 1.0
+    assert 0.0 <= result.nodule_specificity <= 1.0
     with torch.no_grad():
-        output = result.model((split[3] - result.patch_mean) / result.patch_std)
+        output = result.model((split[4] - result.patch_mean) / result.patch_std)
     assert output.shape[1] == 2
 
 

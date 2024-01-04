@@ -27,6 +27,7 @@ def test_build_smoke_training_dataset_shapes(tmp_path: Path):
     assert bundle["patches"].shape == (12, 1, *PATCH_SHAPE)
     assert bundle["nodule_target"].shape == (12,)
     assert bundle["malignancy_target"].shape == (12,)
+    assert bundle["malignancy_mask"].shape == (12,)
     assert bundle["series_ids"].shape == (12,)
 
 
@@ -68,6 +69,14 @@ def test_parse_lidc_xml_bytes_extracts_series_and_malignancy():
             <malignancy>4</malignancy>
           </characteristics>
         </unblindedReadNodule>
+        <nonNodule>
+          <nonNoduleID>nn-1</nonNoduleID>
+          <imageSOP_UID>sop-2</imageSOP_UID>
+          <locus>
+            <xCoord>40</xCoord>
+            <yCoord>50</yCoord>
+          </locus>
+        </nonNodule>
       </readingSession>
     </LidcReadMessage>
     """
@@ -77,3 +86,5 @@ def test_parse_lidc_xml_bytes_extracts_series_and_malignancy():
     assert parsed["study_instance_uid"] == "4.5.6"
     assert parsed["annotations"][0]["malignancy"] == 4
     assert parsed["annotations"][0]["sop_uids"] == ["sop-1", "sop-1"]
+    assert parsed["non_nodules"][0]["sop_uid"] == "sop-2"
+    assert parsed["non_nodules"][0]["x_coord"] == 40
