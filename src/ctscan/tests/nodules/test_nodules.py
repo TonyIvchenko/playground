@@ -4,7 +4,7 @@ from pathlib import Path
 
 import torch
 
-from src.ctscan.models.nodules import create_model, load_model_bundle, predict_logits, save_model_bundle
+from src.ctscan.models.nodules import PATCH_SHAPE, create_model, load_model_bundle, predict_logits, save_model_bundle
 
 
 def test_save_load_and_predict_bundle(tmp_path: Path):
@@ -17,6 +17,7 @@ def test_save_load_and_predict_bundle(tmp_path: Path):
         patch_std=250.0,
         model_version="0.1.0",
         nodule_accuracy=0.75,
+        nodule_auc=0.78,
         malignancy_auc=0.81,
         dataset_rows=64,
     )
@@ -25,5 +26,7 @@ def test_save_load_and_predict_bundle(tmp_path: Path):
     assert patch_mean == -700.0
     assert patch_std == 250.0
     assert metrics["nodule_accuracy"] == 0.75
-    logits = predict_logits(loaded_model, torch.zeros((2, 1, 16, 16, 16), dtype=torch.float32), patch_mean, patch_std)
+    assert metrics["nodule_auc"] == 0.78
+    assert metrics["patch_shape"] == list(PATCH_SHAPE)
+    logits = predict_logits(loaded_model, torch.zeros((2, 1, *PATCH_SHAPE), dtype=torch.float32), patch_mean, patch_std)
     assert logits.shape == (2, 2)

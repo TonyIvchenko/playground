@@ -5,6 +5,7 @@ from pathlib import Path
 
 import numpy as np
 
+from src.ctscan.models.nodules import PATCH_SHAPE
 from src.ctscan.scripts.nodules.download_data import (
     build_smoke_training_dataset,
     fetch_series_uid,
@@ -23,9 +24,10 @@ def test_write_dataset_manifest_contains_expected_sources(tmp_path: Path):
 def test_build_smoke_training_dataset_shapes(tmp_path: Path):
     dataset_path = build_smoke_training_dataset(tmp_path, rows=12)
     bundle = np.load(dataset_path)
-    assert bundle["patches"].shape == (12, 1, 16, 16, 16)
+    assert bundle["patches"].shape == (12, 1, *PATCH_SHAPE)
     assert bundle["nodule_target"].shape == (12,)
     assert bundle["malignancy_target"].shape == (12,)
+    assert bundle["series_ids"].shape == (12,)
 
 
 def test_fetch_series_uid_uses_largest_series(monkeypatch):

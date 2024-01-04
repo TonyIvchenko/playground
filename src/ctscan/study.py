@@ -174,7 +174,40 @@ def extract_patch(volume_hu: np.ndarray, center: tuple[int, int, int], patch_sha
     return patch
 
 
-def generate_candidates(volume_hu: np.ndarray, lung_mask: np.ndarray, max_candidates: int = 12) -> list[dict[str, Any]]:
+def resize_patch(patch: np.ndarray, output_shape: tuple[int, int, int]) -> np.ndarray:
+    if tuple(int(x) for x in patch.shape) == tuple(int(x) for x in output_shape):
+        return patch.astype(np.float32, copy=False)
+    tensor = torch.from_numpy(patch.astype(np.float32, copy=False)).unsqueeze(0).unsqueeze(0)
+    resized = F.interpolate(
+        tensor,
+        size=tuple(int(x) for x in output_shape),
+        mode="trilinear",
+        align_corners=False,
+    )
+    return resized.squeeze(0).squeeze(0).cpu().numpy().astype(np.float32)
+
+
+def extract_resampled_patch(
+    volume_hu: np.ndarray,
+    center: tuple[int, int, int],
+    spacing: tuple[float, float, float],
+    output_shape: tuple[int, int, int],
+    target_spacing: tuple[float, float, float] = TARGET_SPACING,
+) -> np.ndarray:
+    raw_shape = np.maximum(
+        3,
+        np.round(np.array(output_shape, dtype=np.float32) * np.array(target_spacing, dtype=np.float32) / np.array(spacing, dtype=np.float32)).astype(int),
+    )
+    raw_patch = extract_patch(volume_hu, center, tuple(int(x) for x in raw_shape.tolist()))
+    return resize_patch(raw_patch, output_shape)
+
+
+def generate_candidates(
+    volume_hu: np.ndarray,
+    lung_mask: np.ndarray,
+    patch_shape: tuple[int, int, int] = (16, 16, 16),
+    max_candidates: int = 12,
+) -> list[dict[str, Any]]:
     search_mask = _expand_mask(lung_mask, radius=3)
     signal = np.where(search_mask, volume_hu, -2000.0)
     threshold_mask = signal > -250.0
@@ -197,7 +230,7 @@ def generate_candidates(volume_hu: np.ndarray, lung_mask: np.ndarray, max_candid
         voxel_count = int((local_patch > 0).sum())
         diameter_mm = float(max(3.0, round((voxel_count ** (1.0 / 3.0)) * 1.8, 2)))
         volume_mm3 = float(max(1.0, voxel_count))
-        patch = extract_patch(volume_hu, (cz, cy, cx), (16, 16, 16))
+        patch = extract_patch(volume_hu, (cz, cy, cx), patch_shape)
         candidates.append(
             {
                 "lesion_id": f"lesion-{len(candidates) + 1}",
