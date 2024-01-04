@@ -10,6 +10,8 @@ import numpy as np
 from PIL import Image, ImageDraw
 import pydicom
 from pydicom.dataset import FileDataset
+import torch
+import torch.nn.functional as F
 
 
 TARGET_SPACING = (1.0, 1.0, 1.0)
@@ -65,26 +67,22 @@ def _pixel_spacing(ds: FileDataset) -> tuple[float, float]:
     return 1.0, 1.0
 
 
-def _resample_axis(volume: np.ndarray, axis: int, old_spacing: float, new_spacing: float) -> np.ndarray:
-    if abs(old_spacing - new_spacing) < 1e-6:
-        return volume
-    old_size = volume.shape[axis]
-    new_size = max(1, int(round(old_size * old_spacing / new_spacing)))
-    source = np.linspace(0.0, old_size - 1, old_size)
-    target = np.linspace(0.0, old_size - 1, new_size)
-    moved = np.moveaxis(volume, axis, 0)
-    out = np.empty((new_size,) + moved.shape[1:], dtype=np.float32)
-    for index in np.ndindex(moved.shape[1:]):
-        out[(slice(None),) + index] = np.interp(target, source, moved[(slice(None),) + index])
-    return np.moveaxis(out, 0, axis)
-
-
 def resample_volume(volume_hu: np.ndarray, spacing: tuple[float, float, float]) -> tuple[np.ndarray, tuple[float, float, float]]:
-    resampled = volume_hu.astype(np.float32, copy=False)
-    current_spacing = spacing
-    for axis, (old_spacing, new_spacing) in enumerate(zip(current_spacing, TARGET_SPACING)):
-        resampled = _resample_axis(resampled, axis=axis, old_spacing=float(old_spacing), new_spacing=float(new_spacing))
-    return resampled.astype(np.float32), TARGET_SPACING
+    current_spacing = np.array(spacing, dtype=np.float32)
+    target_spacing = np.array(TARGET_SPACING, dtype=np.float32)
+    if np.allclose(current_spacing, target_spacing, atol=1e-6):
+        return volume_hu.astype(np.float32, copy=False), TARGET_SPACING
+
+    source_shape = np.array(volume_hu.shape, dtype=np.float32)
+    target_shape = np.maximum(1, np.round(source_shape * current_spacing / target_spacing).astype(int))
+    tensor = torch.from_numpy(volume_hu.astype(np.float32, copy=False)).unsqueeze(0).unsqueeze(0)
+    resampled = F.interpolate(
+        tensor,
+        size=tuple(int(x) for x in target_shape.tolist()),
+        mode="trilinear",
+        align_corners=False,
+    )
+    return resampled.squeeze(0).squeeze(0).cpu().numpy().astype(np.float32), TARGET_SPACING
 
 
 def _body_bounds(volume_hu: np.ndarray) -> tuple[slice, slice, slice]:
@@ -176,7 +174,40 @@ def extract_patch(volume_hu: np.ndarray, center: tuple[int, int, int], patch_sha
     return patch
 
 
-def generate_candidates(volume_hu: np.ndarray, lung_mask: np.ndarray, max_candidates: int = 12) -> list[dict[str, Any]]:
+def resize_patch(patch: np.ndarray, output_shape: tuple[int, int, int]) -> np.ndarray:
+    if tuple(int(x) for x in patch.shape) == tuple(int(x) for x in output_shape):
+        return patch.astype(np.float32, copy=False)
+    tensor = torch.from_numpy(patch.astype(np.float32, copy=False)).unsqueeze(0).unsqueeze(0)
+    resized = F.interpolate(
+        tensor,
+        size=tuple(int(x) for x in output_shape),
+        mode="trilinear",
+        align_corners=False,
+    )
+    return resized.squeeze(0).squeeze(0).cpu().numpy().astype(np.float32)
+
+
+def extract_resampled_patch(
+    volume_hu: np.ndarray,
+    center: tuple[int, int, int],
+    spacing: tuple[float, float, float],
+    output_shape: tuple[int, int, int],
+    target_spacing: tuple[float, float, float] = TARGET_SPACING,
+) -> np.ndarray:
+    raw_shape = np.maximum(
+        3,
+        np.round(np.array(output_shape, dtype=np.float32) * np.array(target_spacing, dtype=np.float32) / np.array(spacing, dtype=np.float32)).astype(int),
+    )
+    raw_patch = extract_patch(volume_hu, center, tuple(int(x) for x in raw_shape.tolist()))
+    return resize_patch(raw_patch, output_shape)
+
+
+def generate_candidates(
+    volume_hu: np.ndarray,
+    lung_mask: np.ndarray,
+    patch_shape: tuple[int, int, int] = (16, 16, 16),
+    max_candidates: int = 12,
+) -> list[dict[str, Any]]:
     search_mask = _expand_mask(lung_mask, radius=3)
     signal = np.where(search_mask, volume_hu, -2000.0)
     threshold_mask = signal > -250.0
@@ -199,7 +230,7 @@ def generate_candidates(volume_hu: np.ndarray, lung_mask: np.ndarray, max_candid
         voxel_count = int((local_patch > 0).sum())
         diameter_mm = float(max(3.0, round((voxel_count ** (1.0 / 3.0)) * 1.8, 2)))
         volume_mm3 = float(max(1.0, voxel_count))
-        patch = extract_patch(volume_hu, (cz, cy, cx), (16, 16, 16))
+        patch = extract_patch(volume_hu, (cz, cy, cx), patch_shape)
         candidates.append(
             {
                 "lesion_id": f"lesion-{len(candidates) + 1}",

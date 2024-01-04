@@ -68,7 +68,7 @@ def _study_bytes_from_inputs(study_file: str | None, sample_id: str | None) -> b
 def _score_candidates(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
     if not candidates:
         return candidates
-    model, patch_mean, patch_std, _, _ = get_model_bundle()
+    model, patch_mean, patch_std, _, metrics = get_model_bundle()
     patches = torch.from_numpy(np.stack([candidate["patch"] for candidate in candidates], axis=0)).unsqueeze(1)
     logits = predict_logits(model, patches, patch_mean=patch_mean, patch_std=patch_std)
     probs = torch.sigmoid(logits).cpu().numpy()
@@ -108,10 +108,15 @@ def analyze_study_bytes(
     if len(rejection_reasons) > 0:
         status = "rejected"
 
-    current_candidates = _score_candidates(generate_candidates(current.volume_hu, estimate_lung_mask(current.volume_hu)))
+    patch_shape = tuple(int(x) for x in metrics.get("patch_shape", [16, 16, 16]))
+    current_candidates = _score_candidates(
+        generate_candidates(current.volume_hu, estimate_lung_mask(current.volume_hu), patch_shape=patch_shape)
+    )
     prior_candidates = []
     if prior is not None:
-        prior_candidates = _score_candidates(generate_candidates(prior.volume_hu, estimate_lung_mask(prior.volume_hu)))
+        prior_candidates = _score_candidates(
+            generate_candidates(prior.volume_hu, estimate_lung_mask(prior.volume_hu), patch_shape=patch_shape)
+        )
         current_candidates = match_prior_findings(current_candidates, prior_candidates)
 
     current_candidates = sorted(

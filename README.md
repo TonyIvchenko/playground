@@ -65,7 +65,7 @@ python scripts/wildfires/generate_tiles.py
 
 cd ../ctscan
 python scripts/nodules/download_data.py
-python scripts/nodules/train_model.py --model-version 0.2.0
+python scripts/nodules/train_model.py --model-version 0.3.0
 ```
 
 Open notebooks for EDA/eval:
