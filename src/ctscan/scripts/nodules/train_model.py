@@ -423,6 +423,8 @@ def main() -> None:
         nodule_accuracy=result.nodule_accuracy,
         nodule_auc=result.nodule_auc,
         malignancy_auc=result.malignancy_auc,
+        nodule_sensitivity=result.nodule_sensitivity,
+        nodule_specificity=result.nodule_specificity,
         dataset_rows=int(patches.shape[0]),
     )
 

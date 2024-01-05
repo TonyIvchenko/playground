@@ -129,13 +129,15 @@ def create_model() -> NoduleResNet:
 
 def save_model_bundle(
     path: Path,
-    model: NoduleResNet,
+    model: nn.Module,
     patch_mean: float,
     patch_std: float,
     model_version: str,
     nodule_accuracy: float,
     nodule_auc: float,
     malignancy_auc: float,
+    nodule_sensitivity: float,
+    nodule_specificity: float,
     dataset_rows: int,
 ) -> None:
     bundle = {
@@ -146,6 +148,8 @@ def save_model_bundle(
         "nodule_accuracy": float(nodule_accuracy),
         "nodule_auc": float(nodule_auc),
         "malignancy_auc": float(malignancy_auc),
+        "nodule_sensitivity": float(nodule_sensitivity),
+        "nodule_specificity": float(nodule_specificity),
         "dataset_rows": int(dataset_rows),
         "patch_shape": list(PATCH_SHAPE),
     }
@@ -165,6 +169,8 @@ def load_model_bundle(path: Path) -> tuple[nn.Module, float, float, str, dict[st
         "nodule_accuracy": float(bundle.get("nodule_accuracy", 0.0)),
         "nodule_auc": float(bundle.get("nodule_auc", 0.0)),
         "malignancy_auc": float(bundle.get("malignancy_auc", 0.0)),
+        "nodule_sensitivity": float(bundle.get("nodule_sensitivity", 0.0)),
+        "nodule_specificity": float(bundle.get("nodule_specificity", 0.0)),
         "dataset_rows": float(bundle.get("dataset_rows", 0)),
         "patch_shape": [int(x) for x in bundle.get("patch_shape", PATCH_SHAPE)],
     }
