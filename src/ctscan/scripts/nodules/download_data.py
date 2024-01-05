@@ -298,8 +298,8 @@ def parse_lidc_xml_bytes(xml_bytes: bytes) -> dict[str, Any] | None:
 
 
 def collect_real_annotation_manifest(xml_zip_path: Path, study_limit: int | None = None) -> list[dict[str, Any]]:
-    selected: list[dict[str, Any]] = []
-    seen_series: set[str] = set()
+    selected_by_series: dict[str, dict[str, Any]] = {}
+    ordered_series: list[str] = []
     limit = None if not study_limit else int(study_limit)
     with zipfile.ZipFile(xml_zip_path) as archive:
         for name in archive.namelist():
@@ -309,14 +309,17 @@ def collect_real_annotation_manifest(xml_zip_path: Path, study_limit: int | None
             if parsed is None:
                 continue
             series_uid = str(parsed["series_instance_uid"])
-            if series_uid in seen_series:
-                continue
-            seen_series.add(series_uid)
-            parsed["xml_name"] = name
-            selected.append(parsed)
-            if limit is not None and len(selected) >= limit:
+            if series_uid in selected_by_series:
+                selected_by_series[series_uid]["annotations"].extend(parsed["annotations"])
+                selected_by_series[series_uid]["non_nodules"].extend(parsed["non_nodules"])
+                selected_by_series[series_uid]["xml_names"].append(name)
+            else:
+                parsed["xml_names"] = [name]
+                selected_by_series[series_uid] = parsed
+                ordered_series.append(series_uid)
+            if limit is not None and len(ordered_series) >= limit:
                 break
-    return selected
+    return [selected_by_series[series_uid] for series_uid in ordered_series]
 
 
 def _series_zip_path(raw_dir: Path, series_uid: str) -> Path:
