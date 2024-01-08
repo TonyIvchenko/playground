@@ -6,7 +6,7 @@ import torch
 from torch import nn
 
 
-PATCH_SHAPE = (24, 24, 24)
+PATCH_SHAPE = (32, 32, 32)
 
 
 class LegacyPatchNet(nn.Module):
