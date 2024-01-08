@@ -39,7 +39,7 @@ def parse_args() -> argparse.Namespace:
         help="Path to the output state_dict bundle.",
     )
     parser.add_argument("--epochs", type=int, default=60)
-    parser.add_argument("--batch-size", type=int, default=24)
+    parser.add_argument("--batch-size", type=int, default=12)
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--weight-decay", type=float, default=2e-4)
     parser.add_argument("--seed", type=int, default=42)
