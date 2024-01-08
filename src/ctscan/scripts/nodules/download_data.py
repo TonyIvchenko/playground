@@ -17,6 +17,7 @@ import zipfile
 
 import numpy as np
 import requests
+import torch
 
 CTSCAN_ROOT = Path(__file__).resolve().parents[2]
 if str(CTSCAN_ROOT) not in sys.path:
@@ -597,6 +598,9 @@ def _process_lidc_series_task(
     study_manifest: dict[str, Any],
     negatives_per_positive: int,
 ) -> tuple[list[np.ndarray], list[float], list[float], list[float], list[str], list[dict[str, Any]]]:
+    torch.set_num_threads(1)
+    if hasattr(torch, "set_num_interop_threads"):
+        torch.set_num_interop_threads(1)
     return process_lidc_series(
         raw_dir=Path(raw_dir_str),
         study_manifest=study_manifest,
