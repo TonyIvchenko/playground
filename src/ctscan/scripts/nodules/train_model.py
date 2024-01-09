@@ -57,11 +57,21 @@ def get_device() -> torch.device:
     return torch.device("cpu")
 
 
-def load_training_dataset(path: Path) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, np.ndarray]:
+def load_training_dataset(
+    path: Path,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, np.ndarray]:
     if not path.exists():
         raise FileNotFoundError(f"Training dataset not found at {path}. Run: `python scripts/nodules/download_data.py`")
     bundle = np.load(path)
-    required = {"patches", "nodule_target", "malignancy_target", "malignancy_mask", "series_ids"}
+    required = {
+        "patches",
+        "nodule_target",
+        "malignancy_target",
+        "malignancy_mask",
+        "nodule_weight",
+        "malignancy_weight",
+        "series_ids",
+    }
     missing = required - set(bundle.files)
     if missing:
         raise ValueError(f"Training dataset missing arrays: {sorted(missing)}")
@@ -69,8 +79,10 @@ def load_training_dataset(path: Path) -> tuple[torch.Tensor, torch.Tensor, torch
     nodule_target = torch.tensor(bundle["nodule_target"], dtype=torch.float32).unsqueeze(1)
     malignancy_target = torch.tensor(bundle["malignancy_target"], dtype=torch.float32).unsqueeze(1)
     malignancy_mask = torch.tensor(bundle["malignancy_mask"], dtype=torch.float32).unsqueeze(1)
+    nodule_weight = torch.tensor(bundle["nodule_weight"], dtype=torch.float32).unsqueeze(1)
+    malignancy_weight = torch.tensor(bundle["malignancy_weight"], dtype=torch.float32).unsqueeze(1)
     series_ids = bundle["series_ids"].astype(str)
-    return patches, nodule_target, malignancy_target, malignancy_mask, series_ids
+    return patches, nodule_target, malignancy_target, malignancy_mask, nodule_weight, malignancy_weight, series_ids
 
 
 def split_dataset(
@@ -78,9 +90,24 @@ def split_dataset(
     nodule_target: torch.Tensor,
     malignancy_target: torch.Tensor,
     malignancy_mask: torch.Tensor,
+    nodule_weight: torch.Tensor,
+    malignancy_weight: torch.Tensor,
     series_ids: np.ndarray,
     split_seed: int,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+) -> tuple[
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+]:
     unique_series = np.unique(series_ids)
     rng = np.random.default_rng(split_seed)
 
@@ -116,10 +143,14 @@ def split_dataset(
         nodule_target[train_mask],
         malignancy_target[train_mask],
         malignancy_mask[train_mask],
+        nodule_weight[train_mask],
+        malignancy_weight[train_mask],
         patches[val_mask],
         nodule_target[val_mask],
         malignancy_target[val_mask],
         malignancy_mask[val_mask],
+        nodule_weight[val_mask],
+        malignancy_weight[val_mask],
     )
 
 
@@ -154,13 +185,15 @@ def sigmoid_focal_loss(
     return loss.mean()
 
 
-class PatchDataset(Dataset[tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]]):
+class PatchDataset(Dataset[tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]]):
     def __init__(
         self,
         patches: torch.Tensor,
         nodule_target: torch.Tensor,
         malignancy_target: torch.Tensor,
         malignancy_mask: torch.Tensor,
+        nodule_weight: torch.Tensor,
+        malignancy_weight: torch.Tensor,
         patch_mean: float,
         patch_std: float,
         augment: bool,
@@ -170,6 +203,8 @@ class PatchDataset(Dataset[tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch
         self.nodule_target = nodule_target
         self.malignancy_target = malignancy_target
         self.malignancy_mask = malignancy_mask
+        self.nodule_weight = nodule_weight
+        self.malignancy_weight = malignancy_weight
         self.patch_mean = patch_mean
         self.patch_std = max(patch_std, 1e-6)
         self.augment = augment
@@ -178,7 +213,7 @@ class PatchDataset(Dataset[tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch
     def __len__(self) -> int:
         return int(self.patches.shape[0])
 
-    def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         patch = self.patches[index].clone().float()
         if self.augment:
             for axis in (1, 2, 3):
@@ -191,7 +226,14 @@ class PatchDataset(Dataset[tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch
             if float(self.rng.random()) < 0.35:
                 patch = patch + float(self.rng.normal(0.0, 18.0))
         patch = (patch - self.patch_mean) / self.patch_std
-        return patch, self.nodule_target[index], self.malignancy_target[index], self.malignancy_mask[index]
+        return (
+            patch,
+            self.nodule_target[index],
+            self.malignancy_target[index],
+            self.malignancy_mask[index],
+            self.nodule_weight[index],
+            self.malignancy_weight[index],
+        )
 
 
 @dataclass
@@ -211,10 +253,14 @@ def train_model(
     y_train_nodule: torch.Tensor,
     y_train_malignancy: torch.Tensor,
     y_train_malignancy_mask: torch.Tensor,
+    y_train_nodule_weight: torch.Tensor,
+    y_train_malignancy_weight: torch.Tensor,
     x_val: torch.Tensor,
     y_val_nodule: torch.Tensor,
     y_val_malignancy: torch.Tensor,
     y_val_malignancy_mask: torch.Tensor,
+    y_val_nodule_weight: torch.Tensor,
+    y_val_malignancy_weight: torch.Tensor,
     epochs: int,
     batch_size: int,
     learning_rate: float,
@@ -234,6 +280,8 @@ def train_model(
         y_train_nodule,
         y_train_malignancy,
         y_train_malignancy_mask,
+        y_train_nodule_weight,
+        y_train_malignancy_weight,
         patch_mean=patch_mean,
         patch_std=patch_std,
         augment=True,
@@ -244,6 +292,8 @@ def train_model(
         y_val_nodule,
         y_val_malignancy,
         y_val_malignancy_mask,
+        y_val_nodule_weight,
+        y_val_malignancy_weight,
         patch_mean=patch_mean,
         patch_std=patch_std,
         augment=False,
@@ -274,11 +324,13 @@ def train_model(
 
     for epoch in range(epochs):
         model.train()
-        for patches, nodule_target, malignancy_target, malignancy_mask in train_loader:
+        for patches, nodule_target, malignancy_target, malignancy_mask, nodule_weight, malignancy_weight in train_loader:
             patches = patches.to(device)
             nodule_target = nodule_target.to(device)
             malignancy_target = malignancy_target.to(device)
             malignancy_mask = malignancy_mask.to(device)
+            nodule_weight = nodule_weight.to(device)
+            malignancy_weight = malignancy_weight.to(device)
 
             optimizer.zero_grad()
             logits = model(patches)
@@ -290,6 +342,7 @@ def train_model(
                 nodule_target,
                 alpha=focal_alpha,
                 gamma=2.0,
+                sample_weight=nodule_weight,
             )
 
             labeled_mask = malignancy_mask > 0.5
@@ -298,7 +351,9 @@ def train_model(
                     malignancy_logits[labeled_mask],
                     malignancy_target[labeled_mask],
                     pos_weight=torch.tensor([malignancy_pos_weight], device=device),
+                    reduction="none",
                 )
+                malignancy_loss = (malignancy_loss * malignancy_weight[labeled_mask]).mean()
             else:
                 malignancy_loss = torch.zeros((), device=device)
 
@@ -316,7 +371,7 @@ def train_model(
             nodule_truth: list[torch.Tensor] = []
             malignancy_truth: list[torch.Tensor] = []
             malignancy_masks: list[torch.Tensor] = []
-            for patches, nodule_target, malignancy_target, malignancy_mask in val_loader:
+            for patches, nodule_target, malignancy_target, malignancy_mask, _nodule_weight, _malignancy_weight in val_loader:
                 patches = patches.to(device)
                 logits = model(patches)
                 nodule_probs.append(torch.sigmoid(logits[:, :1]).cpu())
@@ -393,12 +448,22 @@ def train_model(
 
 def main() -> None:
     args = parse_args()
-    patches, nodule_target, malignancy_target, malignancy_mask, series_ids = load_training_dataset(args.input_path)
+    (
+        patches,
+        nodule_target,
+        malignancy_target,
+        malignancy_mask,
+        nodule_weight,
+        malignancy_weight,
+        series_ids,
+    ) = load_training_dataset(args.input_path)
     split = split_dataset(
         patches,
         nodule_target,
         malignancy_target,
         malignancy_mask,
+        nodule_weight,
+        malignancy_weight,
         series_ids=series_ids,
         split_seed=args.split_seed,
     )

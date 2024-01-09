@@ -512,19 +512,21 @@ def process_lidc_series(
     raw_dir: Path,
     study_manifest: dict[str, Any],
     negatives_per_positive: int,
-) -> tuple[list[np.ndarray], list[float], list[float], list[float], list[str], list[dict[str, Any]]]:
+) -> tuple[list[np.ndarray], list[float], list[float], list[float], list[float], list[float], list[str], list[dict[str, Any]]]:
     series_uid = str(study_manifest["series_instance_uid"])
     study_zip_path = _series_zip_path(raw_dir, series_uid)
     study = load_study_from_zip_bytes(study_zip_path.read_bytes(), resample=False)
     lesion_clusters = cluster_annotations_for_study(study_manifest, study.sop_uid_to_index, study.spacing)
     hard_negative_centers = cluster_non_nodules_for_study(study_manifest, study.sop_uid_to_index, study.spacing)
     if not lesion_clusters and not hard_negative_centers:
-        return [], [], [], [], [], []
+        return [], [], [], [], [], [], [], []
 
     patches: list[np.ndarray] = []
     nodule_target: list[float] = []
     malignancy_target: list[float] = []
     malignancy_mask: list[float] = []
+    nodule_weight: list[float] = []
+    malignancy_weight: list[float] = []
     series_ids: list[str] = []
     manifest_rows: list[dict[str, Any]] = []
 
@@ -535,6 +537,8 @@ def process_lidc_series(
         nodule_target.append(1.0)
         malignancy_target.append(float(np.clip((cluster["malignancy_mean"] - 1.0) / 4.0, 0.0, 1.0)))
         malignancy_mask.append(1.0)
+        nodule_weight.append(float(1.0 + 0.15 * max(cluster["reader_count"] - 1, 0)))
+        malignancy_weight.append(float(np.clip(cluster["reader_count"] / max(1.0 + cluster["malignancy_std"], 1.0), 1.0, 3.0)))
         series_ids.append(series_uid)
         manifest_rows.append(
             {
@@ -553,6 +557,8 @@ def process_lidc_series(
         nodule_target.append(0.0)
         malignancy_target.append(0.0)
         malignancy_mask.append(0.0)
+        nodule_weight.append(1.15)
+        malignancy_weight.append(0.0)
         series_ids.append(series_uid)
         manifest_rows.append(
             {
@@ -578,6 +584,8 @@ def process_lidc_series(
         nodule_target.append(0.0)
         malignancy_target.append(0.0)
         malignancy_mask.append(0.0)
+        nodule_weight.append(0.9)
+        malignancy_weight.append(0.0)
         series_ids.append(series_uid)
         manifest_rows.append(
             {
@@ -590,14 +598,23 @@ def process_lidc_series(
             }
         )
 
-    return patches, nodule_target, malignancy_target, malignancy_mask, series_ids, manifest_rows
+    return (
+        patches,
+        nodule_target,
+        malignancy_target,
+        malignancy_mask,
+        nodule_weight,
+        malignancy_weight,
+        series_ids,
+        manifest_rows,
+    )
 
 
 def _process_lidc_series_task(
     raw_dir_str: str,
     study_manifest: dict[str, Any],
     negatives_per_positive: int,
-) -> tuple[list[np.ndarray], list[float], list[float], list[float], list[str], list[dict[str, Any]]]:
+) -> tuple[list[np.ndarray], list[float], list[float], list[float], list[float], list[float], list[str], list[dict[str, Any]]]:
     torch.set_num_threads(1)
     if hasattr(torch, "set_num_interop_threads"):
         torch.set_num_interop_threads(1)
@@ -628,12 +645,14 @@ def build_real_training_dataset(
     all_nodule_target: list[float] = []
     all_malignancy_target: list[float] = []
     all_malignancy_mask: list[float] = []
+    all_nodule_weight: list[float] = []
+    all_malignancy_weight: list[float] = []
     all_series_ids: list[str] = []
     all_manifest_rows: list[dict[str, Any]] = []
     failures: list[dict[str, str]] = []
 
     if process_workers <= 1:
-        iterable: list[tuple[int, dict[str, Any], tuple[list[np.ndarray], list[float], list[float], list[float], list[str], list[dict[str, Any]]]]] = []
+        iterable: list[tuple[int, dict[str, Any], tuple[list[np.ndarray], list[float], list[float], list[float], list[float], list[float], list[str], list[dict[str, Any]]]]] = []
         for study_index, study_manifest in enumerate(manifest_entries):
             series_uid = str(study_manifest["series_instance_uid"])
             if study_index < 10 or (study_index + 1) % 25 == 0 or study_index + 1 == len(manifest_entries):
@@ -678,11 +697,22 @@ def build_real_training_dataset(
         iterable.sort(key=lambda item: item[0])
 
     for _study_index, _study_manifest, result in iterable:
-        patches, nodule_target, malignancy_target, malignancy_mask, series_ids, manifest_rows = result
+        (
+            patches,
+            nodule_target,
+            malignancy_target,
+            malignancy_mask,
+            nodule_weight,
+            malignancy_weight,
+            series_ids,
+            manifest_rows,
+        ) = result
         all_patches.extend(patches)
         all_nodule_target.extend(nodule_target)
         all_malignancy_target.extend(malignancy_target)
         all_malignancy_mask.extend(malignancy_mask)
+        all_nodule_weight.extend(nodule_weight)
+        all_malignancy_weight.extend(malignancy_weight)
         all_series_ids.extend(series_ids)
         all_manifest_rows.extend(manifest_rows)
 
@@ -696,6 +726,8 @@ def build_real_training_dataset(
         nodule_target=np.array(all_nodule_target, dtype=np.float32),
         malignancy_target=np.array(all_malignancy_target, dtype=np.float32),
         malignancy_mask=np.array(all_malignancy_mask, dtype=np.float32),
+        nodule_weight=np.array(all_nodule_weight, dtype=np.float32),
+        malignancy_weight=np.array(all_malignancy_weight, dtype=np.float32),
         series_ids=np.array(all_series_ids),
     )
     manifest_path = processed_dir / "nodules_training_manifest.json"
@@ -725,6 +757,8 @@ def build_smoke_training_dataset(processed_dir: Path, rows: int = 192) -> Path:
     nodule_target = np.zeros((rows,), dtype=np.float32)
     malignancy_target = np.zeros((rows,), dtype=np.float32)
     malignancy_mask = np.zeros((rows,), dtype=np.float32)
+    nodule_weight = np.ones((rows,), dtype=np.float32)
+    malignancy_weight = np.zeros((rows,), dtype=np.float32)
     series_ids = np.array([f"smoke-{index // 2}" for index in range(rows)])
 
     for index in range(rows):
@@ -734,6 +768,8 @@ def build_smoke_training_dataset(processed_dir: Path, rows: int = 192) -> Path:
         nodule_target[index] = 1.0 if positive else 0.0
         malignancy_target[index] = 1.0 if positive and radius >= 4 else 0.25 if positive else 0.0
         malignancy_mask[index] = 1.0 if positive else 0.0
+        nodule_weight[index] = 1.1 if positive else 1.0
+        malignancy_weight[index] = 1.0 if positive else 0.0
 
     output_path = processed_dir / "nodules_training_smoke.npz"
     np.savez_compressed(
@@ -742,6 +778,8 @@ def build_smoke_training_dataset(processed_dir: Path, rows: int = 192) -> Path:
         nodule_target=nodule_target,
         malignancy_target=malignancy_target,
         malignancy_mask=malignancy_mask,
+        nodule_weight=nodule_weight,
+        malignancy_weight=malignancy_weight,
         series_ids=series_ids,
     )
     return output_path
