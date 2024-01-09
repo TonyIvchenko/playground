@@ -30,6 +30,8 @@ def test_build_smoke_training_dataset_shapes(tmp_path: Path):
     assert bundle["nodule_target"].shape == (12,)
     assert bundle["malignancy_target"].shape == (12,)
     assert bundle["malignancy_mask"].shape == (12,)
+    assert bundle["nodule_weight"].shape == (12,)
+    assert bundle["malignancy_weight"].shape == (12,)
     assert bundle["series_ids"].shape == (12,)
 
 
