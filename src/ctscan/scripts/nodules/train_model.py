@@ -16,7 +16,6 @@ import pandas as pd
 import torch
 import torch.nn.functional as F
 from torch import nn
-from torch.utils.data import DataLoader, Dataset
 
 from models.nodules import create_model, save_model_bundle
 
@@ -46,10 +45,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--split-seed", type=int, default=7)
     parser.add_argument("--patience", type=int, default=10)
     parser.add_argument("--model-version", type=str, default="0.5.0")
+    parser.add_argument("--device", type=str, default="auto")
+    parser.add_argument("--train-negative-ratio", type=float, default=1.5)
     return parser.parse_args()
 
 
-def get_device() -> torch.device:
+def get_device(device_name: str = "auto") -> torch.device:
+    if device_name != "auto":
+        return torch.device(device_name)
     if torch.cuda.is_available():
         return torch.device("cuda")
     if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
@@ -185,55 +188,50 @@ def sigmoid_focal_loss(
     return loss.mean()
 
 
-class PatchDataset(Dataset[tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]]):
-    def __init__(
-        self,
-        patches: torch.Tensor,
-        nodule_target: torch.Tensor,
-        malignancy_target: torch.Tensor,
-        malignancy_mask: torch.Tensor,
-        nodule_weight: torch.Tensor,
-        malignancy_weight: torch.Tensor,
-        patch_mean: float,
-        patch_std: float,
-        augment: bool,
-        seed: int,
-    ) -> None:
-        self.patches = patches
-        self.nodule_target = nodule_target
-        self.malignancy_target = malignancy_target
-        self.malignancy_mask = malignancy_mask
-        self.nodule_weight = nodule_weight
-        self.malignancy_weight = malignancy_weight
-        self.patch_mean = patch_mean
-        self.patch_std = max(patch_std, 1e-6)
-        self.augment = augment
-        self.rng = np.random.default_rng(seed)
+def augment_batch(batch: torch.Tensor) -> torch.Tensor:
+    if bool((torch.rand((), device=batch.device) < 0.5).item()):
+        batch = torch.flip(batch, dims=(2,))
+    if bool((torch.rand((), device=batch.device) < 0.5).item()):
+        batch = torch.flip(batch, dims=(3,))
+    if bool((torch.rand((), device=batch.device) < 0.5).item()):
+        batch = torch.flip(batch, dims=(4,))
+    if bool((torch.rand((), device=batch.device) < 0.35).item()):
+        batch = batch + torch.randn_like(batch) * 0.05
+    if bool((torch.rand((), device=batch.device) < 0.35).item()):
+        batch = batch * torch.empty((), device=batch.device).uniform_(0.92, 1.08)
+    if bool((torch.rand((), device=batch.device) < 0.35).item()):
+        batch = batch + torch.empty((), device=batch.device).normal_(0.0, 0.08)
+    return batch
 
-    def __len__(self) -> int:
-        return int(self.patches.shape[0])
 
-    def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        patch = self.patches[index].clone().float()
-        if self.augment:
-            for axis in (1, 2, 3):
-                if float(self.rng.random()) < 0.5:
-                    patch = torch.flip(patch, dims=(axis,))
-            if float(self.rng.random()) < 0.35:
-                patch = patch + torch.randn_like(patch) * 12.0
-            if float(self.rng.random()) < 0.35:
-                patch = patch * float(self.rng.uniform(0.92, 1.08))
-            if float(self.rng.random()) < 0.35:
-                patch = patch + float(self.rng.normal(0.0, 18.0))
-        patch = (patch - self.patch_mean) / self.patch_std
-        return (
-            patch,
-            self.nodule_target[index],
-            self.malignancy_target[index],
-            self.malignancy_mask[index],
-            self.nodule_weight[index],
-            self.malignancy_weight[index],
-        )
+def sample_epoch_indices(
+    nodule_target: torch.Tensor,
+    nodule_weight: torch.Tensor,
+    negative_ratio: float,
+    seed: int,
+    epoch: int,
+) -> torch.Tensor:
+    target_cpu = nodule_target.reshape(-1).detach().cpu()
+    weight_cpu = nodule_weight.reshape(-1).detach().cpu()
+    positive_idx = torch.nonzero(target_cpu >= 0.5, as_tuple=False).reshape(-1)
+    negative_idx = torch.nonzero(target_cpu < 0.5, as_tuple=False).reshape(-1)
+    if negative_ratio <= 0.0 or negative_idx.numel() == 0:
+        epoch_idx = positive_idx.clone()
+    else:
+        negative_count = min(int(max(1, round(float(positive_idx.numel()) * negative_ratio))), int(negative_idx.numel()))
+        negative_probs = weight_cpu[negative_idx]
+        if float(negative_probs.sum().item()) <= 0.0:
+            negative_probs = torch.ones_like(negative_probs)
+        generator = torch.Generator(device="cpu").manual_seed(seed + epoch)
+        sampled_negative_positions = torch.multinomial(negative_probs, num_samples=negative_count, replacement=False, generator=generator)
+        epoch_idx = torch.cat([positive_idx, negative_idx[sampled_negative_positions]], dim=0)
+    generator = torch.Generator(device="cpu").manual_seed(seed + 1000 + epoch)
+    perm = torch.randperm(epoch_idx.numel(), generator=generator)
+    return epoch_idx[perm]
+
+
+def iterate_minibatches(indices: torch.Tensor, batch_size: int) -> list[torch.Tensor]:
+    return [indices[start : start + batch_size] for start in range(0, int(indices.numel()), batch_size)]
 
 
 @dataclass
@@ -267,40 +265,26 @@ def train_model(
     weight_decay: float,
     seed: int,
     patience: int,
+    device_name: str = "auto",
+    train_negative_ratio: float = 1.5,
 ) -> TrainingResult:
     torch.manual_seed(seed)
     np.random.seed(seed)
-    device = get_device()
+    device = get_device(device_name)
     patch_mean = float(x_train.mean().item())
     patch_std = float(x_train.std().item())
     model = create_model().to(device)
+    train_patches = ((x_train - patch_mean) / max(patch_std, 1e-6)).to(device)
+    train_nodule_target = y_train_nodule.to(device)
+    train_malignancy_target = y_train_malignancy.to(device)
+    train_malignancy_mask = y_train_malignancy_mask.to(device)
+    train_nodule_weight = y_train_nodule_weight.to(device)
+    train_malignancy_weight = y_train_malignancy_weight.to(device)
 
-    train_dataset = PatchDataset(
-        x_train,
-        y_train_nodule,
-        y_train_malignancy,
-        y_train_malignancy_mask,
-        y_train_nodule_weight,
-        y_train_malignancy_weight,
-        patch_mean=patch_mean,
-        patch_std=patch_std,
-        augment=True,
-        seed=seed,
-    )
-    val_dataset = PatchDataset(
-        x_val,
-        y_val_nodule,
-        y_val_malignancy,
-        y_val_malignancy_mask,
-        y_val_nodule_weight,
-        y_val_malignancy_weight,
-        patch_mean=patch_mean,
-        patch_std=patch_std,
-        augment=False,
-        seed=seed,
-    )
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    val_patches = ((x_val - patch_mean) / max(patch_std, 1e-6)).to(device)
+    val_nodule_target = y_val_nodule.to(device)
+    val_malignancy_target = y_val_malignancy.to(device)
+    val_malignancy_mask = y_val_malignancy_mask.to(device)
 
     pos_nodule = max(float(y_train_nodule.sum().item()), 1.0)
     neg_nodule = max(float((1.0 - y_train_nodule).sum().item()), 1.0)
@@ -324,14 +308,20 @@ def train_model(
 
     for epoch in range(epochs):
         model.train()
-        for patches, nodule_target, malignancy_target, malignancy_mask, nodule_weight, malignancy_weight in train_loader:
-            patches = patches.to(device)
-            nodule_target = nodule_target.to(device)
-            malignancy_target = malignancy_target.to(device)
-            malignancy_mask = malignancy_mask.to(device)
-            nodule_weight = nodule_weight.to(device)
-            malignancy_weight = malignancy_weight.to(device)
-
+        epoch_indices = sample_epoch_indices(
+            nodule_target=y_train_nodule,
+            nodule_weight=y_train_nodule_weight,
+            negative_ratio=train_negative_ratio,
+            seed=seed,
+            epoch=epoch,
+        ).to(device)
+        for batch_indices in iterate_minibatches(epoch_indices, batch_size=batch_size):
+            patches = augment_batch(train_patches.index_select(0, batch_indices))
+            nodule_target = train_nodule_target.index_select(0, batch_indices)
+            malignancy_target = train_malignancy_target.index_select(0, batch_indices)
+            malignancy_mask = train_malignancy_mask.index_select(0, batch_indices)
+            nodule_weight = train_nodule_weight.index_select(0, batch_indices)
+            malignancy_weight = train_malignancy_weight.index_select(0, batch_indices)
             optimizer.zero_grad()
             logits = model(patches)
             nodule_logits = logits[:, :1]
@@ -371,8 +361,12 @@ def train_model(
             nodule_truth: list[torch.Tensor] = []
             malignancy_truth: list[torch.Tensor] = []
             malignancy_masks: list[torch.Tensor] = []
-            for patches, nodule_target, malignancy_target, malignancy_mask, _nodule_weight, _malignancy_weight in val_loader:
-                patches = patches.to(device)
+            val_indices = torch.arange(int(val_patches.shape[0]), device=device)
+            for batch_indices in iterate_minibatches(val_indices, batch_size=max(batch_size, 32)):
+                patches = val_patches.index_select(0, batch_indices)
+                nodule_target = val_nodule_target.index_select(0, batch_indices)
+                malignancy_target = val_malignancy_target.index_select(0, batch_indices)
+                malignancy_mask = val_malignancy_mask.index_select(0, batch_indices)
                 logits = model(patches)
                 nodule_probs.append(torch.sigmoid(logits[:, :1]).cpu())
                 malignancy_probs.append(torch.sigmoid(logits[:, 1:]).cpu())
@@ -425,7 +419,8 @@ def train_model(
             f"nodule_auc={nodule_auc:.4f} "
             f"nodule_sens={nodule_sensitivity:.4f} "
             f"nodule_spec={nodule_specificity:.4f} "
-            f"mal_auc={malignancy_auc:.4f}"
+            f"mal_auc={malignancy_auc:.4f}",
+            flush=True,
         )
 
     if best_state is None or best_metrics is None:
@@ -476,6 +471,8 @@ def main() -> None:
         weight_decay=args.weight_decay,
         seed=args.seed,
         patience=args.patience,
+        device_name=args.device,
+        train_negative_ratio=args.train_negative_ratio,
     )
 
     args.output_path.parent.mkdir(parents=True, exist_ok=True)
