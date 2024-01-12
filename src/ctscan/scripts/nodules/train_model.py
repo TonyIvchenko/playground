@@ -188,19 +188,19 @@ def sigmoid_focal_loss(
     return loss.mean()
 
 
-def augment_batch(batch: torch.Tensor) -> torch.Tensor:
-    if bool((torch.rand((), device=batch.device) < 0.5).item()):
+def augment_batch(batch: torch.Tensor, rng: np.random.Generator) -> torch.Tensor:
+    if float(rng.random()) < 0.5:
         batch = torch.flip(batch, dims=(2,))
-    if bool((torch.rand((), device=batch.device) < 0.5).item()):
+    if float(rng.random()) < 0.5:
         batch = torch.flip(batch, dims=(3,))
-    if bool((torch.rand((), device=batch.device) < 0.5).item()):
+    if float(rng.random()) < 0.5:
         batch = torch.flip(batch, dims=(4,))
-    if bool((torch.rand((), device=batch.device) < 0.35).item()):
+    if float(rng.random()) < 0.35:
         batch = batch + torch.randn_like(batch) * 0.05
-    if bool((torch.rand((), device=batch.device) < 0.35).item()):
-        batch = batch * torch.empty((), device=batch.device).uniform_(0.92, 1.08)
-    if bool((torch.rand((), device=batch.device) < 0.35).item()):
-        batch = batch + torch.empty((), device=batch.device).normal_(0.0, 0.08)
+    if float(rng.random()) < 0.35:
+        batch = batch * float(rng.uniform(0.92, 1.08))
+    if float(rng.random()) < 0.35:
+        batch = batch + float(rng.normal(0.0, 0.08))
     return batch
 
 
@@ -308,6 +308,7 @@ def train_model(
 
     for epoch in range(epochs):
         model.train()
+        epoch_rng = np.random.default_rng(seed + epoch)
         epoch_indices = sample_epoch_indices(
             nodule_target=y_train_nodule,
             nodule_weight=y_train_nodule_weight,
@@ -316,7 +317,7 @@ def train_model(
             epoch=epoch,
         ).to(device)
         for batch_indices in iterate_minibatches(epoch_indices, batch_size=batch_size):
-            patches = augment_batch(train_patches.index_select(0, batch_indices))
+            patches = augment_batch(train_patches.index_select(0, batch_indices), rng=epoch_rng)
             nodule_target = train_nodule_target.index_select(0, batch_indices)
             malignancy_target = train_malignancy_target.index_select(0, batch_indices)
             malignancy_mask = train_malignancy_mask.index_select(0, batch_indices)
