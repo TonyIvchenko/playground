@@ -336,17 +336,14 @@ def train_model(
                 sample_weight=nodule_weight,
             )
 
-            labeled_mask = malignancy_mask > 0.5
-            if labeled_mask.any():
-                malignancy_loss = F.binary_cross_entropy_with_logits(
-                    malignancy_logits[labeled_mask],
-                    malignancy_target[labeled_mask],
-                    pos_weight=torch.tensor([malignancy_pos_weight], device=device),
-                    reduction="none",
-                )
-                malignancy_loss = (malignancy_loss * malignancy_weight[labeled_mask]).mean()
-            else:
-                malignancy_loss = torch.zeros((), device=device)
+            malignancy_loss = F.binary_cross_entropy_with_logits(
+                malignancy_logits,
+                malignancy_target,
+                pos_weight=torch.tensor([malignancy_pos_weight], device=device),
+                reduction="none",
+            )
+            malignancy_loss_weight = malignancy_weight * malignancy_mask
+            malignancy_loss = (malignancy_loss * malignancy_loss_weight).sum() / malignancy_loss_weight.sum().clamp_min(1e-6)
 
             loss = nodule_loss + 0.8 * malignancy_loss
             loss.backward()
