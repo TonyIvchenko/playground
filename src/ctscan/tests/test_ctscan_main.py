@@ -5,33 +5,20 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 import src.ctscan.main as ctscan_main
-from src.ctscan.models.nodules import create_model
 
 
-def test_analyze_study_bytes_contract(make_ct_zip, monkeypatch):
-    model = create_model()
-    monkeypatch.setattr(
-        ctscan_main,
-        "get_model_bundle",
-        lambda: (model, -700.0, 250.0, "0.1.0", {"nodule_accuracy": 0.8, "malignancy_auc": 0.82}),
-    )
+def test_analyze_study_bytes_contract(make_ct_zip):
     study_path = make_ct_zip()
-    prior_path = make_ct_zip(patient_id="prior", nodule_radius=2, malignant_boost=70.0)
-    payload = ctscan_main.analyze_study_bytes(study_path.read_bytes(), prior_study_bytes=prior_path.read_bytes(), age=63, sex="male")
-    assert payload["model_version"] == "0.1.0"
-    assert payload["qc"]["status"] == "ok"
-    assert "study_metadata" in payload
+    payload = ctscan_main.analyze_study_bytes(study_path.read_bytes(), age=63, sex="male")
+    assert payload["version"] == "segmentation-v1"
+    assert payload["backend"] in {"threshold", "lungmask"}
+    assert payload["qc"]["status"] in {"ok", "rejected"}
+    assert "issues" in payload
     assert "summary" in payload
-    assert isinstance(payload["findings"], list)
+    assert "_viewer" in payload
 
 
-def test_health_and_predict_endpoint(make_ct_zip, monkeypatch):
-    model = create_model()
-    monkeypatch.setattr(
-        ctscan_main,
-        "get_model_bundle",
-        lambda: (model, -700.0, 250.0, "0.1.0", {"nodule_accuracy": 0.8, "malignancy_auc": 0.82}),
-    )
+def test_health_and_predict_endpoint(make_ct_zip):
     client = TestClient(ctscan_main.api)
     health = client.get("/health")
     assert health.status_code == 200
@@ -46,10 +33,12 @@ def test_health_and_predict_endpoint(make_ct_zip, monkeypatch):
         )
     assert response.status_code == 200
     payload = response.json()
-    assert payload["model_version"] == "0.1.0"
-    assert "findings" in payload
+    assert payload["version"] == "segmentation-v1"
+    assert "issues" in payload
+    assert "_viewer" not in payload
 
 
 def test_update_viewer_handles_empty_state():
-    image_path = ctscan_main.update_viewer({}, 0, "lung", None)
+    image_path, slice_df = ctscan_main.update_viewer({}, 0, "lung", "all", True, True, 0.32, 0.45)
     assert Path(image_path).exists()
+    assert list(slice_df.columns) == ctscan_main.SLICE_TABLE_COLUMNS

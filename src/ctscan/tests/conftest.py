@@ -63,27 +63,35 @@ def make_ct_zip(tmp_path: Path):
         body_part: str = "CHEST",
         patient_id: str = "demo-patient",
         n_slices: int = 24,
-        nodule_center: tuple[int, int, int] = (12, 32, 38),
-        nodule_radius: int = 4,
-        malignant_boost: float = 120.0,
     ) -> Path:
         slices_dir = tmp_path / patient_id
         slices_dir.mkdir(parents=True, exist_ok=True)
         study_uid = generate_uid()
         series_uid = generate_uid()
+
         zz, yy, xx = np.indices((n_slices, 64, 64))
         volume = np.full((n_slices, 64, 64), -1000.0, dtype=np.float32)
         body = ((yy[0] - 32.0) ** 2) / (28.0**2) + ((xx[0] - 32.0) ** 2) / (24.0**2) <= 1.0
         volume[:, body] = 30.0
+
         left_lung = ((yy[0] - 32.0) ** 2) / (18.0**2) + ((xx[0] - 22.0) ** 2) / (10.0**2) <= 1.0
         right_lung = ((yy[0] - 32.0) ** 2) / (18.0**2) + ((xx[0] - 42.0) ** 2) / (10.0**2) <= 1.0
-        volume[:, left_lung | right_lung] = -820.0
-        distance = np.sqrt(
-            (zz - float(nodule_center[0])) ** 2
-            + (yy - float(nodule_center[1])) ** 2
-            + (xx - float(nodule_center[2])) ** 2
-        )
-        volume[distance <= float(nodule_radius)] = malignant_boost
+        lung_mask = left_lung | right_lung
+        volume[:, lung_mask] = -920.0
+
+        issue_specs = [
+            ((n_slices // 2, 32, 20), 3, -980.0),  # emphysema
+            ((n_slices // 2, 28, 25), 3, -800.0),  # fibrotic pattern
+            ((n_slices // 2, 35, 40), 4, -560.0),  # ground-glass
+            ((n_slices // 2 + 1, 32, 44), 3, -120.0),  # consolidation
+        ]
+        for center, radius, value in issue_specs:
+            distance = np.sqrt(
+                (zz - float(center[0])) ** 2
+                + (yy - float(center[1])) ** 2
+                + (xx - float(center[2])) ** 2
+            )
+            volume[distance <= float(radius)] = value
 
         for slice_index in range(n_slices):
             _make_slice_dataset(

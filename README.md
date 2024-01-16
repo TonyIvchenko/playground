@@ -13,11 +13,11 @@ Minimal multi-service playground.
 - `src/disasters/tests/wildfires`: download/train/tile tests
 - `src/disasters/tests/huricaines`: download/train/tile tests
 - `src/disasters/tests/test_disasters_main.py`: unified app inference tests
-- `src/ctscan`: chest CT pulmonary nodule triage service:
-- `src/ctscan/models`: `nodules.py`, `nodules.pt`
-- `src/ctscan/scripts/nodules`: `download_data.py`, `train_model.py`
-- `src/ctscan/notebooks`: `nodules.ipynb`
-- `src/ctscan/tests`: CT downloader, model, study, and API tests
+- `src/ctscan`: chest CT semantic segmentation service:
+- `src/ctscan/study.py`: DICOM loading, lung segmentation, issue segmentation, overlay rendering
+- `src/ctscan/model/unet.py`: U-Net architecture for semantic segmentation
+- `src/ctscan/scripts/segmentation`: `download_data.py`, `download_lidc.py`, `build_lidc_manifest.py`, `build_luna_manifest.py`, `build_nlstseg_manifest.py`, `build_lndb_manifest.py`, `build_dataset.py`, `train_unet.py`
+- `src/ctscan/tests`: study and API tests
 
 ## Dependency Layout
 
@@ -64,8 +64,14 @@ python scripts/wildfires/train_model.py --model-version 0.5.3
 python scripts/wildfires/generate_tiles.py
 
 cd ../ctscan
-python scripts/nodules/download_data.py
-python scripts/nodules/train_model.py --model-version 0.3.0
+python scripts/segmentation/download_data.py
+python scripts/segmentation/download_lidc.py --max-series 0
+python scripts/segmentation/build_lidc_manifest.py --replace-lidc-rows --overwrite
+python scripts/segmentation/build_luna_manifest.py --replace-luna-rows --overwrite
+python scripts/segmentation/build_nlstseg_manifest.py --replace-nlstseg-rows --overwrite
+python scripts/segmentation/build_lndb_manifest.py --replace-lndb-rows --overwrite
+python scripts/segmentation/build_dataset.py --overwrite
+python scripts/segmentation/train_unet.py --model-version 0.2.0
 ```
 
 Open notebooks for EDA/eval:
@@ -73,7 +79,6 @@ Open notebooks for EDA/eval:
 ```bash
 conda run -n playground jupyter lab src/disasters/notebooks/huricaines.ipynb
 conda run -n playground jupyter lab src/disasters/notebooks/wildfires.ipynb
-conda run -n playground jupyter lab src/ctscan/notebooks/nodules.ipynb
 ```
 
 ## Make Commands

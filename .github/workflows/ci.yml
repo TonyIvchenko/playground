@@ -21,16 +21,16 @@ jobs:
           cache-dependency-path: |
             requirements.txt
             src/test/requirements.txt
-            src/hurricane/requirements.txt
-            src/wildfire/requirements.txt
+            src/disasters/requirements.txt
+            src/ctscan/requirements.txt
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r src/test/requirements.txt
-          pip install -r src/hurricane/requirements.txt
-          pip install -r src/wildfire/requirements.txt
+          pip install -r src/disasters/requirements.txt
+          pip install -r src/ctscan/requirements.txt
           pip install pytest
 
       - name: Validate dependency graph

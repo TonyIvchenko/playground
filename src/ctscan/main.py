@@ -1,4 +1,4 @@
-"""Chest CT pulmonary nodule triage service."""
+"""Chest CT semantic segmentation service."""
 
 from __future__ import annotations
 
@@ -12,34 +12,61 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 import gradio as gr
 import numpy as np
 import pandas as pd
-import torch
 import uvicorn
 
 try:
-    from models.nodules import load_model_bundle, predict_logits
-    from study import blank_viewer_image, estimate_lung_mask, finding_rows, generate_candidates, load_study_from_zip_bytes, match_prior_findings, read_temp_volume, render_slice_image, write_temp_image, write_temp_volume
+    from study import (
+        blank_viewer_image,
+        issue_rows_for_table,
+        issue_slice_stats,
+        issue_volume_stats,
+        load_study_from_zip_bytes,
+        model_backend_error,
+        model_backend_metadata,
+        model_backend_name,
+        read_temp_bundle,
+        render_segmentation_slice,
+        segment_issues,
+        segment_lungs,
+        segmentation_backend_error,
+        segmentation_backend_name,
+        slice_rows_for_table,
+        supported_issues,
+        write_temp_bundle,
+        write_temp_image,
+    )
 except ModuleNotFoundError:
-    from src.ctscan.models.nodules import load_model_bundle, predict_logits
-    from src.ctscan.study import blank_viewer_image, estimate_lung_mask, finding_rows, generate_candidates, load_study_from_zip_bytes, match_prior_findings, read_temp_volume, render_slice_image, write_temp_image, write_temp_volume
+    from src.ctscan.study import (
+        blank_viewer_image,
+        issue_rows_for_table,
+        issue_slice_stats,
+        issue_volume_stats,
+        load_study_from_zip_bytes,
+        model_backend_error,
+        model_backend_metadata,
+        model_backend_name,
+        read_temp_bundle,
+        render_segmentation_slice,
+        segment_issues,
+        segment_lungs,
+        segmentation_backend_error,
+        segmentation_backend_name,
+        slice_rows_for_table,
+        supported_issues,
+        write_temp_bundle,
+        write_temp_image,
+    )
 
 
 HOST = os.getenv("API_HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "8080"))
 SERVICE_NAME = os.getenv("SERVICE_NAME", "ctscan")
-MODEL_PATH = Path(os.getenv("NODULES_MODEL_PATH", str(Path(__file__).resolve().parent / "models" / "nodules.pt")))
 SAMPLES_MANIFEST_PATH = Path(__file__).resolve().parent / "data" / "ctscan" / "samples" / "samples.json"
 DEFAULT_SAMPLE = ""
 WINDOW_CHOICES = ["lung", "mediastinal"]
-FINDING_COLUMNS = ["Lesion", "Slice", "Diameter mm", "Volume mm3", "Nodule Prob", "Malig Risk", "Growth mm"]
-
-
-@lru_cache(maxsize=1)
-def get_model_bundle() -> tuple[torch.nn.Module, float, float, str, dict[str, float]]:
-    if not MODEL_PATH.exists():
-        raise FileNotFoundError(
-            f"Model bundle not found at {MODEL_PATH}. Run `python scripts/nodules/download_data.py` and `python scripts/nodules/train_model.py`."
-        )
-    return load_model_bundle(MODEL_PATH)
+ISSUE_CHOICES = ["all"] + [str(item["key"]) for item in supported_issues()]
+ISSUE_TABLE_COLUMNS = ["Issue", "Lung %", "Volume ml", "Voxels"]
+SLICE_TABLE_COLUMNS = ["Issue", "Slice % of lung", "Pixels"]
 
 
 @lru_cache(maxsize=1)
@@ -60,181 +87,204 @@ def _study_bytes_from_inputs(study_file: str | None, sample_id: str | None) -> b
             if study_path.exists():
                 return study_path.read_bytes()
         raise FileNotFoundError(
-            f"Sample `{sample_id}` is unavailable. Run `python scripts/nodules/download_data.py` from src/ctscan."
+            f"Sample `{sample_id}` is unavailable. Run `python scripts/segmentation/download_data.py` from src/ctscan."
         )
     raise ValueError("Provide a study zip or a sample id.")
 
 
-def _score_candidates(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    if not candidates:
-        return candidates
-    model, patch_mean, patch_std, _, metrics = get_model_bundle()
-    patches = torch.from_numpy(np.stack([candidate["patch"] for candidate in candidates], axis=0)).unsqueeze(1)
-    logits = predict_logits(model, patches, patch_mean=patch_mean, patch_std=patch_std)
-    probs = torch.sigmoid(logits).cpu().numpy()
-    for candidate, prob in zip(candidates, probs):
-        candidate["nodule_probability"] = float(prob[0])
-        candidate["malignancy_risk"] = float(prob[1])
-        candidate.pop("patch", None)
-    return candidates
+def format_json_text(payload: Any) -> str:
+    return json.dumps(payload, indent=2, sort_keys=True)
 
 
-def _risk_text(findings: list[dict[str, Any]]) -> str:
-    if not findings:
-        return "No suspicious nodules detected."
-    top = max(findings, key=lambda item: item["malignancy_risk"])
-    if top["malignancy_risk"] >= 0.7:
-        return "High-risk nodule candidate needs radiologist review."
-    if top["malignancy_risk"] >= 0.4:
-        return "Intermediate-risk nodule candidate found."
-    return "Low-risk nodule candidates found."
+def _slice_damage_percentages(labels: np.ndarray, lung_mask: np.ndarray) -> list[float]:
+    values: list[float] = []
+    for index in range(int(labels.shape[0])):
+        lung_pixels = max(int(lung_mask[index].sum()), 1)
+        damaged_pixels = int((labels[index] > 0).sum())
+        values.append(float((damaged_pixels / lung_pixels) * 100.0))
+    return values
 
 
 def analyze_study_bytes(
     study_bytes: bytes,
-    prior_study_bytes: bytes | None = None,
     age: float | None = None,
     sex: str | None = None,
     smoking_history: str | None = None,
 ) -> dict[str, Any]:
-    model, _, _, model_version, metrics = get_model_bundle()
-    _ = model
+    study = load_study_from_zip_bytes(study_bytes)
 
-    current = load_study_from_zip_bytes(study_bytes)
-    prior = load_study_from_zip_bytes(prior_study_bytes) if prior_study_bytes else None
+    lung_mask, backend_used = segment_lungs(study.volume_hu)
+    labels = segment_issues(study.volume_hu, lung_mask)
+    issue_rows = issue_volume_stats(labels, lung_mask, spacing=study.spacing)
 
-    status = "ok"
-    rejection_reasons = list(current.qc_reasons)
-    if len(rejection_reasons) > 0:
-        status = "rejected"
+    lung_voxels = max(int(lung_mask.sum()), 1)
+    damaged_voxels = int((labels > 0).sum())
+    voxel_volume_ml = float(study.spacing[0] * study.spacing[1] * study.spacing[2]) / 1000.0
+    lung_volume_ml = float(lung_voxels) * voxel_volume_ml
+    damaged_volume_ml = float(damaged_voxels) * voxel_volume_ml
+    damaged_percent = float((damaged_voxels / lung_voxels) * 100.0)
 
-    patch_shape = tuple(int(x) for x in metrics.get("patch_shape", [16, 16, 16]))
-    current_candidates = _score_candidates(
-        generate_candidates(current.volume_hu, estimate_lung_mask(current.volume_hu), patch_shape=patch_shape)
-    )
-    prior_candidates = []
-    if prior is not None:
-        prior_candidates = _score_candidates(
-            generate_candidates(prior.volume_hu, estimate_lung_mask(prior.volume_hu), patch_shape=patch_shape)
-        )
-        current_candidates = match_prior_findings(current_candidates, prior_candidates)
+    detected_rows = [row for row in issue_rows if row["voxels"] > 0]
+    top_issue = max(detected_rows, key=lambda item: item["lung_percent"], default=None)
 
-    current_candidates = sorted(
-        current_candidates,
-        key=lambda item: (float(item["malignancy_risk"]), float(item["nodule_probability"])),
-        reverse=True,
-    )
+    qc_reasons = list(study.qc_reasons)
+    qc_status = "ok" if not qc_reasons else "rejected"
 
-    summary = {
-        "finding_count": len(current_candidates),
-        "highest_nodule_probability": round(max([item["nodule_probability"] for item in current_candidates], default=0.0), 4),
-        "highest_malignancy_risk": round(max([item["malignancy_risk"] for item in current_candidates], default=0.0), 4),
-        "message": _risk_text(current_candidates),
-    }
-
-    for finding in current_candidates:
-        finding["center"] = [int(x) for x in finding["center"]]
+    slice_damage = _slice_damage_percentages(labels, lung_mask)
 
     return {
-        "model_version": model_version,
-        "model_metrics": {
-            "accuracy": round(float(metrics.get("nodule_accuracy", 0.0)), 4),
-            "auc": round(float(metrics.get("malignancy_auc", 0.0)), 4),
-        },
+        "version": "segmentation-v1",
+        "backend": backend_used,
+        "issue_backend": model_backend_name(),
         "qc": {
-            "status": status,
-            "rejection_reasons": rejection_reasons,
+            "status": qc_status,
+            "rejection_reasons": qc_reasons,
         },
         "study_metadata": {
-            **current.metadata,
+            **study.metadata,
             "age": age,
             "sex": sex,
             "smoking_history": smoking_history,
         },
-        "findings": current_candidates,
-        "summary": summary,
-        "prior_summary": {
-            "available": prior is not None,
-            "finding_count": len(prior_candidates),
+        "issues": issue_rows,
+        "summary": {
+            "lung_volume_ml": round(lung_volume_ml, 3),
+            "damaged_volume_ml": round(damaged_volume_ml, 3),
+            "damaged_percent": round(damaged_percent, 4),
+            "detected_issue_count": len(detected_rows),
+            "top_issue": None
+            if top_issue is None
+            else {
+                "issue": top_issue["issue"],
+                "lung_percent": round(float(top_issue["lung_percent"]), 4),
+            },
         },
+        "slice_damage_percent": [round(value, 4) for value in slice_damage],
         "_viewer": {
-            "volume_shape": list(current.volume_hu.shape),
-            "volume_path": write_temp_volume(current.volume_hu),
+            "bundle_path": write_temp_bundle(study.volume_hu, labels, lung_mask),
+            "slice_count": int(study.volume_hu.shape[0]),
         },
     }
 
 
-def _slice_count_from_payload(payload: dict[str, Any]) -> int:
-    return int(payload["_viewer"]["volume_shape"][0])
+def _slice_count_from_payload(payload: Any) -> int:
+    return int(payload["_viewer"]["slice_count"])
 
 
-def render_payload_slice(payload: dict[str, Any], slice_index: int, preset: str, lesion_id: str | None) -> str:
-    volume_hu = read_temp_volume(payload["_viewer"]["volume_path"])
-    image = render_slice_image(volume_hu, payload.get("findings", []), slice_index, preset, lesion_id)
+def render_payload_slice(
+    payload: Any,
+    slice_index: int,
+    preset: str,
+    focus_issue: str,
+    show_lung_layer: bool,
+    show_damage_layer: bool,
+    lung_alpha: float,
+    damage_alpha: float,
+) -> str:
+    volume_hu, labels, lung_mask = read_temp_bundle(payload["_viewer"]["bundle_path"])
+    image = render_segmentation_slice(
+        volume_hu=volume_hu,
+        labels=labels,
+        lung_mask=lung_mask,
+        slice_index=int(slice_index),
+        preset=preset,
+        focus_issue=focus_issue,
+        show_lung_layer=bool(show_lung_layer),
+        show_damage_layer=bool(show_damage_layer),
+        lung_alpha=float(lung_alpha),
+        damage_alpha=float(damage_alpha),
+    )
     return write_temp_image(image)
 
 
-def dataframe_from_payload(payload: dict[str, Any]) -> pd.DataFrame:
-    return pd.DataFrame(finding_rows(payload.get("findings", [])), columns=FINDING_COLUMNS)
+def dataframe_from_payload(payload: Any) -> pd.DataFrame:
+    return pd.DataFrame(issue_rows_for_table(payload.get("issues", [])), columns=ISSUE_TABLE_COLUMNS)
+
+
+def dataframe_for_slice(payload: Any, slice_index: int) -> pd.DataFrame:
+    _, labels, lung_mask = read_temp_bundle(payload["_viewer"]["bundle_path"])
+    rows = issue_slice_stats(labels, lung_mask, int(slice_index))
+    return pd.DataFrame(slice_rows_for_table(rows), columns=SLICE_TABLE_COLUMNS)
+
+
+def _default_slice_index(payload: Any) -> int:
+    values = payload.get("slice_damage_percent", [])
+    if not values:
+        return 0
+    return int(np.argmax(np.asarray(values, dtype=np.float32)))
 
 
 def analyze_from_inputs(
     sample_id: str,
     study_file: str | None,
-    prior_study_file: str | None,
     age: float | None,
     sex: str,
     smoking_history: str,
     preset: str,
-) -> tuple[dict[str, Any], str, pd.DataFrame, str, gr.Slider, gr.Dropdown, dict[str, Any], dict[str, Any], dict[str, Any]]:
+    focus_issue: str,
+    show_lung_layer: bool,
+    show_damage_layer: bool,
+    lung_alpha: float,
+    damage_alpha: float,
+) -> tuple[Any, str, pd.DataFrame, pd.DataFrame, str, gr.Slider, str, str, str]:
     study_bytes = _study_bytes_from_inputs(study_file, sample_id or None)
-    prior_bytes = Path(prior_study_file).read_bytes() if prior_study_file else None
     payload = analyze_study_bytes(
         study_bytes=study_bytes,
-        prior_study_bytes=prior_bytes,
         age=age,
         sex=sex or None,
         smoking_history=smoking_history or None,
     )
-    findings_df = dataframe_from_payload(payload)
-    lesion_choices = [str(item["lesion_id"]) for item in payload.get("findings", [])]
-    selected_lesion = lesion_choices[0] if lesion_choices else None
-    default_slice = int(payload["findings"][0]["slice_index"]) if payload["findings"] else _slice_count_from_payload(payload) // 2
-    image_path = render_payload_slice(payload, default_slice, preset, selected_lesion)
+
+    default_slice = _default_slice_index(payload)
+    image_path = render_payload_slice(
+        payload,
+        default_slice,
+        preset,
+        focus_issue,
+        show_lung_layer,
+        show_damage_layer,
+        lung_alpha,
+        damage_alpha,
+    )
     status_text = "Rejected" if payload["qc"]["status"] != "ok" else "Ready"
+
     return (
         payload,
         status_text,
-        findings_df,
+        dataframe_from_payload(payload),
+        dataframe_for_slice(payload, default_slice),
         image_path,
         gr.Slider(minimum=0, maximum=max(0, _slice_count_from_payload(payload) - 1), value=default_slice, step=1),
-        gr.Dropdown(choices=lesion_choices, value=selected_lesion),
-        payload["qc"],
-        payload["summary"],
-        payload["study_metadata"],
+        format_json_text(payload["qc"]),
+        format_json_text(payload["summary"]),
+        format_json_text(payload["study_metadata"]),
     )
 
 
-def update_viewer(payload: dict[str, Any], slice_index: int, preset: str, lesion_id: str | None) -> str:
+def update_viewer(
+    payload: Any,
+    slice_index: int,
+    preset: str,
+    focus_issue: str,
+    show_lung_layer: bool,
+    show_damage_layer: bool,
+    lung_alpha: float,
+    damage_alpha: float,
+) -> tuple[str, pd.DataFrame]:
     if not payload:
-        return blank_viewer_image()
-    return render_payload_slice(payload, int(slice_index), preset, lesion_id)
-
-
-def select_finding(payload: dict[str, Any], evt: gr.SelectData, preset: str) -> tuple[gr.Slider, gr.Dropdown, str]:
-    if not payload or evt.index is None:
-        return gr.Slider(), gr.Dropdown(), blank_viewer_image()
-    row_index = int(evt.index[0])
-    findings = payload.get("findings", [])
-    if row_index < 0 or row_index >= len(findings):
-        return gr.Slider(), gr.Dropdown(), blank_viewer_image()
-    lesion_id = str(findings[row_index]["lesion_id"])
-    slice_index = int(findings[row_index]["slice_index"])
-    return (
-        gr.Slider(value=slice_index),
-        gr.Dropdown(value=lesion_id),
-        render_payload_slice(payload, slice_index, preset, lesion_id),
+        return blank_viewer_image(), pd.DataFrame(columns=SLICE_TABLE_COLUMNS)
+    image_path = render_payload_slice(
+        payload,
+        int(slice_index),
+        preset,
+        focus_issue,
+        show_lung_layer,
+        show_damage_layer,
+        lung_alpha,
+        damage_alpha,
     )
+    slice_df = dataframe_for_slice(payload, int(slice_index))
+    return image_path, slice_df
 
 
 api = FastAPI(title=SERVICE_NAME)
@@ -242,20 +292,22 @@ api = FastAPI(title=SERVICE_NAME)
 
 @api.get("/health")
 def health() -> dict[str, Any]:
-    _, _, _, model_version, metrics = get_model_bundle()
     return {
         "status": "ok",
         "service": SERVICE_NAME,
-        "model_version": model_version,
-        "accuracy": round(float(metrics.get("nodule_accuracy", 0.0)), 4),
-        "auc": round(float(metrics.get("malignancy_auc", 0.0)), 4),
+        "version": "segmentation-v1",
+        "segmentation_backend": segmentation_backend_name(),
+        "segmentation_backend_error": segmentation_backend_error(),
+        "issue_backend": model_backend_name(),
+        "issue_backend_error": model_backend_error(),
+        "issue_backend_metadata": model_backend_metadata(),
+        "issues": supported_issues(),
     }
 
 
 @api.post("/predict")
 async def predict(
     study_zip: UploadFile | None = File(default=None),
-    prior_study_zip: UploadFile | None = File(default=None),
     sample_id: str | None = Form(default=None),
     age: float | None = Form(default=None),
     sex: str | None = Form(default=None),
@@ -264,10 +316,8 @@ async def predict(
     if study_zip is None and not sample_id:
         raise HTTPException(status_code=400, detail="Provide study_zip or sample_id.")
     study_bytes = await study_zip.read() if study_zip is not None else _study_bytes_from_inputs(None, sample_id)
-    prior_bytes = await prior_study_zip.read() if prior_study_zip is not None else None
     payload = analyze_study_bytes(
         study_bytes=study_bytes,
-        prior_study_bytes=prior_bytes,
         age=age,
         sex=sex,
         smoking_history=smoking_history,
@@ -279,64 +329,177 @@ async def predict(
 def build_demo() -> gr.Blocks:
     sample_choices = [""] + sorted(load_samples_manifest().keys())
     with gr.Blocks(title=SERVICE_NAME) as demo:
-        payload_state = gr.State({})
+        payload_state = gr.State(value=None)
         gr.Markdown(
             """
-            # CT Scan Service
-            **Research use only.** v1 supports pulmonary nodule review on chest CT only. It is not a diagnosis.
+            # CT Scan Semantic Segmentation
+            **Research use only.** Upload chest CT DICOM zip and review semantic issue overlays by slice.
             """
         )
+
         with gr.Row():
             with gr.Column(scale=1):
                 sample_id = gr.Dropdown(label="Sample case", choices=sample_choices, value=DEFAULT_SAMPLE)
                 study_zip = gr.File(label="Chest CT DICOM zip", type="filepath")
-                prior_zip = gr.File(label="Prior chest CT zip", type="filepath")
                 age = gr.Number(label="Age", value=None, precision=0)
                 sex = gr.Dropdown(label="Sex", choices=["", "female", "male"], value="")
                 smoking_history = gr.Textbox(label="Smoking history", value="")
                 analyze_button = gr.Button("Analyze")
                 status_box = gr.Textbox(label="Status", interactive=False)
-                qc_json = gr.JSON(label="QC")
-                summary_json = gr.JSON(label="Summary")
-                metadata_json = gr.JSON(label="Study metadata")
+                summary_json = gr.Code(label="Summary", language="json", interactive=False)
+                qc_json = gr.Code(label="QC", language="json", interactive=False)
+                metadata_json = gr.Code(label="Study metadata", language="json", interactive=False)
+
             with gr.Column(scale=2):
                 with gr.Row():
                     window_preset = gr.Dropdown(label="Window", choices=WINDOW_CHOICES, value="lung")
-                    selected_lesion = gr.Dropdown(label="Finding focus", choices=[], value=None)
+                    focus_issue = gr.Dropdown(label="Focus issue", choices=ISSUE_CHOICES, value="all")
+                with gr.Row():
+                    show_lung_layer = gr.Checkbox(label="Lung mask layer", value=True)
+                    show_damage_layer = gr.Checkbox(label="Damage layer", value=True)
+                with gr.Row():
+                    lung_alpha = gr.Slider(label="Lung opacity", minimum=0.0, maximum=1.0, value=0.32, step=0.05)
+                    damage_alpha = gr.Slider(label="Damage opacity", minimum=0.0, maximum=1.0, value=0.45, step=0.05)
                 viewer = gr.Image(label="Axial viewer", type="filepath")
                 slice_slider = gr.Slider(label="Slice", minimum=0, maximum=0, value=0, step=1)
-                findings = gr.Dataframe(
-                    label="Findings",
-                    headers=FINDING_COLUMNS,
-                    datatype=["str", "number", "number", "number", "number", "number", "str"],
+                issues_df = gr.Dataframe(
+                    label="Lung damage by issue type",
+                    headers=ISSUE_TABLE_COLUMNS,
+                    datatype=["str", "number", "number", "number"],
+                    interactive=False,
+                )
+                slice_df = gr.Dataframe(
+                    label="Current slice damage by issue type",
+                    headers=SLICE_TABLE_COLUMNS,
+                    datatype=["str", "number", "number"],
                     interactive=False,
                 )
 
         analyze_button.click(
             fn=analyze_from_inputs,
-            inputs=[sample_id, study_zip, prior_zip, age, sex, smoking_history, window_preset],
-            outputs=[payload_state, status_box, findings, viewer, slice_slider, selected_lesion, qc_json, summary_json, metadata_json],
+            inputs=[
+                sample_id,
+                study_zip,
+                age,
+                sex,
+                smoking_history,
+                window_preset,
+                focus_issue,
+                show_lung_layer,
+                show_damage_layer,
+                lung_alpha,
+                damage_alpha,
+            ],
+            outputs=[payload_state, status_box, issues_df, slice_df, viewer, slice_slider, qc_json, summary_json, metadata_json],
+            show_api=False,
         )
+
         slice_slider.change(
             fn=update_viewer,
-            inputs=[payload_state, slice_slider, window_preset, selected_lesion],
-            outputs=viewer,
+            inputs=[
+                payload_state,
+                slice_slider,
+                window_preset,
+                focus_issue,
+                show_lung_layer,
+                show_damage_layer,
+                lung_alpha,
+                damage_alpha,
+            ],
+            outputs=[viewer, slice_df],
+            show_api=False,
         )
         window_preset.change(
             fn=update_viewer,
-            inputs=[payload_state, slice_slider, window_preset, selected_lesion],
-            outputs=viewer,
+            inputs=[
+                payload_state,
+                slice_slider,
+                window_preset,
+                focus_issue,
+                show_lung_layer,
+                show_damage_layer,
+                lung_alpha,
+                damage_alpha,
+            ],
+            outputs=[viewer, slice_df],
+            show_api=False,
         )
-        selected_lesion.change(
+        focus_issue.change(
             fn=update_viewer,
-            inputs=[payload_state, slice_slider, window_preset, selected_lesion],
-            outputs=viewer,
+            inputs=[
+                payload_state,
+                slice_slider,
+                window_preset,
+                focus_issue,
+                show_lung_layer,
+                show_damage_layer,
+                lung_alpha,
+                damage_alpha,
+            ],
+            outputs=[viewer, slice_df],
+            show_api=False,
         )
-        findings.select(
-            fn=select_finding,
-            inputs=[payload_state, window_preset],
-            outputs=[slice_slider, selected_lesion, viewer],
+        show_lung_layer.change(
+            fn=update_viewer,
+            inputs=[
+                payload_state,
+                slice_slider,
+                window_preset,
+                focus_issue,
+                show_lung_layer,
+                show_damage_layer,
+                lung_alpha,
+                damage_alpha,
+            ],
+            outputs=[viewer, slice_df],
+            show_api=False,
         )
+        show_damage_layer.change(
+            fn=update_viewer,
+            inputs=[
+                payload_state,
+                slice_slider,
+                window_preset,
+                focus_issue,
+                show_lung_layer,
+                show_damage_layer,
+                lung_alpha,
+                damage_alpha,
+            ],
+            outputs=[viewer, slice_df],
+            show_api=False,
+        )
+        lung_alpha.change(
+            fn=update_viewer,
+            inputs=[
+                payload_state,
+                slice_slider,
+                window_preset,
+                focus_issue,
+                show_lung_layer,
+                show_damage_layer,
+                lung_alpha,
+                damage_alpha,
+            ],
+            outputs=[viewer, slice_df],
+            show_api=False,
+        )
+        damage_alpha.change(
+            fn=update_viewer,
+            inputs=[
+                payload_state,
+                slice_slider,
+                window_preset,
+                focus_issue,
+                show_lung_layer,
+                show_damage_layer,
+                lung_alpha,
+                damage_alpha,
+            ],
+            outputs=[viewer, slice_df],
+            show_api=False,
+        )
+
     return demo
 
 
