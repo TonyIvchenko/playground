@@ -26,6 +26,7 @@ DEFAULT_RAW_DIR = CTSCAN_ROOT / "data" / "ctscan" / "raw"
 DEFAULT_SAMPLES_DIR = CTSCAN_ROOT / "data" / "ctscan" / "samples"
 DEFAULT_OUTPUT_DIR = CTSCAN_ROOT / "data" / "ctscan" / "processed" / "unet_composite"
 DEFAULT_LABELED_MANIFEST = DEFAULT_RAW_DIR / "composite_manifest.csv"
+# Class ids kept for compatibility with existing adapters/manifests.
 CLASS_NAMES = {
     0: "background",
     1: "emphysema",
@@ -33,7 +34,12 @@ CLASS_NAMES = {
     3: "ground_glass",
     4: "consolidation",
     5: "nodule",
+    6: "mass_or_tumor",
+    7: "pleural_effusion",
 }
+CHANNEL_CLASS_IDS = [5, 6, 3, 4, 1, 2, 7]
+CHANNEL_CLASS_NAMES = [CLASS_NAMES[class_id] for class_id in CHANNEL_CLASS_IDS]
+CLASS_ID_TO_CHANNEL = {class_id: index for index, class_id in enumerate(CHANNEL_CLASS_IDS)}
 
 
 @dataclass
@@ -41,7 +47,7 @@ class CaseSample:
     case_id: str
     source: str
     image_hu: np.ndarray
-    mask: np.ndarray
+    mask_multi: np.ndarray
     spacing: tuple[float, float, float]
     metadata: dict[str, Any]
 
@@ -158,6 +164,61 @@ def remap_mask(mask: np.ndarray, label_map: dict[int, int]) -> np.ndarray:
     return result
 
 
+def scalar_to_multi(mask_zyx: np.ndarray) -> np.ndarray:
+    channels = np.zeros((len(CHANNEL_CLASS_IDS),) + tuple(mask_zyx.shape), dtype=np.uint8)
+    for channel_index, class_id in enumerate(CHANNEL_CLASS_IDS):
+        channels[channel_index, mask_zyx == int(class_id)] = np.uint8(1)
+    return channels
+
+
+def normalize_channel_axis(mask: np.ndarray, image_shape: tuple[int, int, int]) -> np.ndarray:
+    if mask.ndim != 4:
+        raise ValueError("Expected 4D channel mask")
+    if tuple(mask.shape[1:]) == image_shape:
+        return mask
+    if tuple(mask.shape[:3]) == image_shape:
+        return np.moveaxis(mask, -1, 0)
+    raise ValueError(f"Channel mask shape {mask.shape} does not match image shape {image_shape}")
+
+
+def remap_channel_mask(mask_channels: np.ndarray, label_map: dict[int, int]) -> np.ndarray:
+    if not label_map:
+        if int(mask_channels.shape[0]) != len(CHANNEL_CLASS_IDS):
+            raise ValueError(
+                f"Channel mask has {mask_channels.shape[0]} channels; expected {len(CHANNEL_CLASS_IDS)} "
+                "when no label_map is provided."
+            )
+        return (mask_channels > 0).astype(np.uint8)
+
+    output = np.zeros((len(CHANNEL_CLASS_IDS),) + tuple(mask_channels.shape[1:]), dtype=np.uint8)
+    for source_label, target_label in label_map.items():
+        target_channel = CLASS_ID_TO_CHANNEL.get(int(target_label))
+        if target_channel is None:
+            continue
+
+        source_index: int | None = None
+        for candidate in (int(source_label), int(source_label) - 1):
+            if 0 <= candidate < int(mask_channels.shape[0]):
+                source_index = candidate
+                break
+        if source_index is None:
+            continue
+        output[target_channel] = np.maximum(output[target_channel], (mask_channels[source_index] > 0).astype(np.uint8))
+    return output
+
+
+def multi_to_scalar(mask_multi: np.ndarray) -> np.ndarray:
+    mask = np.zeros(mask_multi.shape[1:], dtype=np.uint8)
+    for channel_index, class_id in enumerate(CHANNEL_CLASS_IDS):
+        mask[mask_multi[channel_index] > 0] = np.uint8(class_id)
+    return mask
+
+
+def positive_voxels(mask_multi: np.ndarray) -> int:
+    union = np.any(mask_multi > 0, axis=0)
+    return int(union.sum())
+
+
 def load_labeled_cases(manifest_path: Path) -> list[CaseSample]:
     if not manifest_path.exists():
         return []
@@ -179,12 +240,21 @@ def load_labeled_cases(manifest_path: Path) -> list[CaseSample]:
                 continue
 
             image = load_array(image_path, ("image", "volume_hu", "volume", "arr_0")).astype(np.float32)
-            mask = load_array(mask_path, ("mask", "labels", "arr_0")).astype(np.int32)
-            if image.shape != mask.shape:
-                continue
-
             label_map = parse_label_map(str(row.get("label_map") or "").strip())
-            remapped = remap_mask(mask, label_map)
+            raw_mask = load_array(mask_path, ("mask_multi", "mask", "labels", "arr_0"))
+            if raw_mask.ndim == 3:
+                if image.shape != raw_mask.shape:
+                    continue
+                remapped = remap_mask(raw_mask.astype(np.int32), label_map)
+                mask_multi = scalar_to_multi(remapped)
+            elif raw_mask.ndim == 4:
+                channels = normalize_channel_axis(raw_mask, tuple(image.shape))
+                try:
+                    mask_multi = remap_channel_mask(channels.astype(np.int32), label_map)
+                except ValueError:
+                    continue
+            else:
+                continue
 
             spacing = (
                 float(row.get("spacing_z") or 1.0),
@@ -196,7 +266,7 @@ def load_labeled_cases(manifest_path: Path) -> list[CaseSample]:
                     case_id=case_id,
                     source=source,
                     image_hu=image,
-                    mask=remapped,
+                    mask_multi=mask_multi,
                     spacing=spacing,
                     metadata={
                         "source_manifest": safe_path_text(manifest_path),
@@ -234,7 +304,7 @@ def load_sample_cases(samples_dir: Path, limit: int) -> list[CaseSample]:
                 case_id=case_id,
                 source="samples_pseudo",
                 image_hu=study.volume_hu.astype(np.float32),
-                mask=labels.astype(np.uint8),
+                mask_multi=scalar_to_multi(labels.astype(np.uint8)),
                 spacing=tuple(float(value) for value in study.spacing),
                 metadata={
                     "backend": backend,
@@ -255,12 +325,12 @@ def resample_case(case: CaseSample, target_spacing: tuple[float, float, float]) 
         return case
 
     image = ndi.zoom(case.image_hu, zoom=zoom, order=1)
-    mask = ndi.zoom(case.mask, zoom=zoom, order=0)
+    mask_multi = ndi.zoom(case.mask_multi, zoom=(1.0,) + zoom, order=0)
     return CaseSample(
         case_id=case.case_id,
         source=case.source,
         image_hu=image.astype(np.float32),
-        mask=mask.astype(np.uint8),
+        mask_multi=(mask_multi > 0).astype(np.uint8),
         spacing=target_spacing,
         metadata={**case.metadata, "resampled": True},
     )
@@ -276,11 +346,13 @@ def write_case(output_dir: Path, case: CaseSample) -> dict[str, Any]:
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"{case.case_id}.npz"
     image = normalize_image(case.image_hu)
-    mask = case.mask.astype(np.uint8)
+    mask_multi = (case.mask_multi > 0).astype(np.uint8)
+    mask = multi_to_scalar(mask_multi)
     np.savez_compressed(
         output_path,
         image=image,
         mask=mask,
+        mask_multi=mask_multi,
         spacing=np.asarray(case.spacing, dtype=np.float32),
     )
     case_path = safe_path_text(output_path)
@@ -291,7 +363,7 @@ def write_case(output_dir: Path, case: CaseSample) -> dict[str, Any]:
         "path": case_path,
         "shape": [int(dim) for dim in image.shape],
         "spacing": [float(value) for value in case.spacing],
-        "positive_voxels": int((mask > 0).sum()),
+        "positive_voxels": positive_voxels(mask_multi),
         "metadata": case.metadata,
     }
 
@@ -331,23 +403,26 @@ def write_split_csv(path: Path, rows: list[dict[str, Any]]) -> None:
             )
 
 
-def class_voxel_counts(cases_dir: Path) -> dict[int, int]:
+def class_voxel_counts(cases_dir: Path) -> tuple[dict[int, int], int]:
     totals = {class_id: 0 for class_id in CLASS_NAMES}
+    total_spatial_voxels = 0
     for file_path in sorted(cases_dir.glob("*.npz")):
         if file_path.name.startswith("._"):
             continue
         try:
             payload = np.load(file_path)
-            mask = payload["mask"].astype(np.uint8)
+            if "mask_multi" in payload:
+                mask_multi = payload["mask_multi"].astype(np.uint8)
+            else:
+                mask_multi = scalar_to_multi(payload["mask"].astype(np.uint8))
         except Exception:
             continue
-        values, counts = np.unique(mask, return_counts=True)
-        for value, count in zip(values.tolist(), counts.tolist()):
-            label = int(value)
-            if label not in totals:
-                totals[label] = 0
-            totals[label] += int(count)
-    return totals
+        union = np.any(mask_multi > 0, axis=0)
+        total_spatial_voxels += int(union.size)
+        totals[0] += int((~union).sum())
+        for channel_index, class_id in enumerate(CHANNEL_CLASS_IDS):
+            totals[class_id] += int(mask_multi[channel_index].sum())
+    return totals, total_spatial_voxels
 
 
 def build_dataset(config: BuildConfig) -> Path:
@@ -373,7 +448,7 @@ def build_dataset(config: BuildConfig) -> Path:
     rows: list[dict[str, Any]] = []
     for case in deduped:
         case = resample_case(case, config.target_spacing)
-        positives = int((case.mask > 0).sum())
+        positives = positive_voxels(case.mask_multi)
         if positives < config.min_positive_voxels:
             continue
         rows.append(write_case(cases_dir, case))
@@ -382,15 +457,21 @@ def build_dataset(config: BuildConfig) -> Path:
     write_split_csv(config.output_dir / "train.csv", train_rows)
     write_split_csv(config.output_dir / "val.csv", val_rows)
 
-    voxel_counts = class_voxel_counts(cases_dir)
+    voxel_counts, total_spatial_voxels = class_voxel_counts(cases_dir)
     manifest = {
         "dataset_name": "ctscan_unet_composite",
-        "version": "0.1.0",
+        "version": "0.2.0",
+        "task_type": "multilabel_segmentation",
         "total_cases": len(rows),
         "train_cases": len(train_rows),
         "val_cases": len(val_rows),
+        "total_spatial_voxels": int(total_spatial_voxels),
         "target_spacing": [float(value) for value in config.target_spacing],
         "classes": {str(key): value for key, value in CLASS_NAMES.items()},
+        "class_channels": [
+            {"channel_index": int(index), "class_id": int(class_id), "name": CHANNEL_CLASS_NAMES[index]}
+            for index, class_id in enumerate(CHANNEL_CLASS_IDS)
+        ],
         "class_voxels": {str(key): int(value) for key, value in voxel_counts.items()},
         "sources": sorted({str(row["source"]) for row in rows}),
         "cases": rows,

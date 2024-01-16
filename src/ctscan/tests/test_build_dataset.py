@@ -51,7 +51,9 @@ def test_build_dataset_from_sample_zip(tmp_path: Path, make_ct_zip):
     case = np.load(case_path)
     assert case["image"].dtype == np.float32
     assert case["mask"].dtype == np.uint8
+    assert case["mask_multi"].dtype == np.uint8
     assert case["image"].shape == case["mask"].shape
+    assert case["mask_multi"].shape[1:] == case["image"].shape
 
 
 def test_build_dataset_from_labeled_manifest(tmp_path: Path):
@@ -113,6 +115,7 @@ def test_build_dataset_from_labeled_manifest(tmp_path: Path):
     payload = json.loads(output_manifest.read_text(encoding="utf-8"))
     assert payload["total_cases"] == 1
     assert payload["class_voxels"]["5"] > 0
+    assert payload["task_type"] == "multilabel_segmentation"
 
     train_csv = tmp_path / "processed" / "train.csv"
     assert train_csv.exists()

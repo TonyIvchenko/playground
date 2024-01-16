@@ -1,4 +1,4 @@
-"""Train a 2D U-Net on the composite CT semantic segmentation dataset."""
+"""Train a 2D U-Net on the composite CT multi-label segmentation dataset."""
 
 from __future__ import annotations
 
@@ -29,6 +29,7 @@ from model.unet import UNet2D
 DEFAULT_DATASET_DIR = CTSCAN_ROOT / "data" / "ctscan" / "processed" / "unet_composite"
 DEFAULT_OUTPUT_PATH = CTSCAN_ROOT / "model" / "unet.pt"
 DEFAULT_MODEL_VERSION = "0.1.0"
+DEFAULT_CLASS_CHANNELS = [5, 6, 3, 4, 1, 2, 7]
 
 
 @dataclass
@@ -56,12 +57,14 @@ class SliceDataset(Dataset):
         self,
         split_csv: Path,
         dataset_dir: Path,
+        class_ids: list[int],
         negative_stride: int,
         image_size: int,
         augment: bool,
         seed: int,
     ):
         self.dataset_dir = dataset_dir
+        self.class_ids = list(class_ids)
         self.samples: list[tuple[Path, int]] = []
         self.image_size = int(image_size)
         self.augment = bool(augment)
@@ -74,10 +77,15 @@ class SliceDataset(Dataset):
                 case_path = self._resolve_case_path(str(row["path"]))
                 if not case_path.exists():
                     continue
-                payload = np.load(case_path)
-                mask = payload["mask"].astype(np.uint8)
-                z_dim = int(mask.shape[0])
-                flattened = mask.reshape(z_dim, -1)
+                image, mask_multi = self._load_case(case_path)
+                if image.ndim != 3 or mask_multi.ndim != 4:
+                    continue
+                if image.shape != tuple(mask_multi.shape[1:]):
+                    continue
+
+                z_dim = int(image.shape[0])
+                positive_map = np.any(mask_multi > 0, axis=0)
+                flattened = positive_map.reshape(z_dim, -1)
                 positive = np.where(flattened.max(axis=1) > 0)[0].tolist()
                 negative = np.where(flattened.max(axis=1) == 0)[0].tolist()
 
@@ -101,13 +109,31 @@ class SliceDataset(Dataset):
             return candidate
         return (self.dataset_dir / path).resolve()
 
+    def _scalar_to_multilabel(self, mask: np.ndarray) -> np.ndarray:
+        class_id_to_channel = {class_id: index for index, class_id in enumerate(self.class_ids)}
+        output = np.zeros((len(self.class_ids),) + tuple(mask.shape), dtype=np.uint8)
+        for class_id, channel_index in class_id_to_channel.items():
+            output[channel_index, mask == int(class_id)] = np.uint8(1)
+        return output
+
     def _load_case(self, case_path: Path) -> tuple[np.ndarray, np.ndarray]:
-        if case_path not in self._cache:
-            payload = np.load(case_path)
-            image = payload["image"].astype(np.float32)
-            mask = payload["mask"].astype(np.uint8)
-            self._cache[case_path] = (image, mask)
-        return self._cache[case_path]
+        if case_path in self._cache:
+            return self._cache[case_path]
+
+        payload = np.load(case_path)
+        image = payload["image"].astype(np.float32)
+        if "mask_multi" in payload:
+            mask_multi = payload["mask_multi"].astype(np.uint8)
+            if mask_multi.ndim == 4 and mask_multi.shape[0] == len(self.class_ids):
+                cached = (image, (mask_multi > 0).astype(np.uint8))
+                self._cache[case_path] = cached
+                return cached
+
+        mask = payload["mask"].astype(np.uint8)
+        mask_multi = self._scalar_to_multilabel(mask)
+        cached = (image, mask_multi)
+        self._cache[case_path] = cached
+        return cached
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -116,20 +142,20 @@ class SliceDataset(Dataset):
         case_path, slice_index = self.samples[index]
         image_volume, mask_volume = self._load_case(case_path)
         image = image_volume[slice_index].copy()
-        mask = mask_volume[slice_index].copy()
+        mask = mask_volume[:, slice_index].copy()
 
         if self.augment:
             if bool(self.rng.integers(0, 2)):
                 image = np.flip(image, axis=0)
-                mask = np.flip(mask, axis=0)
+                mask = np.flip(mask, axis=1)
             if bool(self.rng.integers(0, 2)):
                 image = np.flip(image, axis=1)
-                mask = np.flip(mask, axis=1)
+                mask = np.flip(mask, axis=2)
             image = image.copy()
             mask = mask.copy()
 
         image_tensor = torch.from_numpy(image[None, :, :]).float()
-        mask_tensor = torch.from_numpy(mask).long()
+        mask_tensor = torch.from_numpy(mask).float()
 
         if image_tensor.shape[-2:] != (self.image_size, self.image_size):
             image_tensor = F.interpolate(
@@ -138,16 +164,11 @@ class SliceDataset(Dataset):
                 mode="bilinear",
                 align_corners=False,
             ).squeeze(0)
-            mask_tensor = (
-                F.interpolate(
-                    mask_tensor[None, None, :, :].float(),
-                    size=(self.image_size, self.image_size),
-                    mode="nearest",
-                )
-                .squeeze(0)
-                .squeeze(0)
-                .long()
-            )
+            mask_tensor = F.interpolate(
+                mask_tensor.unsqueeze(0),
+                size=(self.image_size, self.image_size),
+                mode="nearest",
+            ).squeeze(0)
         return image_tensor, mask_tensor
 
 
@@ -220,37 +241,71 @@ def read_manifest(dataset_dir: Path) -> dict[str, Any]:
     return json.loads(manifest_path.read_text(encoding="utf-8"))
 
 
-def class_weights_from_manifest(manifest: dict[str, Any], num_classes: int) -> torch.Tensor:
+def resolve_class_channels(manifest: dict[str, Any]) -> tuple[list[int], list[str]]:
+    class_channels = manifest.get("class_channels")
+    if isinstance(class_channels, list) and class_channels:
+        rows = sorted(class_channels, key=lambda row: int(row.get("channel_index", 0)))
+        class_ids = [int(row["class_id"]) for row in rows]
+        class_names = [str(row["name"]) for row in rows]
+        return class_ids, class_names
+
+    classes = manifest.get("classes", {})
+    if isinstance(classes, dict) and classes:
+        ids = sorted(int(key) for key in classes.keys() if int(key) != 0)
+        if ids:
+            return ids, [str(classes[str(class_id)]) for class_id in ids]
+
+    return list(DEFAULT_CLASS_CHANNELS), [str(class_id) for class_id in DEFAULT_CLASS_CHANNELS]
+
+
+def class_pos_weights_from_manifest(manifest: dict[str, Any], class_ids: list[int]) -> torch.Tensor:
     class_voxels = manifest.get("class_voxels", {})
-    counts = np.array(
-        [float(class_voxels.get(str(index), 1.0)) for index in range(num_classes)],
-        dtype=np.float32,
-    )
-    counts = np.clip(counts, 1.0, None)
-    weights = 1.0 / np.sqrt(counts)
-    if len(weights) > 0:
-        weights[0] *= 0.35
-    weights = weights / float(np.mean(weights))
-    return torch.from_numpy(weights.astype(np.float32))
+    total_spatial_voxels = float(manifest.get("total_spatial_voxels", 0) or 0)
+    if total_spatial_voxels <= 0.0:
+        total_spatial_voxels = float(class_voxels.get("0", 1.0))
+    total_spatial_voxels = max(total_spatial_voxels, 1.0)
+
+    weights = []
+    for class_id in class_ids:
+        positive = max(float(class_voxels.get(str(class_id), 1.0)), 1.0)
+        negative = max(total_spatial_voxels - positive, 1.0)
+        weights.append(float(np.clip(negative / positive, 1.0, 200.0)))
+    return torch.tensor(weights, dtype=torch.float32)
+
+
+def multilabel_dice_loss(logits: torch.Tensor, targets: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
+    probabilities = torch.sigmoid(logits)
+    dims = (0, 2, 3)
+    intersection = (probabilities * targets).sum(dim=dims)
+    cardinality = probabilities.sum(dim=dims) + targets.sum(dim=dims)
+    dice = (2.0 * intersection + eps) / (cardinality + eps)
+    return 1.0 - dice.mean()
 
 
 def compute_epoch_metrics(
     intersections: np.ndarray,
     unions: np.ndarray,
+    predicted_pixels: np.ndarray,
+    target_pixels: np.ndarray,
     correct_pixels: int,
     total_pixels: int,
-) -> tuple[float, float]:
+) -> tuple[float, float, float]:
     accuracy = float(correct_pixels / max(total_pixels, 1))
 
     ious: list[float] = []
-    for class_id in range(1, len(intersections)):
-        union = float(unions[class_id])
-        if union <= 0.0:
-            continue
-        iou = float(intersections[class_id] / union)
-        ious.append(iou)
+    dices: list[float] = []
+    for class_index in range(len(intersections)):
+        union = float(unions[class_index])
+        pred = float(predicted_pixels[class_index])
+        target = float(target_pixels[class_index])
+        if union > 0.0:
+            ious.append(float(intersections[class_index] / union))
+        if pred + target > 0.0:
+            dices.append(float((2.0 * intersections[class_index]) / (pred + target)))
+
     mean_iou = float(np.mean(ious)) if ious else 0.0
-    return accuracy, mean_iou
+    mean_dice = float(np.mean(dices)) if dices else 0.0
+    return accuracy, mean_iou, mean_dice
 
 
 def run_epoch(
@@ -266,44 +321,68 @@ def run_epoch(
     model.train(is_training)
 
     total_loss = 0.0
+    total_bce_loss = 0.0
+    total_dice_loss = 0.0
     total_batches = 0
+
     intersections = np.zeros(num_classes, dtype=np.float64)
     unions = np.zeros(num_classes, dtype=np.float64)
+    predicted_pixels = np.zeros(num_classes, dtype=np.float64)
+    target_pixels = np.zeros(num_classes, dtype=np.float64)
     correct_pixels = 0
     total_pixels = 0
 
     for step_index, (images, masks) in enumerate(loader, start=1):
         images = images.to(device=device, dtype=torch.float32, non_blocking=True)
-        masks = masks.to(device=device, dtype=torch.long, non_blocking=True)
+        masks = masks.to(device=device, dtype=torch.float32, non_blocking=True)
 
         with torch.set_grad_enabled(is_training):
             logits = model(images)
-            loss = criterion(logits, masks)
+            bce_loss = criterion(logits, masks)
+            dice_loss = multilabel_dice_loss(logits, masks)
+            loss = bce_loss + (0.5 * dice_loss)
             if is_training:
                 optimizer.zero_grad(set_to_none=True)
                 loss.backward()
                 optimizer.step()
 
-        predictions = logits.argmax(dim=1)
-        total_loss += float(loss.item())
-        total_batches += 1
-        correct_pixels += int((predictions == masks).sum().item())
-        total_pixels += int(masks.numel())
+        probabilities = torch.sigmoid(logits)
+        predictions = probabilities >= 0.5
+        targets = masks >= 0.5
 
-        for class_id in range(num_classes):
-            pred_class = predictions == class_id
-            mask_class = masks == class_id
-            intersections[class_id] += float((pred_class & mask_class).sum().item())
-            unions[class_id] += float((pred_class | mask_class).sum().item())
+        total_loss += float(loss.item())
+        total_bce_loss += float(bce_loss.item())
+        total_dice_loss += float(dice_loss.item())
+        total_batches += 1
+        correct_pixels += int((predictions == targets).sum().item())
+        total_pixels += int(targets.numel())
+
+        for class_index in range(num_classes):
+            pred_class = predictions[:, class_index]
+            target_class = targets[:, class_index]
+            intersections[class_index] += float((pred_class & target_class).sum().item())
+            unions[class_index] += float((pred_class | target_class).sum().item())
+            predicted_pixels[class_index] += float(pred_class.sum().item())
+            target_pixels[class_index] += float(target_class.sum().item())
 
         if max_steps > 0 and step_index >= max_steps:
             break
 
-    accuracy, mean_iou = compute_epoch_metrics(intersections, unions, correct_pixels, total_pixels)
+    accuracy, mean_iou, mean_dice = compute_epoch_metrics(
+        intersections=intersections,
+        unions=unions,
+        predicted_pixels=predicted_pixels,
+        target_pixels=target_pixels,
+        correct_pixels=correct_pixels,
+        total_pixels=total_pixels,
+    )
     return {
         "loss": float(total_loss / max(total_batches, 1)),
+        "bce_loss": float(total_bce_loss / max(total_batches, 1)),
+        "dice_loss": float(total_dice_loss / max(total_batches, 1)),
         "accuracy": accuracy,
         "mean_iou": mean_iou,
+        "mean_dice": mean_dice,
     }
 
 
@@ -313,8 +392,8 @@ def train(config: TrainConfig) -> tuple[dict[str, Any], dict[str, Any]]:
     print(f"device={device}")
 
     manifest = read_manifest(config.dataset_dir)
-    classes = manifest.get("classes", {})
-    num_classes = max(int(key) for key in classes.keys()) + 1 if classes else 6
+    class_ids, class_names = resolve_class_channels(manifest)
+    num_classes = len(class_ids)
 
     train_csv = config.dataset_dir / "train.csv"
     val_csv = config.dataset_dir / "val.csv"
@@ -322,6 +401,7 @@ def train(config: TrainConfig) -> tuple[dict[str, Any], dict[str, Any]]:
     train_dataset = SliceDataset(
         split_csv=train_csv,
         dataset_dir=config.dataset_dir,
+        class_ids=class_ids,
         negative_stride=config.negative_stride,
         image_size=config.image_size,
         augment=True,
@@ -330,6 +410,7 @@ def train(config: TrainConfig) -> tuple[dict[str, Any], dict[str, Any]]:
     val_dataset = SliceDataset(
         split_csv=val_csv,
         dataset_dir=config.dataset_dir,
+        class_ids=class_ids,
         negative_stride=1,
         image_size=config.image_size,
         augment=False,
@@ -354,8 +435,8 @@ def train(config: TrainConfig) -> tuple[dict[str, Any], dict[str, Any]]:
     ) if len(val_dataset) > 0 else None
 
     model = UNet2D(in_channels=1, num_classes=num_classes, base_channels=config.base_channels).to(device)
-    class_weights = class_weights_from_manifest(manifest, num_classes=num_classes).to(device)
-    criterion = nn.CrossEntropyLoss(weight=class_weights)
+    pos_weights = class_pos_weights_from_manifest(manifest, class_ids).to(device).view(-1, 1, 1)
+    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weights)
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=config.learning_rate,
@@ -401,15 +482,21 @@ def train(config: TrainConfig) -> tuple[dict[str, Any], dict[str, Any]]:
         row = {
             "epoch": epoch,
             "train_loss": round(float(train_metrics["loss"]), 6),
+            "train_bce_loss": round(float(train_metrics["bce_loss"]), 6),
+            "train_dice_loss": round(float(train_metrics["dice_loss"]), 6),
             "train_accuracy": round(float(train_metrics["accuracy"]), 6),
             "train_mean_iou": round(float(train_metrics["mean_iou"]), 6),
+            "train_mean_dice": round(float(train_metrics["mean_dice"]), 6),
         }
         if val_metrics is not None:
             row.update(
                 {
                     "val_loss": round(float(val_metrics["loss"]), 6),
+                    "val_bce_loss": round(float(val_metrics["bce_loss"]), 6),
+                    "val_dice_loss": round(float(val_metrics["dice_loss"]), 6),
                     "val_accuracy": round(float(val_metrics["accuracy"]), 6),
                     "val_mean_iou": round(float(val_metrics["mean_iou"]), 6),
+                    "val_mean_dice": round(float(val_metrics["mean_dice"]), 6),
                 }
             )
         history.append(row)
@@ -417,26 +504,33 @@ def train(config: TrainConfig) -> tuple[dict[str, Any], dict[str, Any]]:
         if val_metrics is None:
             print(
                 f"epoch={epoch} train_loss={train_metrics['loss']:.4f} "
-                f"train_acc={train_metrics['accuracy']:.4f} train_miou={train_metrics['mean_iou']:.4f}"
+                f"train_acc={train_metrics['accuracy']:.4f} "
+                f"train_miou={train_metrics['mean_iou']:.4f} "
+                f"train_mdice={train_metrics['mean_dice']:.4f}"
             )
         else:
             print(
                 f"epoch={epoch} train_loss={train_metrics['loss']:.4f} "
                 f"train_acc={train_metrics['accuracy']:.4f} train_miou={train_metrics['mean_iou']:.4f} "
                 f"val_loss={val_metrics['loss']:.4f} val_acc={val_metrics['accuracy']:.4f} "
-                f"val_miou={val_metrics['mean_iou']:.4f}"
+                f"val_miou={val_metrics['mean_iou']:.4f} val_mdice={val_metrics['mean_dice']:.4f}"
             )
 
     config.output_path.parent.mkdir(parents=True, exist_ok=True)
     checkpoint = {
         "model_version": config.model_version,
         "model_type": "unet2d",
+        "task_type": "multilabel_segmentation",
         "model_config": {
             "in_channels": 1,
             "num_classes": num_classes,
             "base_channels": config.base_channels,
         },
-        "class_names": classes,
+        "class_channels": [
+            {"channel_index": int(index), "class_id": int(class_id), "name": str(class_names[index])}
+            for index, class_id in enumerate(class_ids)
+        ],
+        "class_names": {str(class_id): class_names[index] for index, class_id in enumerate(class_ids)},
         "best_epoch": best_epoch,
         "best_score": float(best_score),
         "history": history,
@@ -448,6 +542,7 @@ def train(config: TrainConfig) -> tuple[dict[str, Any], dict[str, Any]]:
     config.metrics_path.parent.mkdir(parents=True, exist_ok=True)
     metrics_payload = {
         "model_version": config.model_version,
+        "task_type": "multilabel_segmentation",
         "best_epoch": best_epoch,
         "best_score": float(best_score),
         "history": history,
@@ -455,6 +550,7 @@ def train(config: TrainConfig) -> tuple[dict[str, Any], dict[str, Any]]:
         "train_slices": len(train_dataset),
         "val_slices": len(val_dataset),
         "image_size": config.image_size,
+        "class_channels": checkpoint["class_channels"],
     }
     config.metrics_path.write_text(json.dumps(metrics_payload, indent=2), encoding="utf-8")
 
