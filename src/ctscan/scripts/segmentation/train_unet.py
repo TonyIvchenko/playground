@@ -69,7 +69,7 @@ class SliceDataset(Dataset):
         self.image_size = int(image_size)
         self.augment = bool(augment)
         self.rng = np.random.default_rng(seed)
-        self._cache: dict[Path, tuple[np.ndarray, np.ndarray]] = {}
+        self._cache: dict[Path, tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
 
         with split_csv.open("r", encoding="utf-8", newline="") as handle:
             reader = csv.DictReader(handle)
@@ -77,14 +77,16 @@ class SliceDataset(Dataset):
                 case_path = self._resolve_case_path(str(row["path"]))
                 if not case_path.exists():
                     continue
-                image, mask_multi = self._load_case(case_path)
+                image, mask_multi, roi_mask = self._load_case(case_path)
                 if image.ndim != 3 or mask_multi.ndim != 4:
                     continue
                 if image.shape != tuple(mask_multi.shape[1:]):
                     continue
+                if roi_mask.shape != image.shape:
+                    continue
 
                 z_dim = int(image.shape[0])
-                positive_map = np.any(mask_multi > 0, axis=0)
+                positive_map = np.any(mask_multi > 0, axis=0) & (roi_mask > 0)
                 flattened = positive_map.reshape(z_dim, -1)
                 positive = np.where(flattened.max(axis=1) > 0)[0].tolist()
                 negative = np.where(flattened.max(axis=1) == 0)[0].tolist()
@@ -116,46 +118,55 @@ class SliceDataset(Dataset):
             output[channel_index, mask == int(class_id)] = np.uint8(1)
         return output
 
-    def _load_case(self, case_path: Path) -> tuple[np.ndarray, np.ndarray]:
+    def _load_case(self, case_path: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         if case_path in self._cache:
             return self._cache[case_path]
 
         payload = np.load(case_path)
         image = payload["image"].astype(np.float32)
+        if "roi_mask" in payload:
+            roi_mask = (payload["roi_mask"].astype(np.uint8) > 0).astype(np.uint8)
+        else:
+            roi_mask = np.ones(image.shape, dtype=np.uint8)
         if "mask_multi" in payload:
             mask_multi = payload["mask_multi"].astype(np.uint8)
             if mask_multi.ndim == 4 and mask_multi.shape[0] == len(self.class_ids):
-                cached = (image, (mask_multi > 0).astype(np.uint8))
+                cached = (image, (mask_multi > 0).astype(np.uint8), roi_mask)
                 self._cache[case_path] = cached
                 return cached
 
         mask = payload["mask"].astype(np.uint8)
         mask_multi = self._scalar_to_multilabel(mask)
-        cached = (image, mask_multi)
+        cached = (image, mask_multi, roi_mask)
         self._cache[case_path] = cached
         return cached
 
     def __len__(self) -> int:
         return len(self.samples)
 
-    def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         case_path, slice_index = self.samples[index]
-        image_volume, mask_volume = self._load_case(case_path)
+        image_volume, mask_volume, roi_volume = self._load_case(case_path)
         image = image_volume[slice_index].copy()
         mask = mask_volume[:, slice_index].copy()
+        roi = roi_volume[slice_index].copy()
 
         if self.augment:
             if bool(self.rng.integers(0, 2)):
                 image = np.flip(image, axis=0)
                 mask = np.flip(mask, axis=1)
+                roi = np.flip(roi, axis=0)
             if bool(self.rng.integers(0, 2)):
                 image = np.flip(image, axis=1)
                 mask = np.flip(mask, axis=2)
+                roi = np.flip(roi, axis=1)
             image = image.copy()
             mask = mask.copy()
+            roi = roi.copy()
 
         image_tensor = torch.from_numpy(image[None, :, :]).float()
         mask_tensor = torch.from_numpy(mask).float()
+        roi_tensor = torch.from_numpy((roi > 0).astype(np.float32)[None, :, :]).float()
 
         if image_tensor.shape[-2:] != (self.image_size, self.image_size):
             image_tensor = F.interpolate(
@@ -169,7 +180,12 @@ class SliceDataset(Dataset):
                 size=(self.image_size, self.image_size),
                 mode="nearest",
             ).squeeze(0)
-        return image_tensor, mask_tensor
+            roi_tensor = F.interpolate(
+                roi_tensor.unsqueeze(0),
+                size=(self.image_size, self.image_size),
+                mode="nearest",
+            ).squeeze(0)
+        return image_tensor, mask_tensor, roi_tensor
 
 
 def parse_args() -> TrainConfig:
@@ -273,8 +289,15 @@ def class_pos_weights_from_manifest(manifest: dict[str, Any], class_ids: list[in
     return torch.tensor(weights, dtype=torch.float32)
 
 
-def multilabel_dice_loss(logits: torch.Tensor, targets: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
+def multilabel_dice_loss(
+    logits: torch.Tensor,
+    targets: torch.Tensor,
+    roi_mask: torch.Tensor,
+    eps: float = 1e-6,
+) -> torch.Tensor:
     probabilities = torch.sigmoid(logits)
+    probabilities = probabilities * roi_mask
+    targets = targets * roi_mask
     dims = (0, 2, 3)
     intersection = (probabilities * targets).sum(dim=dims)
     cardinality = probabilities.sum(dim=dims) + targets.sum(dim=dims)
@@ -332,14 +355,20 @@ def run_epoch(
     correct_pixels = 0
     total_pixels = 0
 
-    for step_index, (images, masks) in enumerate(loader, start=1):
+    for step_index, (images, masks, rois) in enumerate(loader, start=1):
         images = images.to(device=device, dtype=torch.float32, non_blocking=True)
         masks = masks.to(device=device, dtype=torch.float32, non_blocking=True)
+        rois = rois.to(device=device, dtype=torch.float32, non_blocking=True)
+        if float(rois.sum().item()) <= 0.0:
+            continue
 
         with torch.set_grad_enabled(is_training):
             logits = model(images)
-            bce_loss = criterion(logits, masks)
-            dice_loss = multilabel_dice_loss(logits, masks)
+            bce_map = criterion(logits, masks)
+            bce_weighted = bce_map * rois
+            denom = max(float(rois.sum().item()) * float(num_classes), 1.0)
+            bce_loss = bce_weighted.sum() / denom
+            dice_loss = multilabel_dice_loss(logits, masks, rois)
             loss = bce_loss + (0.5 * dice_loss)
             if is_training:
                 optimizer.zero_grad(set_to_none=True)
@@ -347,15 +376,16 @@ def run_epoch(
                 optimizer.step()
 
         probabilities = torch.sigmoid(logits)
-        predictions = probabilities >= 0.5
-        targets = masks >= 0.5
+        predictions = (probabilities >= 0.5) & (rois > 0.5)
+        targets = (masks >= 0.5) & (rois > 0.5)
+        roi_targets = rois.repeat(1, num_classes, 1, 1) > 0.5
 
         total_loss += float(loss.item())
         total_bce_loss += float(bce_loss.item())
         total_dice_loss += float(dice_loss.item())
         total_batches += 1
-        correct_pixels += int((predictions == targets).sum().item())
-        total_pixels += int(targets.numel())
+        correct_pixels += int((predictions == targets)[roi_targets].sum().item())
+        total_pixels += int(roi_targets.sum().item())
 
         for class_index in range(num_classes):
             pred_class = predictions[:, class_index]
@@ -436,7 +466,7 @@ def train(config: TrainConfig) -> tuple[dict[str, Any], dict[str, Any]]:
 
     model = UNet2D(in_channels=1, num_classes=num_classes, base_channels=config.base_channels).to(device)
     pos_weights = class_pos_weights_from_manifest(manifest, class_ids).to(device).view(-1, 1, 1)
-    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weights)
+    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weights, reduction="none")
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=config.learning_rate,
@@ -543,6 +573,7 @@ def train(config: TrainConfig) -> tuple[dict[str, Any], dict[str, Any]]:
     metrics_payload = {
         "model_version": config.model_version,
         "task_type": "multilabel_segmentation",
+        "roi_gated": True,
         "best_epoch": best_epoch,
         "best_score": float(best_score),
         "history": history,
