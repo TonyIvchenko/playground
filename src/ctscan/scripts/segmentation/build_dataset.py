@@ -48,6 +48,7 @@ class CaseSample:
     source: str
     image_hu: np.ndarray
     mask_multi: np.ndarray
+    roi_mask: np.ndarray
     spacing: tuple[float, float, float]
     metadata: dict[str, Any]
 
@@ -207,6 +208,29 @@ def remap_channel_mask(mask_channels: np.ndarray, label_map: dict[int, int]) -> 
     return output
 
 
+def normalize_roi_mask(mask: np.ndarray, image_shape: tuple[int, int, int]) -> np.ndarray:
+    if mask.ndim == 3:
+        roi = mask
+    elif mask.ndim == 4:
+        channels = normalize_channel_axis(mask, image_shape)
+        roi = np.any(channels > 0, axis=0)
+    else:
+        raise ValueError("ROI mask must be 3D or 4D.")
+    if tuple(roi.shape) != image_shape:
+        raise ValueError(f"ROI mask shape {tuple(roi.shape)} does not match image shape {image_shape}.")
+    return (roi > 0).astype(np.uint8)
+
+
+def default_thoracic_roi(image_hu: np.ndarray, mask_multi: np.ndarray) -> np.ndarray:
+    body_mask = image_hu > -950.0
+    thoracic_like = (image_hu > -980.0) & (image_hu < 250.0) & body_mask
+    roi = thoracic_like | np.any(mask_multi > 0, axis=0)
+    if ndi is not None:
+        roi = ndi.binary_fill_holes(roi)
+        roi = ndi.binary_dilation(roi, structure=np.ones((1, 5, 5), dtype=bool), iterations=1)
+    return roi.astype(np.uint8)
+
+
 def multi_to_scalar(mask_multi: np.ndarray) -> np.ndarray:
     mask = np.zeros(mask_multi.shape[1:], dtype=np.uint8)
     for channel_index, class_id in enumerate(CHANNEL_CLASS_IDS):
@@ -214,8 +238,8 @@ def multi_to_scalar(mask_multi: np.ndarray) -> np.ndarray:
     return mask
 
 
-def positive_voxels(mask_multi: np.ndarray) -> int:
-    union = np.any(mask_multi > 0, axis=0)
+def positive_voxels(mask_multi: np.ndarray, roi_mask: np.ndarray) -> int:
+    union = np.any(mask_multi > 0, axis=0) & (roi_mask > 0)
     return int(union.sum())
 
 
@@ -231,30 +255,52 @@ def load_labeled_cases(manifest_path: Path) -> list[CaseSample]:
             source = str((row.get("source") or "labeled").strip())
             image_value = str((row.get("image_path") or "").strip())
             mask_value = str((row.get("mask_path") or "").strip())
-            if not case_id or not image_value or not mask_value:
+            roi_value = str((row.get("roi_path") or "").strip())
+            if not case_id or not image_value:
                 continue
 
             image_path = resolve_path(manifest_path.parent, image_value)
-            mask_path = resolve_path(manifest_path.parent, mask_value)
-            if not image_path.exists() or not mask_path.exists():
+            if not image_path.exists():
                 continue
 
             image = load_array(image_path, ("image", "volume_hu", "volume", "arr_0")).astype(np.float32)
             label_map = parse_label_map(str(row.get("label_map") or "").strip())
-            raw_mask = load_array(mask_path, ("mask_multi", "mask", "labels", "arr_0"))
-            if raw_mask.ndim == 3:
-                if image.shape != raw_mask.shape:
+            if mask_value:
+                mask_path = resolve_path(manifest_path.parent, mask_value)
+                if not mask_path.exists():
                     continue
-                remapped = remap_mask(raw_mask.astype(np.int32), label_map)
-                mask_multi = scalar_to_multi(remapped)
-            elif raw_mask.ndim == 4:
-                channels = normalize_channel_axis(raw_mask, tuple(image.shape))
+                raw_mask = load_array(mask_path, ("mask_multi", "mask", "labels", "arr_0"))
+                if raw_mask.ndim == 3:
+                    if image.shape != raw_mask.shape:
+                        continue
+                    remapped = remap_mask(raw_mask.astype(np.int32), label_map)
+                    mask_multi = scalar_to_multi(remapped)
+                elif raw_mask.ndim == 4:
+                    channels = normalize_channel_axis(raw_mask, tuple(image.shape))
+                    try:
+                        mask_multi = remap_channel_mask(channels.astype(np.int32), label_map)
+                    except ValueError:
+                        continue
+                else:
+                    continue
+            else:
+                mask_path = None
+                mask_multi = np.zeros((len(CHANNEL_CLASS_IDS),) + tuple(image.shape), dtype=np.uint8)
+
+            if roi_value:
+                roi_path = resolve_path(manifest_path.parent, roi_value)
+                if not roi_path.exists():
+                    continue
                 try:
-                    mask_multi = remap_channel_mask(channels.astype(np.int32), label_map)
+                    roi_mask = normalize_roi_mask(
+                        load_array(roi_path, ("roi_mask", "mask", "labels", "arr_0")),
+                        tuple(image.shape),
+                    )
                 except ValueError:
                     continue
             else:
-                continue
+                roi_path = None
+                roi_mask = default_thoracic_roi(image, mask_multi)
 
             spacing = (
                 float(row.get("spacing_z") or 1.0),
@@ -267,11 +313,13 @@ def load_labeled_cases(manifest_path: Path) -> list[CaseSample]:
                     source=source,
                     image_hu=image,
                     mask_multi=mask_multi,
+                    roi_mask=roi_mask,
                     spacing=spacing,
                     metadata={
                         "source_manifest": safe_path_text(manifest_path),
                         "image_path": safe_path_text(image_path),
-                        "mask_path": safe_path_text(mask_path),
+                        "mask_path": safe_path_text(mask_path) if mask_path is not None else "",
+                        "roi_path": safe_path_text(roi_path) if roi_path is not None else "",
                     },
                 )
             )
@@ -298,6 +346,7 @@ def load_sample_cases(samples_dir: Path, limit: int) -> list[CaseSample]:
         study = load_study_from_zip_bytes(study_zip.read_bytes())
         lung_mask, backend = segment_lungs(study.volume_hu)
         labels = segment_issues(study.volume_hu, lung_mask)
+        roi_mask = default_thoracic_roi(study.volume_hu.astype(np.float32), scalar_to_multi(labels.astype(np.uint8)))
         case_id = f"sample_{sample_id}"
         cases.append(
             CaseSample(
@@ -305,6 +354,7 @@ def load_sample_cases(samples_dir: Path, limit: int) -> list[CaseSample]:
                 source="samples_pseudo",
                 image_hu=study.volume_hu.astype(np.float32),
                 mask_multi=scalar_to_multi(labels.astype(np.uint8)),
+                roi_mask=roi_mask,
                 spacing=tuple(float(value) for value in study.spacing),
                 metadata={
                     "backend": backend,
@@ -326,11 +376,13 @@ def resample_case(case: CaseSample, target_spacing: tuple[float, float, float]) 
 
     image = ndi.zoom(case.image_hu, zoom=zoom, order=1)
     mask_multi = ndi.zoom(case.mask_multi, zoom=(1.0,) + zoom, order=0)
+    roi_mask = ndi.zoom(case.roi_mask.astype(np.uint8), zoom=zoom, order=0)
     return CaseSample(
         case_id=case.case_id,
         source=case.source,
         image_hu=image.astype(np.float32),
         mask_multi=(mask_multi > 0).astype(np.uint8),
+        roi_mask=(roi_mask > 0).astype(np.uint8),
         spacing=target_spacing,
         metadata={**case.metadata, "resampled": True},
     )
@@ -347,12 +399,14 @@ def write_case(output_dir: Path, case: CaseSample) -> dict[str, Any]:
     output_path = output_dir / f"{case.case_id}.npz"
     image = normalize_image(case.image_hu)
     mask_multi = (case.mask_multi > 0).astype(np.uint8)
+    roi_mask = (case.roi_mask > 0).astype(np.uint8)
     mask = multi_to_scalar(mask_multi)
     np.savez_compressed(
         output_path,
         image=image,
         mask=mask,
         mask_multi=mask_multi,
+        roi_mask=roi_mask,
         spacing=np.asarray(case.spacing, dtype=np.float32),
     )
     case_path = safe_path_text(output_path)
@@ -363,7 +417,7 @@ def write_case(output_dir: Path, case: CaseSample) -> dict[str, Any]:
         "path": case_path,
         "shape": [int(dim) for dim in image.shape],
         "spacing": [float(value) for value in case.spacing],
-        "positive_voxels": positive_voxels(mask_multi),
+        "positive_voxels": positive_voxels(mask_multi, roi_mask),
         "metadata": case.metadata,
     }
 
@@ -415,13 +469,17 @@ def class_voxel_counts(cases_dir: Path) -> tuple[dict[int, int], int]:
                 mask_multi = payload["mask_multi"].astype(np.uint8)
             else:
                 mask_multi = scalar_to_multi(payload["mask"].astype(np.uint8))
+            if "roi_mask" in payload:
+                roi_mask = payload["roi_mask"].astype(np.uint8) > 0
+            else:
+                roi_mask = np.ones(mask_multi.shape[1:], dtype=bool)
         except Exception:
             continue
-        union = np.any(mask_multi > 0, axis=0)
-        total_spatial_voxels += int(union.size)
-        totals[0] += int((~union).sum())
+        union = np.any(mask_multi > 0, axis=0) & roi_mask
+        total_spatial_voxels += int(roi_mask.sum())
+        totals[0] += int((roi_mask & (~union)).sum())
         for channel_index, class_id in enumerate(CHANNEL_CLASS_IDS):
-            totals[class_id] += int(mask_multi[channel_index].sum())
+            totals[class_id] += int((mask_multi[channel_index] > 0).astype(np.uint8)[roi_mask].sum())
     return totals, total_spatial_voxels
 
 
@@ -448,7 +506,7 @@ def build_dataset(config: BuildConfig) -> Path:
     rows: list[dict[str, Any]] = []
     for case in deduped:
         case = resample_case(case, config.target_spacing)
-        positives = positive_voxels(case.mask_multi)
+        positives = positive_voxels(case.mask_multi, case.roi_mask)
         if positives < config.min_positive_voxels:
             continue
         rows.append(write_case(cases_dir, case))
