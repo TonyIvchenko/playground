@@ -20,6 +20,7 @@ DEFAULT_MANIFEST_PATH = DEFAULT_RAW_DIR / "composite_manifest.csv"
 SUPPORTED_EXTS = (".nii.gz", ".nii", ".mhd", ".mha", ".nrrd", ".npy", ".npz")
 MASK_TOKENS = ("mask", "seg", "segmentation", "label", "labels", "tumor", "nodule", "annot", "annotation", "consensus")
 PARENT_MASK_TOKENS = ("mask", "masks", "label", "labels", "annot", "annotation", "consensus")
+IGNORED_DIR_PARTS = {"cases", "__macosx", ".git", ".github", ".pytest_cache", "__pycache__"}
 
 
 @dataclass
@@ -39,6 +40,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-cases", type=int, default=0)
     parser.add_argument("--target-class", type=int, default=5)
     parser.add_argument("--label-map", type=str, default="{}")
+    parser.add_argument(
+        "--include-empty-masks",
+        action="store_true",
+        help="Keep rows whose remapped mask has zero positive voxels.",
+    )
     parser.add_argument("--replace-lndb-rows", action="store_true")
     parser.add_argument("--overwrite", action="store_true")
     return parser.parse_args()
@@ -74,6 +80,14 @@ def is_mask_name(path: Path) -> bool:
         return True
     parent_parts = [part.lower() for part in path.parent.parts]
     return any(any(token in part for token in PARENT_MASK_TOKENS) for part in parent_parts)
+
+
+def is_ignored_path(path: Path, root_dir: Path) -> bool:
+    try:
+        parts = [part.lower() for part in path.relative_to(root_dir).parts]
+    except ValueError:
+        parts = [part.lower() for part in path.parts]
+    return any(part in IGNORED_DIR_PARTS for part in parts)
 
 
 def strip_mask_suffix(stem: str) -> str:
@@ -145,7 +159,11 @@ def load_pairs_from_csv(pairs_csv: Path, root_dir: Path) -> list[PairSpec]:
 
 
 def discover_pairs(root_dir: Path, max_cases: int) -> list[PairSpec]:
-    files = sorted(path for path in root_dir.rglob("*") if path.is_file() and is_supported_volume(path))
+    files = sorted(
+        path
+        for path in root_dir.rglob("*")
+        if path.is_file() and is_supported_volume(path) and not is_ignored_path(path, root_dir)
+    )
     image_by_key: dict[str, list[Path]] = {}
     masks: list[Path] = []
     for path in files:
@@ -166,8 +184,7 @@ def discover_pairs(root_dir: Path, max_cases: int) -> list[PairSpec]:
         if not candidates:
             continue
         image_path = sorted(candidates, key=lambda p: (p.parent != mask_path.parent, str(p)))[0]
-        relative = mask_path.relative_to(root_dir)
-        case_id = sanitize(f"lndb_{strip_mask_suffix(relative.as_posix())}")
+        case_id = sanitize(stem)
         pairs.append(PairSpec(case_id=case_id, image_path=image_path, mask_path=mask_path, spacing_zyx=None))
         if max_cases > 0 and len(pairs) >= max_cases:
             break
@@ -295,6 +312,7 @@ def build_rows(
     label_map: dict[int, int],
     target_class: int,
     overwrite: bool,
+    include_empty_masks: bool,
 ) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     for index, pair in enumerate(pairs, start=1):
@@ -350,7 +368,7 @@ def build_rows(
 
         mapped_mask = remap_mask(mask_zyx, label_map=label_map, target_class=target_class)
         positive = int((mapped_mask > 0).sum())
-        if positive == 0:
+        if positive == 0 and not include_empty_masks:
             continue
 
         spacing_zyx = pair.spacing_zyx or image_spacing
@@ -402,6 +420,7 @@ def main() -> None:
         label_map=label_map,
         target_class=max(int(args.target_class), 1),
         overwrite=bool(args.overwrite),
+        include_empty_masks=bool(args.include_empty_masks),
     )
 
     existing = read_existing_rows(args.manifest_path)
