@@ -7,6 +7,7 @@ import numpy as np
 
 from src.ctscan.scripts.segmentation.build_lndb_manifest import (
     build_rows,
+    discover_pairs,
     load_pairs_from_csv,
     merge_rows,
 )
@@ -68,6 +69,7 @@ def test_build_rows_from_explicit_pair_and_merge_replace(tmp_path: Path):
         label_map={},
         target_class=5,
         overwrite=True,
+        include_empty_masks=False,
     )
     assert len(rows) == 1
     assert rows[0]["source"] == "lndb"
@@ -78,3 +80,60 @@ def test_build_rows_from_explicit_pair_and_merge_replace(tmp_path: Path):
     assert "old" not in ids
     assert "other" in ids
     assert "scan_case" in ids
+
+
+def test_discover_pairs_skips_cases_folder_and_preserves_rad_case_id(tmp_path: Path):
+    root = tmp_path / "lndb"
+    root.mkdir(parents=True, exist_ok=True)
+
+    image_path = root / "LNDb-0001.npy"
+    mask_dir = root / "masks"
+    mask_dir.mkdir(parents=True, exist_ok=True)
+    mask_path = mask_dir / "LNDb-0001_rad2.npy"
+    np.save(image_path, np.zeros((2, 4, 4), dtype=np.float32))
+    np.save(mask_path, np.ones((2, 4, 4), dtype=np.uint8))
+
+    # This should be ignored by discovery.
+    cases_dir = root / "cases"
+    cases_dir.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(cases_dir / "junk_case.npz", image=np.zeros((2, 4, 4), dtype=np.float32), mask=np.zeros((2, 4, 4), dtype=np.uint8))
+
+    pairs = discover_pairs(root, max_cases=0)
+    assert len(pairs) == 1
+    assert pairs[0].case_id == "LNDb-0001_rad2"
+
+
+def test_build_rows_include_empty_masks(tmp_path: Path):
+    root = tmp_path / "lndb"
+    root.mkdir(parents=True, exist_ok=True)
+
+    image_path = root / "scan.npy"
+    mask_path = root / "scan_mask.npy"
+    np.save(image_path, np.random.randn(2, 4, 4).astype(np.float32))
+    np.save(mask_path, np.zeros((2, 4, 4), dtype=np.uint8))
+
+    pairs_csv = root / "pairs.csv"
+    with pairs_csv.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=["case_id", "image_path", "mask_path"])
+        writer.writeheader()
+        writer.writerow({"case_id": "scan_case", "image_path": "scan.npy", "mask_path": "scan_mask.npy"})
+
+    pairs = load_pairs_from_csv(pairs_csv, root)
+    rows_skipping = build_rows(
+        pairs=pairs,
+        output_dir=root / "cases_skip",
+        label_map={},
+        target_class=5,
+        overwrite=True,
+        include_empty_masks=False,
+    )
+    rows_including = build_rows(
+        pairs=pairs,
+        output_dir=root / "cases_keep",
+        label_map={},
+        target_class=5,
+        overwrite=True,
+        include_empty_masks=True,
+    )
+    assert len(rows_skipping) == 0
+    assert len(rows_including) == 1
