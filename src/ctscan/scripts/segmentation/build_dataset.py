@@ -97,7 +97,7 @@ def parse_args() -> BuildConfig:
         target_spacing=parse_spacing(args.target_spacing),
         val_fraction=float(np.clip(args.val_fraction, 0.0, 0.5)),
         seed=int(args.seed),
-        min_positive_voxels=max(int(args.min_positive_voxels), 1),
+        min_positive_voxels=max(int(args.min_positive_voxels), 0),
         overwrite=bool(args.overwrite),
     )
 
