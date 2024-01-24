@@ -35,6 +35,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--annotations-csv", type=Path, default=None)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_CASES_DIR)
     parser.add_argument("--manifest-path", type=Path, default=DEFAULT_MANIFEST_PATH)
+    parser.add_argument("--start-index", type=int, default=0)
     parser.add_argument("--max-series", type=int, default=0)
     parser.add_argument("--radius-scale", type=float, default=1.0)
     parser.add_argument("--replace-luna-rows", action="store_true")
@@ -185,6 +186,7 @@ def build_luna_rows(
     luna_root: Path,
     annotations_csv: Path,
     output_dir: Path,
+    start_index: int,
     max_series: int,
     radius_scale: float,
     overwrite: bool,
@@ -197,6 +199,8 @@ def build_luna_rows(
 
     groups = annotations.groupby("seriesuid")
     series_uids = sorted(groups.groups.keys())
+    if start_index > 0:
+        series_uids = series_uids[start_index:]
     if max_series > 0:
         series_uids = series_uids[:max_series]
 
@@ -288,6 +292,7 @@ def main() -> None:
         luna_root=args.luna_root,
         annotations_csv=annotations_csv,
         output_dir=args.output_dir,
+        start_index=max(int(args.start_index), 0),
         max_series=max(int(args.max_series), 0),
         radius_scale=float(max(args.radius_scale, 0.1)),
         overwrite=bool(args.overwrite),
