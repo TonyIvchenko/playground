@@ -243,11 +243,10 @@ def positive_voxels(mask_multi: np.ndarray, roi_mask: np.ndarray) -> int:
     return int(union.sum())
 
 
-def load_labeled_cases(manifest_path: Path) -> list[CaseSample]:
+def iter_labeled_cases(manifest_path: Path):
     if not manifest_path.exists():
-        return []
+        return
 
-    cases: list[CaseSample] = []
     with manifest_path.open("r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle)
         for row in reader:
@@ -307,23 +306,20 @@ def load_labeled_cases(manifest_path: Path) -> list[CaseSample]:
                 float(row.get("spacing_y") or 1.0),
                 float(row.get("spacing_x") or 1.0),
             )
-            cases.append(
-                CaseSample(
-                    case_id=case_id,
-                    source=source,
-                    image_hu=image,
-                    mask_multi=mask_multi,
-                    roi_mask=roi_mask,
-                    spacing=spacing,
-                    metadata={
-                        "source_manifest": safe_path_text(manifest_path),
-                        "image_path": safe_path_text(image_path),
-                        "mask_path": safe_path_text(mask_path) if mask_path is not None else "",
-                        "roi_path": safe_path_text(roi_path) if roi_path is not None else "",
-                    },
-                )
+            yield CaseSample(
+                case_id=case_id,
+                source=source,
+                image_hu=image,
+                mask_multi=mask_multi,
+                roi_mask=roi_mask,
+                spacing=spacing,
+                metadata={
+                    "source_manifest": safe_path_text(manifest_path),
+                    "image_path": safe_path_text(image_path),
+                    "mask_path": safe_path_text(mask_path) if mask_path is not None else "",
+                    "roi_path": safe_path_text(roi_path) if roi_path is not None else "",
+                },
             )
-    return cases
 
 
 def load_sample_cases(samples_dir: Path, limit: int) -> list[CaseSample]:
@@ -490,26 +486,28 @@ def build_dataset(config: BuildConfig) -> Path:
     cases_dir = config.output_dir / "cases"
     cases_dir.mkdir(parents=True, exist_ok=True)
 
-    all_cases: list[CaseSample] = []
-    all_cases.extend(load_labeled_cases(config.labeled_manifest))
-    if config.include_samples:
-        all_cases.extend(load_sample_cases(config.samples_dir, config.max_samples))
-
-    deduped: list[CaseSample] = []
+    rows: list[dict[str, Any]] = []
     seen_ids: set[str] = set()
-    for case in all_cases:
+    for case in iter_labeled_cases(config.labeled_manifest):
         if case.case_id in seen_ids:
             continue
         seen_ids.add(case.case_id)
-        deduped.append(case)
-
-    rows: list[dict[str, Any]] = []
-    for case in deduped:
         case = resample_case(case, config.target_spacing)
         positives = positive_voxels(case.mask_multi, case.roi_mask)
         if positives < config.min_positive_voxels:
             continue
         rows.append(write_case(cases_dir, case))
+
+    if config.include_samples:
+        for case in load_sample_cases(config.samples_dir, config.max_samples):
+            if case.case_id in seen_ids:
+                continue
+            seen_ids.add(case.case_id)
+            case = resample_case(case, config.target_spacing)
+            positives = positive_voxels(case.mask_multi, case.roi_mask)
+            if positives < config.min_positive_voxels:
+                continue
+            rows.append(write_case(cases_dir, case))
 
     train_rows, val_rows = split_rows(rows, config.val_fraction, config.seed)
     write_split_csv(config.output_dir / "train.csv", train_rows)
