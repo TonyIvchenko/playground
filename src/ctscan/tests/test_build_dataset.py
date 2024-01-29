@@ -37,6 +37,7 @@ def test_build_dataset_from_sample_zip(tmp_path: Path, make_ct_zip):
         val_fraction=0.2,
         seed=7,
         min_positive_voxels=1,
+        disable_resample=False,
         overwrite=True,
     )
     manifest_path = build_dataset(config)
@@ -109,6 +110,7 @@ def test_build_dataset_from_labeled_manifest(tmp_path: Path):
         val_fraction=0.2,
         seed=7,
         min_positive_voxels=1,
+        disable_resample=False,
         overwrite=True,
     )
     output_manifest = build_dataset(config)

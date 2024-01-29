@@ -65,6 +65,7 @@ class BuildConfig:
     val_fraction: float
     seed: int
     min_positive_voxels: int
+    disable_resample: bool
     overwrite: bool
 
 
@@ -85,6 +86,7 @@ def parse_args() -> BuildConfig:
     parser.add_argument("--val-fraction", type=float, default=0.2)
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--min-positive-voxels", type=int, default=64)
+    parser.add_argument("--disable-resample", action="store_true")
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
     return BuildConfig(
@@ -98,6 +100,7 @@ def parse_args() -> BuildConfig:
         val_fraction=float(np.clip(args.val_fraction, 0.0, 0.5)),
         seed=int(args.seed),
         min_positive_voxels=max(int(args.min_positive_voxels), 0),
+        disable_resample=bool(args.disable_resample),
         overwrite=bool(args.overwrite),
     )
 
@@ -492,7 +495,8 @@ def build_dataset(config: BuildConfig) -> Path:
         if case.case_id in seen_ids:
             continue
         seen_ids.add(case.case_id)
-        case = resample_case(case, config.target_spacing)
+        if not config.disable_resample:
+            case = resample_case(case, config.target_spacing)
         positives = positive_voxels(case.mask_multi, case.roi_mask)
         if positives < config.min_positive_voxels:
             continue
@@ -503,7 +507,8 @@ def build_dataset(config: BuildConfig) -> Path:
             if case.case_id in seen_ids:
                 continue
             seen_ids.add(case.case_id)
-            case = resample_case(case, config.target_spacing)
+            if not config.disable_resample:
+                case = resample_case(case, config.target_spacing)
             positives = positive_voxels(case.mask_multi, case.roi_mask)
             if positives < config.min_positive_voxels:
                 continue
