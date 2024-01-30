@@ -234,6 +234,40 @@ Useful knobs:
 - `--negative-stride` (keeps fewer empty/background-only slices)
 - `--device auto|cpu|cuda|mps`
 
+## Pretrained-Backbone Baseline
+
+This path exports PNG image/mask slice pairs and trains a 2D U-Net with a pretrained encoder backbone.
+
+From `src/ctscan`:
+
+```bash
+python scripts/segmentation/build_slice_dataset.py \
+  --processed-dir /Volumes/Extreme\ Pro/data/ctscan/processed/unet_composite_full \
+  --output-dir /Volumes/Extreme\ Pro/data/ctscan/processed/slice_dataset_backbone_smoke \
+  --max-cases 2 \
+  --max-slices-per-case 24 \
+  --negative-stride 4 \
+  --overwrite
+
+python scripts/segmentation/train_unet_backbone.py \
+  --slice-dir /Volumes/Extreme\ Pro/data/ctscan/processed/slice_dataset_backbone_smoke \
+  --output-path model/unet_backbone_smoke.pt \
+  --metrics-path model/unet_backbone_smoke.metrics.json \
+  --encoder-name resnet34 \
+  --encoder-weights imagenet \
+  --epochs 1 \
+  --batch-size 4 \
+  --max-train-batches 4 \
+  --max-val-batches 2 \
+  --max-test-batches 2 \
+  --device cpu
+```
+
+Notes:
+- This is a smoke baseline only; run with larger `--max-cases`, more epochs, and remove `--max-*-batches` for real training.
+- Split files are written to `.../slice_dataset_backbone_smoke/splits/*.csv`.
+- PNG pairs are written under `.../slice_dataset_backbone_smoke/images` and `.../slice_dataset_backbone_smoke/masks`.
+
 ## Optional Lungmask Backend
 
 Default backend is an internal threshold method.

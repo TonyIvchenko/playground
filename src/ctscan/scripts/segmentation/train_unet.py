@@ -69,7 +69,6 @@ class SliceDataset(Dataset):
         self.image_size = int(image_size)
         self.augment = bool(augment)
         self.rng = np.random.default_rng(seed)
-        self._cache: dict[Path, tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
 
         with split_csv.open("r", encoding="utf-8", newline="") as handle:
             reader = csv.DictReader(handle)
@@ -119,9 +118,6 @@ class SliceDataset(Dataset):
         return output
 
     def _load_case(self, case_path: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        if case_path in self._cache:
-            return self._cache[case_path]
-
         payload = np.load(case_path)
         image = payload["image"].astype(np.float32)
         if "roi_mask" in payload:
@@ -131,15 +127,11 @@ class SliceDataset(Dataset):
         if "mask_multi" in payload:
             mask_multi = payload["mask_multi"].astype(np.uint8)
             if mask_multi.ndim == 4 and mask_multi.shape[0] == len(self.class_ids):
-                cached = (image, (mask_multi > 0).astype(np.uint8), roi_mask)
-                self._cache[case_path] = cached
-                return cached
+                return image, (mask_multi > 0).astype(np.uint8), roi_mask
 
         mask = payload["mask"].astype(np.uint8)
         mask_multi = self._scalar_to_multilabel(mask)
-        cached = (image, mask_multi, roi_mask)
-        self._cache[case_path] = cached
-        return cached
+        return image, mask_multi, roi_mask
 
     def __len__(self) -> int:
         return len(self.samples)
