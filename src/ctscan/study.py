@@ -17,6 +17,10 @@ try:
     import torch
 except Exception:  # pragma: no cover - optional runtime fallback
     torch = None
+try:
+    import segmentation_models_pytorch as _smp
+except Exception:  # pragma: no cover - optional runtime fallback
+    _smp = None
 
 try:
     from model.unet import UNet2D
@@ -97,7 +101,12 @@ def supported_issues() -> list[dict[str, str | int]]:
 
 def model_backend_name() -> str:
     model = _get_model_inferer()
-    return "unet2d" if model is not None else "threshold_rules"
+    if model is None:
+        return "threshold_rules"
+    model_type = str(_MODEL_META.get("model_type", "unet2d")).strip().lower()
+    if model_type == "unet_pretrained_backbone":
+        return "unet_backbone"
+    return model_type or "unet2d"
 
 
 def model_backend_error() -> str | None:
@@ -153,19 +162,35 @@ def _get_model_inferer():
         checkpoint = torch.load(str(MODEL_PATH), map_location="cpu")
         if not isinstance(checkpoint, dict):
             raise ValueError("Checkpoint payload is not a dictionary.")
-        model_config = checkpoint.get("model_config") or {}
-        in_channels = int(model_config.get("in_channels", 1))
-        num_classes = int(model_config.get("num_classes", max(ISSUE_BY_ID.keys()) + 1))
-        base_channels = int(model_config.get("base_channels", 32))
+        model_type = str(checkpoint.get("model_type", "unet2d")).strip().lower()
         state_dict = checkpoint.get("state_dict")
         if not isinstance(state_dict, dict):
             raise ValueError("Checkpoint is missing `state_dict`.")
 
-        model = UNet2D(
-            in_channels=in_channels,
-            num_classes=num_classes,
-            base_channels=base_channels,
-        )
+        if model_type == "unet_pretrained_backbone":
+            if _smp is None:
+                raise RuntimeError("segmentation_models_pytorch is required for pretrained-backbone checkpoints.")
+            encoder_name = str(checkpoint.get("encoder_name", "resnet34"))
+            in_channels = int(checkpoint.get("in_channels", 1))
+            num_classes = int(checkpoint.get("classes", max(ISSUE_BY_ID.keys()) + 1))
+            model = _smp.Unet(
+                encoder_name=encoder_name,
+                encoder_weights=None,
+                in_channels=in_channels,
+                classes=num_classes,
+            )
+            base_channels = None
+        else:
+            model_config = checkpoint.get("model_config") or {}
+            in_channels = int(model_config.get("in_channels", 1))
+            num_classes = int(model_config.get("num_classes", max(ISSUE_BY_ID.keys()) + 1))
+            base_channels = int(model_config.get("base_channels", 32))
+            model = UNet2D(
+                in_channels=in_channels,
+                num_classes=num_classes,
+                base_channels=base_channels,
+            )
+
         model.load_state_dict(state_dict, strict=True)
         device = _resolve_model_device()
         if device is None:
@@ -178,8 +203,11 @@ def _get_model_inferer():
         _MODEL_META = {
             "path": str(MODEL_PATH),
             "model_version": str(checkpoint.get("model_version", "")),
+            "model_type": model_type,
             "best_epoch": int(checkpoint.get("best_epoch", 0)) if checkpoint.get("best_epoch") is not None else None,
             "best_score": float(checkpoint.get("best_score", 0.0)) if checkpoint.get("best_score") is not None else None,
+            "encoder_name": checkpoint.get("encoder_name"),
+            "encoder_weights": checkpoint.get("encoder_weights"),
             "num_classes": num_classes,
             "base_channels": base_channels,
             "device": str(device),
