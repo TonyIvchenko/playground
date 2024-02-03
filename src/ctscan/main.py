@@ -261,6 +261,43 @@ def analyze_from_inputs(
     )
 
 
+def load_default_demo_state(
+    sample_id: str,
+    preset: str,
+    focus_issue: str,
+    show_lung_layer: bool,
+    show_damage_layer: bool,
+    lung_alpha: float,
+    damage_alpha: float,
+) -> tuple[Any, str, pd.DataFrame, pd.DataFrame, str, gr.Slider, str, str, str]:
+    selected = (sample_id or "").strip()
+    if not selected:
+        return (
+            None,
+            "No sample loaded",
+            pd.DataFrame(columns=ISSUE_TABLE_COLUMNS),
+            pd.DataFrame(columns=SLICE_TABLE_COLUMNS),
+            blank_viewer_image(),
+            gr.Slider(minimum=0, maximum=0, value=0, step=1),
+            format_json_text({"status": "empty", "rejection_reasons": []}),
+            format_json_text({}),
+            format_json_text({}),
+        )
+    return analyze_from_inputs(
+        sample_id=selected,
+        study_file=None,
+        age=None,
+        sex="",
+        smoking_history="",
+        preset=preset,
+        focus_issue=focus_issue,
+        show_lung_layer=show_lung_layer,
+        show_damage_layer=show_damage_layer,
+        lung_alpha=lung_alpha,
+        damage_alpha=damage_alpha,
+    )
+
+
 def update_viewer(
     payload: Any,
     slice_index: int,
@@ -327,7 +364,9 @@ async def predict(
 
 
 def build_demo() -> gr.Blocks:
-    sample_choices = [""] + sorted(load_samples_manifest().keys())
+    sample_keys = sorted(load_samples_manifest().keys())
+    sample_choices = [""] + sample_keys
+    initial_sample = DEFAULT_SAMPLE or (sample_keys[0] if sample_keys else "")
     with gr.Blocks(title=SERVICE_NAME) as demo:
         payload_state = gr.State(value=None)
         gr.Markdown(
@@ -339,7 +378,7 @@ def build_demo() -> gr.Blocks:
 
         with gr.Row():
             with gr.Column(scale=1):
-                sample_id = gr.Dropdown(label="Sample case", choices=sample_choices, value=DEFAULT_SAMPLE)
+                sample_id = gr.Dropdown(label="Sample case", choices=sample_choices, value=initial_sample)
                 study_zip = gr.File(label="Chest CT DICOM zip", type="filepath")
                 age = gr.Number(label="Age", value=None, precision=0)
                 sex = gr.Dropdown(label="Sex", choices=["", "female", "male"], value="")
@@ -383,6 +422,21 @@ def build_demo() -> gr.Blocks:
                 age,
                 sex,
                 smoking_history,
+                window_preset,
+                focus_issue,
+                show_lung_layer,
+                show_damage_layer,
+                lung_alpha,
+                damage_alpha,
+            ],
+            outputs=[payload_state, status_box, issues_df, slice_df, viewer, slice_slider, qc_json, summary_json, metadata_json],
+                show_api=False,
+            )
+
+        demo.load(
+            fn=load_default_demo_state,
+            inputs=[
+                sample_id,
                 window_preset,
                 focus_issue,
                 show_lung_layer,
