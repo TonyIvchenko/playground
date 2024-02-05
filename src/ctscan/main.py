@@ -6,6 +6,7 @@ from functools import lru_cache
 import json
 import os
 from pathlib import Path
+import zipfile
 from typing import Any
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -62,6 +63,7 @@ HOST = os.getenv("API_HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "8080"))
 SERVICE_NAME = os.getenv("SERVICE_NAME", "ctscan")
 SAMPLES_MANIFEST_PATH = Path(__file__).resolve().parent / "data" / "ctscan" / "samples" / "samples.json"
+EXTERNAL_SAMPLES_MANIFEST_PATH = Path("/Volumes/Extreme Pro/data/ctscan/samples/samples.json")
 DEFAULT_SAMPLE = ""
 WINDOW_CHOICES = ["lung", "mediastinal"]
 ISSUE_CHOICES = ["all"] + [str(item["key"]) for item in supported_issues()]
@@ -69,11 +71,81 @@ ISSUE_TABLE_COLUMNS = ["Issue", "Lung %", "Volume ml", "Voxels"]
 SLICE_TABLE_COLUMNS = ["Issue", "Slice % of lung", "Pixels"]
 
 
+def _read_manifest(path: Path) -> dict[str, dict[str, str]]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    cleaned: dict[str, dict[str, str]] = {}
+    for key, value in data.items():
+        if not isinstance(value, dict):
+            continue
+        study_zip = str(value.get("study_zip", "")).strip()
+        if not study_zip:
+            continue
+        cleaned[str(key)] = {"study_zip": study_zip}
+    return cleaned
+
+
+def _candidate_lidc_roots() -> list[Path]:
+    roots: list[Path] = []
+    env_root = os.getenv("CTSCAN_LIDC_ROOT", "").strip()
+    if env_root:
+        roots.append(Path(env_root))
+    roots.append(Path("/Volumes/Extreme Pro/data/ctscan/raw/lidc/LIDC-IDRI"))
+    roots.append(Path(__file__).resolve().parent / "data" / "ctscan" / "raw" / "lidc" / "LIDC-IDRI")
+    dedup: list[Path] = []
+    seen: set[str] = set()
+    for root in roots:
+        text = str(root.resolve()) if root.exists() else str(root)
+        if text in seen:
+            continue
+        seen.add(text)
+        dedup.append(root)
+    return dedup
+
+
+def _find_demo_lidc_series() -> list[Path]:
+    for root in _candidate_lidc_roots():
+        if not root.exists():
+            continue
+        for dirpath, _, filenames in os.walk(root):
+            dcm_names = [name for name in filenames if name.lower().endswith(".dcm") and not name.startswith("._")]
+            if len(dcm_names) < 32:
+                continue
+            series_dir = Path(dirpath)
+            files = [series_dir / name for name in sorted(dcm_names)]
+            if files:
+                return files
+    return []
+
+
+def _ensure_auto_demo_manifest() -> dict[str, dict[str, str]]:
+    samples_dir = SAMPLES_MANIFEST_PATH.parent
+    samples_dir.mkdir(parents=True, exist_ok=True)
+    sample_zip = samples_dir / "auto_demo_lidc.zip"
+    if not sample_zip.exists():
+        series_files = _find_demo_lidc_series()
+        if not series_files:
+            return {}
+        with zipfile.ZipFile(sample_zip, "w", compression=zipfile.ZIP_STORED) as archive:
+            for file_path in series_files:
+                archive.write(file_path, arcname=f"dicom/{file_path.name}")
+    manifest = {"auto_demo_lidc": {"study_zip": str(sample_zip.resolve())}}
+    SAMPLES_MANIFEST_PATH.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    return manifest
+
+
 @lru_cache(maxsize=1)
 def load_samples_manifest() -> dict[str, dict[str, str]]:
-    if not SAMPLES_MANIFEST_PATH.exists():
-        return {}
-    return json.loads(SAMPLES_MANIFEST_PATH.read_text(encoding="utf-8"))
+    for path in [SAMPLES_MANIFEST_PATH, EXTERNAL_SAMPLES_MANIFEST_PATH]:
+        if path.exists():
+            manifest = _read_manifest(path)
+            if manifest:
+                return manifest
+    return _ensure_auto_demo_manifest()
 
 
 def _study_bytes_from_inputs(study_file: str | None, sample_id: str | None) -> bytes:
