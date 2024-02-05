@@ -482,9 +482,17 @@ def class_voxel_counts(cases_dir: Path) -> tuple[dict[int, int], int]:
     return totals, total_spatial_voxels
 
 
+def _rmtree_onerror(func, path: str, exc_info) -> None:
+    exc = exc_info[1]
+    if isinstance(exc, FileNotFoundError):
+        # External/macOS volumes can race on AppleDouble sidecar files (._*).
+        return
+    raise exc
+
+
 def build_dataset(config: BuildConfig) -> Path:
     if config.overwrite and config.output_dir.exists():
-        shutil.rmtree(config.output_dir)
+        shutil.rmtree(config.output_dir, onerror=_rmtree_onerror)
     config.output_dir.mkdir(parents=True, exist_ok=True)
     cases_dir = config.output_dir / "cases"
     cases_dir.mkdir(parents=True, exist_ok=True)
