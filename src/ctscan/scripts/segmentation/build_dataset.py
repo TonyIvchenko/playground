@@ -8,6 +8,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 import shutil
+import time
 import sys
 from typing import Any
 
@@ -17,6 +18,11 @@ try:
     from scipy import ndimage as ndi
 except Exception:  # pragma: no cover - optional
     ndi = None
+
+try:
+    from tqdm.auto import tqdm as _tqdm
+except Exception:  # pragma: no cover - optional
+    _tqdm = None
 
 CTSCAN_ROOT = Path(__file__).resolve().parents[2]
 if str(CTSCAN_ROOT) not in sys.path:
@@ -40,6 +46,49 @@ CLASS_NAMES = {
 CHANNEL_CLASS_IDS = [5, 6, 3, 4, 1, 2, 7]
 CHANNEL_CLASS_NAMES = [CLASS_NAMES[class_id] for class_id in CHANNEL_CLASS_IDS]
 CLASS_ID_TO_CHANNEL = {class_id: index for index, class_id in enumerate(CHANNEL_CLASS_IDS)}
+
+
+class _SimpleProgress:
+    def __init__(self, total: int | None, desc: str, unit: str):
+        self.total = total if (total is not None and total >= 0) else None
+        self.desc = desc
+        self.unit = unit
+        self.count = 0
+        self._last_print = 0.0
+        self._print(force=True)
+
+    def _print(self, force: bool = False) -> None:
+        now = time.time()
+        if not force and (now - self._last_print) < 0.25:
+            return
+        self._last_print = now
+        if self.total is not None and self.total > 0:
+            pct = (self.count / self.total) * 100.0
+            text = f"\r{self.desc}: {self.count}/{self.total} {self.unit} ({pct:5.1f}%)"
+        else:
+            text = f"\r{self.desc}: {self.count} {self.unit}"
+        print(text, end="", flush=True)
+
+    def update(self, n: int = 1) -> None:
+        self.count += int(n)
+        self._print(force=False)
+
+    def close(self) -> None:
+        self._print(force=True)
+        print("", flush=True)
+
+
+def progress_iter(iterable, total: int | None, desc: str, unit: str):
+    if _tqdm is not None:
+        yield from _tqdm(iterable, total=total, desc=desc, unit=unit)
+        return
+    progress = _SimpleProgress(total=total, desc=desc, unit=unit)
+    try:
+        for item in iterable:
+            yield item
+            progress.update(1)
+    finally:
+        progress.close()
 
 
 @dataclass
@@ -325,6 +374,20 @@ def iter_labeled_cases(manifest_path: Path):
             )
 
 
+def count_manifest_entries(manifest_path: Path) -> int:
+    if not manifest_path.exists():
+        return 0
+    total = 0
+    with manifest_path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            case_id = str((row.get("case_id") or "").strip())
+            image_value = str((row.get("image_path") or "").strip())
+            if case_id and image_value:
+                total += 1
+    return total
+
+
 def load_sample_cases(samples_dir: Path, limit: int) -> list[CaseSample]:
     from study import load_study_from_zip_bytes, segment_issues, segment_lungs
 
@@ -459,9 +522,8 @@ def write_split_csv(path: Path, rows: list[dict[str, Any]]) -> None:
 def class_voxel_counts(cases_dir: Path) -> tuple[dict[int, int], int]:
     totals = {class_id: 0 for class_id in CLASS_NAMES}
     total_spatial_voxels = 0
-    for file_path in sorted(cases_dir.glob("*.npz")):
-        if file_path.name.startswith("._"):
-            continue
+    case_files = [path for path in sorted(cases_dir.glob("*.npz")) if not path.name.startswith("._")]
+    for file_path in progress_iter(case_files, total=len(case_files), desc="Voxel stats", unit="case"):
         try:
             payload = np.load(file_path)
             if "mask_multi" in payload:
@@ -499,7 +561,13 @@ def build_dataset(config: BuildConfig) -> Path:
 
     rows: list[dict[str, Any]] = []
     seen_ids: set[str] = set()
-    for case in iter_labeled_cases(config.labeled_manifest):
+    labeled_total = count_manifest_entries(config.labeled_manifest)
+    for case in progress_iter(
+        iter_labeled_cases(config.labeled_manifest),
+        total=labeled_total,
+        desc="Build labeled cases",
+        unit="case",
+    ):
         if case.case_id in seen_ids:
             continue
         seen_ids.add(case.case_id)
@@ -511,7 +579,8 @@ def build_dataset(config: BuildConfig) -> Path:
         rows.append(write_case(cases_dir, case))
 
     if config.include_samples:
-        for case in load_sample_cases(config.samples_dir, config.max_samples):
+        sample_cases = load_sample_cases(config.samples_dir, config.max_samples)
+        for case in progress_iter(sample_cases, total=len(sample_cases), desc="Build sample cases", unit="case"):
             if case.case_id in seen_ids:
                 continue
             seen_ids.add(case.case_id)
