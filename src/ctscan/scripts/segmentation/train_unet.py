@@ -1,4 +1,4 @@
-"""Train a 2D U-Net on the composite CT multi-label segmentation dataset."""
+"""Train U-Net models on the composite CT multi-label segmentation dataset."""
 
 from __future__ import annotations
 
@@ -44,9 +44,13 @@ class TrainConfig:
     weight_decay: float
     num_workers: int
     seed: int
+    train_mode: str
     negative_stride: int
     base_channels: int
     image_size: int
+    patch_size: tuple[int, int, int]
+    train_patches_per_case: int
+    val_patches_per_case: int
     device: str
     max_train_steps: int
     max_val_steps: int
@@ -180,6 +184,236 @@ class SliceDataset(Dataset):
         return image_tensor, mask_tensor, roi_tensor
 
 
+class VolumePatchDataset(Dataset):
+    def __init__(
+        self,
+        split_csv: Path,
+        dataset_dir: Path,
+        class_ids: list[int],
+        patch_size: tuple[int, int, int],
+        patches_per_case: int,
+        augment: bool,
+        seed: int,
+    ):
+        self.dataset_dir = dataset_dir
+        self.class_ids = list(class_ids)
+        self.patch_size = tuple(int(value) for value in patch_size)
+        self.patches_per_case = max(int(patches_per_case), 1)
+        self.augment = bool(augment)
+        self.rng = np.random.default_rng(seed)
+        self.case_paths: list[Path] = []
+
+        with split_csv.open("r", encoding="utf-8", newline="") as handle:
+            reader = csv.DictReader(handle)
+            for row in reader:
+                case_path = self._resolve_case_path(str(row["path"]))
+                if case_path.exists():
+                    self.case_paths.append(case_path)
+
+    def _resolve_case_path(self, value: str) -> Path:
+        path = Path(value)
+        if path.is_absolute():
+            return path
+        candidate = (CTSCAN_ROOT / path).resolve()
+        if candidate.exists():
+            return candidate
+        return (self.dataset_dir / path).resolve()
+
+    def _scalar_to_multilabel(self, mask: np.ndarray) -> np.ndarray:
+        class_id_to_channel = {class_id: index for index, class_id in enumerate(self.class_ids)}
+        output = np.zeros((len(self.class_ids),) + tuple(mask.shape), dtype=np.uint8)
+        for class_id, channel_index in class_id_to_channel.items():
+            output[channel_index, mask == int(class_id)] = np.uint8(1)
+        return output
+
+    def _load_case(self, case_path: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        payload = np.load(case_path)
+        image = payload["image"].astype(np.float32)
+        if "roi_mask" in payload:
+            roi_mask = (payload["roi_mask"].astype(np.uint8) > 0).astype(np.uint8)
+        else:
+            roi_mask = np.ones(image.shape, dtype=np.uint8)
+        if "mask_multi" in payload:
+            mask_multi = payload["mask_multi"].astype(np.uint8)
+            if mask_multi.ndim == 4 and mask_multi.shape[0] == len(self.class_ids):
+                return image, (mask_multi > 0).astype(np.uint8), roi_mask
+        mask = payload["mask"].astype(np.uint8)
+        return image, self._scalar_to_multilabel(mask), roi_mask
+
+    def _choose_center(self, mask_multi: np.ndarray, roi_mask: np.ndarray) -> tuple[int, int, int]:
+        positive = np.argwhere((np.any(mask_multi > 0, axis=0)) & (roi_mask > 0))
+        if len(positive) > 0 and (self.augment or bool(self.rng.random() < 0.7)):
+            center = positive[int(self.rng.integers(0, len(positive)))]
+            return int(center[0]), int(center[1]), int(center[2])
+        roi_points = np.argwhere(roi_mask > 0)
+        if len(roi_points) > 0:
+            center = roi_points[int(self.rng.integers(0, len(roi_points)))]
+            return int(center[0]), int(center[1]), int(center[2])
+        shape = roi_mask.shape
+        return shape[0] // 2, shape[1] // 2, shape[2] // 2
+
+    def _extract_patch(self, volume: np.ndarray, center: tuple[int, int, int]) -> np.ndarray:
+        target_z, target_y, target_x = self.patch_size
+        c_z, c_y, c_x = center
+        shape_z, shape_y, shape_x = volume.shape[-3], volume.shape[-2], volume.shape[-1]
+
+        z0 = c_z - (target_z // 2)
+        y0 = c_y - (target_y // 2)
+        x0 = c_x - (target_x // 2)
+        z1 = z0 + target_z
+        y1 = y0 + target_y
+        x1 = x0 + target_x
+
+        pad_before = [0, 0, 0]
+        pad_after = [0, 0, 0]
+        if z0 < 0:
+            pad_before[0] = -z0
+            z0 = 0
+        if y0 < 0:
+            pad_before[1] = -y0
+            y0 = 0
+        if x0 < 0:
+            pad_before[2] = -x0
+            x0 = 0
+        if z1 > shape_z:
+            pad_after[0] = z1 - shape_z
+            z1 = shape_z
+        if y1 > shape_y:
+            pad_after[1] = y1 - shape_y
+            y1 = shape_y
+        if x1 > shape_x:
+            pad_after[2] = x1 - shape_x
+            x1 = shape_x
+
+        patch = volume[..., z0:z1, y0:y1, x0:x1]
+        if any(value > 0 for value in pad_before + pad_after):
+            pad_spec = [(0, 0)] * (patch.ndim - 3) + [
+                (pad_before[0], pad_after[0]),
+                (pad_before[1], pad_after[1]),
+                (pad_before[2], pad_after[2]),
+            ]
+            patch = np.pad(patch, pad_spec, mode="constant")
+        return patch
+
+    def __len__(self) -> int:
+        return len(self.case_paths) * self.patches_per_case
+
+    def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        if not self.case_paths:
+            raise IndexError("No cases in dataset.")
+        case_index = int(index // self.patches_per_case) % len(self.case_paths)
+        case_path = self.case_paths[case_index]
+        image, mask_multi, roi_mask = self._load_case(case_path)
+
+        center = self._choose_center(mask_multi, roi_mask)
+        image_patch = self._extract_patch(image, center).astype(np.float32)
+        mask_patch = self._extract_patch(mask_multi, center).astype(np.float32)
+        roi_patch = self._extract_patch(roi_mask, center).astype(np.float32)
+
+        if self.augment:
+            if bool(self.rng.integers(0, 2)):
+                image_patch = np.flip(image_patch, axis=1)
+                mask_patch = np.flip(mask_patch, axis=2)
+                roi_patch = np.flip(roi_patch, axis=1)
+            if bool(self.rng.integers(0, 2)):
+                image_patch = np.flip(image_patch, axis=2)
+                mask_patch = np.flip(mask_patch, axis=3)
+                roi_patch = np.flip(roi_patch, axis=2)
+            if bool(self.rng.integers(0, 2)):
+                image_patch = np.flip(image_patch, axis=0)
+                mask_patch = np.flip(mask_patch, axis=1)
+                roi_patch = np.flip(roi_patch, axis=0)
+            image_patch = image_patch.copy()
+            mask_patch = mask_patch.copy()
+            roi_patch = roi_patch.copy()
+
+        image_tensor = torch.from_numpy(image_patch[None, :, :, :]).float()
+        mask_tensor = torch.from_numpy(mask_patch).float()
+        roi_tensor = torch.from_numpy((roi_patch > 0).astype(np.float32)[None, :, :, :]).float()
+        return image_tensor, mask_tensor, roi_tensor
+
+
+class ConvBlock3D(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int):
+        super().__init__()
+        self.layers = nn.Sequential(
+            nn.Conv3d(in_channels, out_channels, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm3d(out_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv3d(out_channels, out_channels, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm3d(out_channels),
+            nn.ReLU(inplace=True),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.layers(x)
+
+
+class DownBlock3D(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int):
+        super().__init__()
+        self.pool = nn.MaxPool3d(kernel_size=2, stride=2)
+        self.conv = ConvBlock3D(in_channels, out_channels)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.conv(self.pool(x))
+
+
+class UpBlock3D(nn.Module):
+    def __init__(self, in_channels: int, skip_channels: int, out_channels: int):
+        super().__init__()
+        self.up = nn.ConvTranspose3d(in_channels, in_channels // 2, kernel_size=2, stride=2)
+        self.conv = ConvBlock3D((in_channels // 2) + skip_channels, out_channels)
+
+    def forward(self, x: torch.Tensor, skip: torch.Tensor) -> torch.Tensor:
+        x = self.up(x)
+        if x.shape[-3:] != skip.shape[-3:]:
+            diff_z = skip.size(2) - x.size(2)
+            diff_y = skip.size(3) - x.size(3)
+            diff_x = skip.size(4) - x.size(4)
+            x = F.pad(
+                x,
+                [
+                    diff_x // 2,
+                    diff_x - diff_x // 2,
+                    diff_y // 2,
+                    diff_y - diff_y // 2,
+                    diff_z // 2,
+                    diff_z - diff_z // 2,
+                ],
+            )
+        x = torch.cat([skip, x], dim=1)
+        return self.conv(x)
+
+
+class UNet3D(nn.Module):
+    def __init__(self, in_channels: int = 1, num_classes: int = 7, base_channels: int = 16):
+        super().__init__()
+        width = int(base_channels)
+        self.inc = ConvBlock3D(in_channels, width)
+        self.down1 = DownBlock3D(width, width * 2)
+        self.down2 = DownBlock3D(width * 2, width * 4)
+        self.down3 = DownBlock3D(width * 4, width * 8)
+        self.down4 = DownBlock3D(width * 8, width * 16)
+        self.up1 = UpBlock3D(width * 16, width * 8, width * 8)
+        self.up2 = UpBlock3D(width * 8, width * 4, width * 4)
+        self.up3 = UpBlock3D(width * 4, width * 2, width * 2)
+        self.up4 = UpBlock3D(width * 2, width, width)
+        self.outc = nn.Conv3d(width, num_classes, kernel_size=1)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x1 = self.inc(x)
+        x2 = self.down1(x1)
+        x3 = self.down2(x2)
+        x4 = self.down3(x3)
+        x5 = self.down4(x4)
+        x = self.up1(x5, x4)
+        x = self.up2(x, x3)
+        x = self.up3(x, x2)
+        x = self.up4(x, x1)
+        return self.outc(x)
+
+
 def parse_args() -> TrainConfig:
     parser = argparse.ArgumentParser(description="Train CT semantic segmentation U-Net.")
     parser.add_argument("--dataset-dir", type=Path, default=DEFAULT_DATASET_DIR)
@@ -192,9 +426,13 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--weight-decay", type=float, default=1e-4)
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--seed", type=int, default=17)
+    parser.add_argument("--train-mode", type=str, default="2d", choices=["2d", "3d"])
     parser.add_argument("--negative-stride", type=int, default=4)
     parser.add_argument("--base-channels", type=int, default=32)
     parser.add_argument("--image-size", type=int, default=256)
+    parser.add_argument("--patch-size", type=str, default="64,128,128", help="Patch size z,y,x for 3d mode.")
+    parser.add_argument("--train-patches-per-case", type=int, default=4)
+    parser.add_argument("--val-patches-per-case", type=int, default=2)
     parser.add_argument("--device", type=str, default="auto")
     parser.add_argument("--max-train-steps", type=int, default=0)
     parser.add_argument("--max-val-steps", type=int, default=0)
@@ -203,6 +441,11 @@ def parse_args() -> TrainConfig:
     metrics_path = args.metrics_path
     if metrics_path is None:
         metrics_path = args.output_path.with_suffix(".metrics.json")
+
+    patch_parts = [part.strip() for part in str(args.patch_size).split(",") if part.strip()]
+    if len(patch_parts) != 3:
+        raise ValueError("--patch-size must be z,y,x")
+    patch_size = tuple(max(int(part), 16) for part in patch_parts)
 
     return TrainConfig(
         dataset_dir=args.dataset_dir,
@@ -215,9 +458,13 @@ def parse_args() -> TrainConfig:
         weight_decay=float(args.weight_decay),
         num_workers=max(int(args.num_workers), 0),
         seed=int(args.seed),
+        train_mode=str(args.train_mode).strip().lower(),
         negative_stride=max(int(args.negative_stride), 1),
         base_channels=max(int(args.base_channels), 8),
         image_size=max(int(args.image_size), 64),
+        patch_size=patch_size,
+        train_patches_per_case=max(int(args.train_patches_per_case), 1),
+        val_patches_per_case=max(int(args.val_patches_per_case), 1),
         device=str(args.device).strip().lower(),
         max_train_steps=max(int(args.max_train_steps), 0),
         max_val_steps=max(int(args.max_val_steps), 0),
@@ -290,7 +537,7 @@ def multilabel_dice_loss(
     probabilities = torch.sigmoid(logits)
     probabilities = probabilities * roi_mask
     targets = targets * roi_mask
-    dims = (0, 2, 3)
+    dims = (0,) + tuple(range(2, int(logits.ndim)))
     intersection = (probabilities * targets).sum(dim=dims)
     cardinality = probabilities.sum(dim=dims) + targets.sum(dim=dims)
     dice = (2.0 * intersection + eps) / (cardinality + eps)
@@ -370,7 +617,8 @@ def run_epoch(
         probabilities = torch.sigmoid(logits)
         predictions = (probabilities >= 0.5) & (rois > 0.5)
         targets = (masks >= 0.5) & (rois > 0.5)
-        roi_targets = rois.repeat(1, num_classes, 1, 1) > 0.5
+        repeats = [1, num_classes] + [1] * max(int(rois.ndim) - 2, 0)
+        roi_targets = rois.repeat(*repeats) > 0.5
 
         total_loss += float(loss.item())
         total_bce_loss += float(bce_loss.item())
@@ -420,24 +668,44 @@ def train(config: TrainConfig) -> tuple[dict[str, Any], dict[str, Any]]:
     train_csv = config.dataset_dir / "train.csv"
     val_csv = config.dataset_dir / "val.csv"
 
-    train_dataset = SliceDataset(
-        split_csv=train_csv,
-        dataset_dir=config.dataset_dir,
-        class_ids=class_ids,
-        negative_stride=config.negative_stride,
-        image_size=config.image_size,
-        augment=True,
-        seed=config.seed,
-    )
-    val_dataset = SliceDataset(
-        split_csv=val_csv,
-        dataset_dir=config.dataset_dir,
-        class_ids=class_ids,
-        negative_stride=1,
-        image_size=config.image_size,
-        augment=False,
-        seed=config.seed + 1,
-    )
+    if config.train_mode == "3d":
+        train_dataset = VolumePatchDataset(
+            split_csv=train_csv,
+            dataset_dir=config.dataset_dir,
+            class_ids=class_ids,
+            patch_size=config.patch_size,
+            patches_per_case=config.train_patches_per_case,
+            augment=True,
+            seed=config.seed,
+        )
+        val_dataset = VolumePatchDataset(
+            split_csv=val_csv,
+            dataset_dir=config.dataset_dir,
+            class_ids=class_ids,
+            patch_size=config.patch_size,
+            patches_per_case=config.val_patches_per_case,
+            augment=False,
+            seed=config.seed + 1,
+        )
+    else:
+        train_dataset = SliceDataset(
+            split_csv=train_csv,
+            dataset_dir=config.dataset_dir,
+            class_ids=class_ids,
+            negative_stride=config.negative_stride,
+            image_size=config.image_size,
+            augment=True,
+            seed=config.seed,
+        )
+        val_dataset = SliceDataset(
+            split_csv=val_csv,
+            dataset_dir=config.dataset_dir,
+            class_ids=class_ids,
+            negative_stride=1,
+            image_size=config.image_size,
+            augment=False,
+            seed=config.seed + 1,
+        )
     if len(train_dataset) == 0:
         raise RuntimeError("No training samples found in dataset split.")
 
@@ -456,8 +724,12 @@ def train(config: TrainConfig) -> tuple[dict[str, Any], dict[str, Any]]:
         pin_memory=(device.type == "cuda"),
     ) if len(val_dataset) > 0 else None
 
-    model = UNet2D(in_channels=1, num_classes=num_classes, base_channels=config.base_channels).to(device)
-    pos_weights = class_pos_weights_from_manifest(manifest, class_ids).to(device).view(-1, 1, 1)
+    if config.train_mode == "3d":
+        model = UNet3D(in_channels=1, num_classes=num_classes, base_channels=config.base_channels).to(device)
+        pos_weights = class_pos_weights_from_manifest(manifest, class_ids).to(device).view(-1, 1, 1, 1)
+    else:
+        model = UNet2D(in_channels=1, num_classes=num_classes, base_channels=config.base_channels).to(device)
+        pos_weights = class_pos_weights_from_manifest(manifest, class_ids).to(device).view(-1, 1, 1)
     criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weights, reduction="none")
     optimizer = torch.optim.AdamW(
         model.parameters(),
@@ -541,12 +813,13 @@ def train(config: TrainConfig) -> tuple[dict[str, Any], dict[str, Any]]:
     config.output_path.parent.mkdir(parents=True, exist_ok=True)
     checkpoint = {
         "model_version": config.model_version,
-        "model_type": "unet2d",
+        "model_type": "unet3d" if config.train_mode == "3d" else "unet2d",
         "task_type": "multilabel_segmentation",
         "model_config": {
             "in_channels": 1,
             "num_classes": num_classes,
             "base_channels": config.base_channels,
+            "train_mode": config.train_mode,
         },
         "class_channels": [
             {"channel_index": int(index), "class_id": int(class_id), "name": str(class_names[index])}
@@ -566,13 +839,15 @@ def train(config: TrainConfig) -> tuple[dict[str, Any], dict[str, Any]]:
         "model_version": config.model_version,
         "task_type": "multilabel_segmentation",
         "roi_gated": True,
+        "train_mode": config.train_mode,
         "best_epoch": best_epoch,
         "best_score": float(best_score),
         "history": history,
         "device": str(device),
-        "train_slices": len(train_dataset),
-        "val_slices": len(val_dataset),
-        "image_size": config.image_size,
+        "train_samples": len(train_dataset),
+        "val_samples": len(val_dataset),
+        "image_size": config.image_size if config.train_mode == "2d" else None,
+        "patch_size": list(config.patch_size) if config.train_mode == "3d" else None,
         "class_channels": checkpoint["class_channels"],
     }
     config.metrics_path.write_text(json.dumps(metrics_payload, indent=2), encoding="utf-8")
@@ -588,7 +863,7 @@ def main() -> None:
     print(
         f"best_epoch={checkpoint['best_epoch']} "
         f"best_miou={checkpoint['best_score']:.4f} "
-        f"train_slices={metrics['train_slices']} val_slices={metrics['val_slices']}"
+        f"train_samples={metrics['train_samples']} val_samples={metrics['val_samples']}"
     )
 
 

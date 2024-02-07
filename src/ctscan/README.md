@@ -234,6 +234,23 @@ Useful knobs:
 - `--negative-stride` (keeps fewer empty/background-only slices)
 - `--device auto|cpu|cuda|mps`
 
+3D patch mode (directly from processed 3D `.npz` dataset, no PNG export):
+
+```bash
+python scripts/segmentation/train_unet.py \
+  --dataset-dir /Volumes/Extreme\ Pro/data/ctscan/processed/unet_composite_full \
+  --output-path /Volumes/Extreme\ Pro/data/ctscan/experiments/unet3d_full.pt \
+  --metrics-path /Volumes/Extreme\ Pro/data/ctscan/experiments/unet3d_full.metrics.json \
+  --model-version 0.7.0-unet3d \
+  --train-mode 3d \
+  --patch-size 64,128,128 \
+  --train-patches-per-case 4 \
+  --val-patches-per-case 2 \
+  --batch-size 1 \
+  --epochs 20 \
+  --device mps
+```
+
 ## Pretrained-Backbone Baseline
 
 This path exports PNG image/mask slice pairs and trains a 2D U-Net with a pretrained encoder backbone.
