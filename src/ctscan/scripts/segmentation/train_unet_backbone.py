@@ -15,6 +15,10 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
+try:
+    from tqdm.auto import tqdm as _tqdm
+except Exception:  # pragma: no cover - optional
+    _tqdm = None
 
 import segmentation_models_pytorch as smp
 
@@ -187,6 +191,7 @@ def run_epoch(
     device: torch.device,
     classes: int,
     max_batches: int,
+    progress_desc: str,
 ) -> dict[str, float]:
     training = optimizer is not None
     model.train(training)
@@ -194,7 +199,15 @@ def run_epoch(
     all_pred: list[torch.Tensor] = []
     all_target: list[torch.Tensor] = []
 
-    for batch_idx, (image, mask) in enumerate(loader, start=1):
+    total_batches = len(loader)
+    if max_batches > 0:
+        total_batches = min(total_batches, max_batches)
+    if _tqdm is not None:
+        progress_iter = _tqdm(loader, total=total_batches, desc=progress_desc, unit="batch", leave=False)
+    else:
+        progress_iter = loader
+
+    for batch_idx, (image, mask) in enumerate(progress_iter, start=1):
         image = image.to(device=device, dtype=torch.float32)
         mask = mask.to(device=device, dtype=torch.long)
 
@@ -212,6 +225,9 @@ def run_epoch(
         all_target.append(mask.detach().cpu())
         if max_batches > 0 and batch_idx >= max_batches:
             break
+
+    if _tqdm is not None and hasattr(progress_iter, "close"):
+        progress_iter.close()
 
     if not losses:
         return {"loss": 0.0, "mean_iou": 0.0, "mean_dice": 0.0, "mean_iou_fg": 0.0, "mean_dice_fg": 0.0}
@@ -263,6 +279,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
             device=device,
             classes=config.classes,
             max_batches=config.max_train_batches,
+            progress_desc=f"Epoch {epoch}/{config.epochs} train",
         )
         with torch.no_grad():
             val_m = run_epoch(
@@ -273,6 +290,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
                 device=device,
                 classes=config.classes,
                 max_batches=config.max_val_batches,
+                progress_desc=f"Epoch {epoch}/{config.epochs} val",
             ) if len(val_ds) > 0 else {"loss": 0.0, "mean_iou": 0.0, "mean_dice": 0.0, "mean_iou_fg": 0.0, "mean_dice_fg": 0.0}
 
         row = {
@@ -323,6 +341,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
             device=device,
             classes=config.classes,
             max_batches=config.max_test_batches,
+            progress_desc="Test",
         ) if len(test_ds) > 0 else {"loss": 0.0, "mean_iou": 0.0, "mean_dice": 0.0, "mean_iou_fg": 0.0, "mean_dice_fg": 0.0}
 
     metrics = {
