@@ -17,6 +17,10 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
+try:
+    from tqdm.auto import tqdm as _tqdm
+except Exception:  # pragma: no cover - optional
+    _tqdm = None
 
 
 CTSCAN_ROOT = Path(__file__).resolve().parents[2]
@@ -578,6 +582,7 @@ def run_epoch(
     device: torch.device,
     num_classes: int,
     max_steps: int,
+    progress_desc: str,
 ) -> dict[str, float]:
     is_training = optimizer is not None
     model.train(is_training)
@@ -594,7 +599,16 @@ def run_epoch(
     correct_pixels = 0
     total_pixels = 0
 
-    for step_index, (images, masks, rois) in enumerate(loader, start=1):
+    total_steps = len(loader)
+    if max_steps > 0:
+        total_steps = min(total_steps, max_steps)
+
+    if _tqdm is not None:
+        progress_iter = _tqdm(loader, total=total_steps, desc=progress_desc, unit="batch", leave=False)
+    else:
+        progress_iter = loader
+
+    for step_index, (images, masks, rois) in enumerate(progress_iter, start=1):
         images = images.to(device=device, dtype=torch.float32, non_blocking=True)
         masks = masks.to(device=device, dtype=torch.float32, non_blocking=True)
         rois = rois.to(device=device, dtype=torch.float32, non_blocking=True)
@@ -637,6 +651,9 @@ def run_epoch(
 
         if max_steps > 0 and step_index >= max_steps:
             break
+
+    if _tqdm is not None and hasattr(progress_iter, "close"):
+        progress_iter.close()
 
     accuracy, mean_iou, mean_dice = compute_epoch_metrics(
         intersections=intersections,
@@ -751,6 +768,7 @@ def train(config: TrainConfig) -> tuple[dict[str, Any], dict[str, Any]]:
             device=device,
             num_classes=num_classes,
             max_steps=config.max_train_steps,
+            progress_desc=f"Epoch {epoch}/{config.epochs} train",
         )
         if val_loader is not None:
             with torch.no_grad():
@@ -762,6 +780,7 @@ def train(config: TrainConfig) -> tuple[dict[str, Any], dict[str, Any]]:
                     device=device,
                     num_classes=num_classes,
                     max_steps=config.max_val_steps,
+                    progress_desc=f"Epoch {epoch}/{config.epochs} val",
                 )
             monitor_score = float(val_metrics["mean_iou"])
         else:
