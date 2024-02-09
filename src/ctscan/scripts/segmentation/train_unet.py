@@ -48,16 +48,16 @@ class TrainConfig:
     weight_decay: float
     num_workers: int
     seed: int
-    train_mode: str
-    negative_stride: int
-    base_channels: int
-    image_size: int
-    patch_size: tuple[int, int, int]
-    train_patches_per_case: int
-    val_patches_per_case: int
-    device: str
-    max_train_steps: int
-    max_val_steps: int
+    train_mode: str = "2d"
+    negative_stride: int = 4
+    base_channels: int = 32
+    image_size: int = 256
+    patch_size: tuple[int, int, int] = (64, 128, 128)
+    train_patches_per_case: int = 4
+    val_patches_per_case: int = 2
+    device: str = "auto"
+    max_train_steps: int = 0
+    max_val_steps: int = 0
 
 
 class SliceDataset(Dataset):
@@ -865,6 +865,9 @@ def train(config: TrainConfig) -> tuple[dict[str, Any], dict[str, Any]]:
         "device": str(device),
         "train_samples": len(train_dataset),
         "val_samples": len(val_dataset),
+        # Backward-compatible aliases used by existing smoke tests.
+        "train_slices": len(train_dataset),
+        "val_slices": len(val_dataset),
         "image_size": config.image_size if config.train_mode == "2d" else None,
         "patch_size": list(config.patch_size) if config.train_mode == "3d" else None,
         "class_channels": checkpoint["class_channels"],
