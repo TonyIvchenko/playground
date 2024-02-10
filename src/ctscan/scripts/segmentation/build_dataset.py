@@ -11,6 +11,7 @@ import shutil
 import time
 import sys
 from typing import Any
+import zipfile
 
 import numpy as np
 
@@ -185,14 +186,17 @@ def safe_path_text(path: Path) -> str:
 
 
 def load_array(path: Path, preferred_keys: tuple[str, ...]) -> np.ndarray:
-    if path.suffix == ".npy":
-        return np.load(path)
-    if path.suffix == ".npz":
-        payload = np.load(path)
-        for key in preferred_keys:
-            if key in payload:
-                return payload[key]
-        return payload[payload.files[0]]
+    try:
+        if path.suffix == ".npy":
+            return np.load(path)
+        if path.suffix == ".npz":
+            with np.load(path) as payload:
+                for key in preferred_keys:
+                    if key in payload:
+                        return payload[key]
+                return payload[payload.files[0]]
+    except (zipfile.BadZipFile, OSError, EOFError, ValueError) as exc:
+        raise ValueError(f"Unreadable array file: {path}") from exc
     raise ValueError(f"Unsupported array file: {path}")
 
 
@@ -314,13 +318,26 @@ def iter_labeled_cases(manifest_path: Path):
             if not image_path.exists():
                 continue
 
-            image = load_array(image_path, ("image", "volume_hu", "volume", "arr_0")).astype(np.float32)
-            label_map = parse_label_map(str(row.get("label_map") or "").strip())
+            try:
+                image = load_array(image_path, ("image", "volume_hu", "volume", "arr_0")).astype(np.float32)
+            except ValueError as exc:
+                print(f"skip case={case_id} bad_image={safe_path_text(image_path)} reason={exc}", file=sys.stderr)
+                continue
+
+            try:
+                label_map = parse_label_map(str(row.get("label_map") or "").strip())
+            except ValueError as exc:
+                print(f"skip case={case_id} bad_label_map reason={exc}", file=sys.stderr)
+                continue
             if mask_value:
                 mask_path = resolve_path(manifest_path.parent, mask_value)
                 if not mask_path.exists():
                     continue
-                raw_mask = load_array(mask_path, ("mask_multi", "mask", "labels", "arr_0"))
+                try:
+                    raw_mask = load_array(mask_path, ("mask_multi", "mask", "labels", "arr_0"))
+                except ValueError as exc:
+                    print(f"skip case={case_id} bad_mask={safe_path_text(mask_path)} reason={exc}", file=sys.stderr)
+                    continue
                 if raw_mask.ndim == 3:
                     if image.shape != raw_mask.shape:
                         continue
@@ -343,11 +360,10 @@ def iter_labeled_cases(manifest_path: Path):
                 if not roi_path.exists():
                     continue
                 try:
-                    roi_mask = normalize_roi_mask(
-                        load_array(roi_path, ("roi_mask", "mask", "labels", "arr_0")),
-                        tuple(image.shape),
-                    )
-                except ValueError:
+                    roi_array = load_array(roi_path, ("roi_mask", "mask", "labels", "arr_0"))
+                    roi_mask = normalize_roi_mask(roi_array, tuple(image.shape))
+                except ValueError as exc:
+                    print(f"skip case={case_id} bad_roi={safe_path_text(roi_path)} reason={exc}", file=sys.stderr)
                     continue
             else:
                 roi_path = None
