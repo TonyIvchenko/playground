@@ -197,3 +197,86 @@ def test_build_dataset_skips_corrupted_npz(tmp_path: Path):
     payload = json.loads(output_manifest.read_text(encoding="utf-8"))
     assert payload["total_cases"] == 1
     assert payload["cases"][0]["case_id"] == "good_case"
+
+
+def test_build_dataset_resumes_without_overwrite(tmp_path: Path):
+    raw_dir = tmp_path / "raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    image_path = raw_dir / "case_b_image.npy"
+    mask_path = raw_dir / "case_b_mask.npy"
+
+    image = np.full((6, 16, 16), -650.0, dtype=np.float32)
+    mask = np.zeros((6, 16, 16), dtype=np.uint8)
+    mask[1:5, 3:11, 4:12] = 5
+    np.save(image_path, image)
+    np.save(mask_path, mask)
+
+    manifest_path = raw_dir / "composite_manifest.csv"
+    with manifest_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "case_id",
+                "source",
+                "image_path",
+                "mask_path",
+                "label_map",
+                "spacing_z",
+                "spacing_y",
+                "spacing_x",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "case_id": "case_b",
+                "source": "fixture_labeled",
+                "image_path": str(image_path),
+                "mask_path": str(mask_path),
+                "label_map": "",
+                "spacing_z": "1.5",
+                "spacing_y": "1.0",
+                "spacing_x": "1.0",
+            }
+        )
+
+    output_dir = tmp_path / "processed"
+    config_first = BuildConfig(
+        raw_dir=raw_dir,
+        samples_dir=tmp_path / "samples",
+        output_dir=output_dir,
+        labeled_manifest=manifest_path,
+        include_samples=False,
+        max_samples=0,
+        target_spacing=(1.5, 1.0, 1.0),
+        val_fraction=0.2,
+        seed=7,
+        min_positive_voxels=1,
+        disable_resample=False,
+        overwrite=True,
+    )
+    first_manifest = build_dataset(config_first)
+    first_payload = json.loads(first_manifest.read_text(encoding="utf-8"))
+    assert first_payload["total_cases"] == 1
+
+    image_path.write_text("corrupted-image", encoding="utf-8")
+    mask_path.write_text("corrupted-mask", encoding="utf-8")
+
+    config_resume = BuildConfig(
+        raw_dir=raw_dir,
+        samples_dir=tmp_path / "samples",
+        output_dir=output_dir,
+        labeled_manifest=manifest_path,
+        include_samples=False,
+        max_samples=0,
+        target_spacing=(1.5, 1.0, 1.0),
+        val_fraction=0.2,
+        seed=7,
+        min_positive_voxels=1,
+        disable_resample=False,
+        overwrite=False,
+    )
+    resumed_manifest = build_dataset(config_resume)
+    resumed_payload = json.loads(resumed_manifest.read_text(encoding="utf-8"))
+    assert resumed_payload["total_cases"] == 1
+    assert resumed_payload["cases"][0]["case_id"] == "case_b"
