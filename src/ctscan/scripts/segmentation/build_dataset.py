@@ -185,6 +185,15 @@ def safe_path_text(path: Path) -> str:
         return str(path.resolve())
 
 
+def resolve_existing_case_path(output_dir: Path, row_path_value: str | None, case_id: str) -> Path:
+    if row_path_value:
+        row_path = Path(str(row_path_value))
+        if row_path.is_absolute():
+            return row_path
+        return (CTSCAN_ROOT / row_path).resolve()
+    return (output_dir / "cases" / f"{case_id}.npz").resolve()
+
+
 def load_array(path: Path, preferred_keys: tuple[str, ...]) -> np.ndarray:
     try:
         if path.suffix == ".npy":
@@ -299,9 +308,10 @@ def positive_voxels(mask_multi: np.ndarray, roi_mask: np.ndarray) -> int:
     return int(union.sum())
 
 
-def iter_labeled_cases(manifest_path: Path):
+def iter_labeled_cases(manifest_path: Path, skip_case_ids: set[str] | None = None):
     if not manifest_path.exists():
         return
+    skip_ids = skip_case_ids or set()
 
     with manifest_path.open("r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle)
@@ -312,6 +322,8 @@ def iter_labeled_cases(manifest_path: Path):
             mask_value = str((row.get("mask_path") or "").strip())
             roi_value = str((row.get("roi_path") or "").strip())
             if not case_id or not image_value:
+                continue
+            if case_id in skip_ids:
                 continue
 
             image_path = resolve_path(manifest_path.parent, image_value)
@@ -388,6 +400,89 @@ def iter_labeled_cases(manifest_path: Path):
                     "roi_path": safe_path_text(roi_path) if roi_path is not None else "",
                 },
             )
+
+
+def _case_source_from_id(case_id: str) -> str:
+    prefix = case_id.split("_", 1)[0].strip().lower()
+    if not prefix:
+        return "resume"
+    return prefix
+
+
+def summarize_existing_case(case_path: Path, case_id: str, source: str) -> dict[str, Any] | None:
+    try:
+        with np.load(case_path) as payload:
+            image = payload["image"].astype(np.float32)
+            if "mask_multi" in payload:
+                mask_multi = payload["mask_multi"].astype(np.uint8)
+            elif "mask" in payload:
+                mask_multi = scalar_to_multi(payload["mask"].astype(np.uint8))
+            else:
+                return None
+            if "roi_mask" in payload:
+                roi_mask = (payload["roi_mask"].astype(np.uint8) > 0).astype(np.uint8)
+            else:
+                roi_mask = np.ones(image.shape, dtype=np.uint8)
+            if "spacing" in payload:
+                spacing_array = np.asarray(payload["spacing"]).reshape(-1)
+                spacing = [float(value) for value in spacing_array[:3]]
+                while len(spacing) < 3:
+                    spacing.append(1.0)
+            else:
+                spacing = [1.0, 1.0, 1.0]
+    except Exception:
+        return None
+
+    return {
+        "case_id": case_id,
+        "source": source,
+        "path": safe_path_text(case_path),
+        "shape": [int(dim) for dim in image.shape],
+        "spacing": spacing[:3],
+        "positive_voxels": positive_voxels(mask_multi, roi_mask),
+        "metadata": {"resumed": True},
+    }
+
+
+def load_resume_rows(output_dir: Path) -> tuple[list[dict[str, Any]], set[str]]:
+    rows: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    cases_dir = output_dir / "cases"
+    manifest_path = output_dir / "manifest.json"
+
+    if manifest_path.exists():
+        try:
+            payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+            case_rows = payload.get("cases", [])
+            if isinstance(case_rows, list):
+                for row in case_rows:
+                    if not isinstance(row, dict):
+                        continue
+                    case_id = str(row.get("case_id") or "").strip()
+                    if not case_id or case_id in seen_ids:
+                        continue
+                    case_path = resolve_existing_case_path(output_dir, row.get("path"), case_id)
+                    if not case_path.exists():
+                        continue
+                    rows.append(row)
+                    seen_ids.add(case_id)
+        except Exception:
+            pass
+
+    if cases_dir.exists():
+        for case_path in sorted(cases_dir.glob("*.npz")):
+            if case_path.name.startswith("._"):
+                continue
+            case_id = case_path.stem
+            if case_id in seen_ids:
+                continue
+            row = summarize_existing_case(case_path, case_id, _case_source_from_id(case_id))
+            if row is None:
+                continue
+            rows.append(row)
+            seen_ids.add(case_id)
+
+    return rows, seen_ids
 
 
 def count_manifest_entries(manifest_path: Path) -> int:
@@ -575,11 +670,15 @@ def build_dataset(config: BuildConfig) -> Path:
     cases_dir = config.output_dir / "cases"
     cases_dir.mkdir(parents=True, exist_ok=True)
 
-    rows: list[dict[str, Any]] = []
-    seen_ids: set[str] = set()
+    if config.overwrite:
+        rows: list[dict[str, Any]] = []
+        seen_ids: set[str] = set()
+    else:
+        rows, seen_ids = load_resume_rows(config.output_dir)
+
     labeled_total = count_manifest_entries(config.labeled_manifest)
     for case in progress_iter(
-        iter_labeled_cases(config.labeled_manifest),
+        iter_labeled_cases(config.labeled_manifest, skip_case_ids=seen_ids),
         total=labeled_total,
         desc="Build labeled cases",
         unit="case",
