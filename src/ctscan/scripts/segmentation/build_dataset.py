@@ -485,16 +485,17 @@ def load_resume_rows(output_dir: Path) -> tuple[list[dict[str, Any]], set[str]]:
     return rows, seen_ids
 
 
-def count_manifest_entries(manifest_path: Path) -> int:
+def count_manifest_entries(manifest_path: Path, skip_case_ids: set[str] | None = None) -> int:
     if not manifest_path.exists():
         return 0
+    skip_ids = skip_case_ids or set()
     total = 0
     with manifest_path.open("r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle)
         for row in reader:
             case_id = str((row.get("case_id") or "").strip())
             image_value = str((row.get("image_path") or "").strip())
-            if case_id and image_value:
+            if case_id and image_value and (case_id not in skip_ids):
                 total += 1
     return total
 
@@ -676,7 +677,7 @@ def build_dataset(config: BuildConfig) -> Path:
     else:
         rows, seen_ids = load_resume_rows(config.output_dir)
 
-    labeled_total = count_manifest_entries(config.labeled_manifest)
+    labeled_total = count_manifest_entries(config.labeled_manifest, skip_case_ids=seen_ids)
     for case in progress_iter(
         iter_labeled_cases(config.labeled_manifest, skip_case_ids=seen_ids),
         total=labeled_total,
