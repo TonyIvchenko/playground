@@ -470,7 +470,8 @@ def load_resume_rows(output_dir: Path) -> tuple[list[dict[str, Any]], set[str]]:
             pass
 
     if cases_dir.exists():
-        for case_path in sorted(cases_dir.glob("*.npz")):
+        case_files = [path for path in sorted(cases_dir.glob("*.npz")) if not path.name.startswith("._")]
+        for case_path in progress_iter(case_files, total=len(case_files), desc="Index existing cases", unit="case"):
             if case_path.name.startswith("._"):
                 continue
             case_id = case_path.stem
