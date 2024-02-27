@@ -356,11 +356,18 @@ class ConvBlock3D(nn.Module):
 class DownBlock3D(nn.Module):
     def __init__(self, in_channels: int, out_channels: int):
         super().__init__()
-        self.pool = nn.MaxPool3d(kernel_size=2, stride=2)
-        self.conv = ConvBlock3D(in_channels, out_channels)
+        # MaxPool3d is not fully implemented on MPS; use strided conv downsampling.
+        self.layers = nn.Sequential(
+            nn.Conv3d(in_channels, out_channels, kernel_size=3, stride=2, padding=1, bias=False),
+            nn.BatchNorm3d(out_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv3d(out_channels, out_channels, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm3d(out_channels),
+            nn.ReLU(inplace=True),
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.conv(self.pool(x))
+        return self.layers(x)
 
 
 class UpBlock3D(nn.Module):
