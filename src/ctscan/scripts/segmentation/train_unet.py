@@ -373,11 +373,13 @@ class DownBlock3D(nn.Module):
 class UpBlock3D(nn.Module):
     def __init__(self, in_channels: int, skip_channels: int, out_channels: int):
         super().__init__()
-        self.up = nn.ConvTranspose3d(in_channels, in_channels // 2, kernel_size=2, stride=2)
+        # ConvTranspose3d is not implemented on MPS; use 1x1 reduction + trilinear upsample.
+        self.reduce = nn.Conv3d(in_channels, in_channels // 2, kernel_size=1, stride=1, padding=0, bias=False)
         self.conv = ConvBlock3D((in_channels // 2) + skip_channels, out_channels)
 
     def forward(self, x: torch.Tensor, skip: torch.Tensor) -> torch.Tensor:
-        x = self.up(x)
+        x = self.reduce(x)
+        x = F.interpolate(x, scale_factor=2.0, mode="trilinear", align_corners=False)
         if x.shape[-3:] != skip.shape[-3:]:
             diff_z = skip.size(2) - x.size(2)
             diff_y = skip.size(3) - x.size(3)
