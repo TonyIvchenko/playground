@@ -285,6 +285,50 @@ Notes:
 - Split files are written to `.../slice_dataset_backbone_smoke/splits/*.csv`.
 - PNG pairs are written under `.../slice_dataset_backbone_smoke/images` and `.../slice_dataset_backbone_smoke/masks`.
 
+
+## Legacy-Compatible Dataset
+
+This path builds the same on-disk layout the legacy notebook expects:
+- `data/legacy_compatible/dataset/*.nii.gz`
+- `data/legacy_compatible/mask/*mask.nii`
+
+Label ids are:
+- `0`: background
+- `1`: ground-glass opacity
+- `2`: consolidation
+- `3`: pleural effusion
+
+From `src/ctscan`:
+
+```bash
+python scripts/segmentation/download_legacy_sources.py \
+  --raw-dir data/ctscan/raw/legacy_sources \
+  --longciu-archive /path/to/longciu.zip
+
+python scripts/segmentation/build_legacy_dataset.py \
+  --raw-dir data/ctscan/raw/legacy_sources \
+  --output-dir data/legacy_compatible \
+  --longciu-mask-source staple \
+  --plethora-vote-mode union \
+  --overwrite
+
+python scripts/segmentation/train_legacy_vgg11_unet.py \
+  --data-root data/legacy_compatible \
+  --work-dir data/legacy_compatible_png \
+  --output-path model/legacy_vgg11_unet.pt \
+  --metrics-path model/legacy_vgg11_unet.metrics.json \
+  --log-path model/legacy_vgg11_unet.train.log \
+  --model-version legacy-vgg11-unet-0.1.0
+```
+
+Notes:
+- `download_legacy_sources.py` downloads `MedSeg/SIRM` automatically.
+- `PleThora` masks and paired CT series are also downloaded automatically. By default the script downloads CTs only for the `78` effusion-positive PleThora patients.
+- `LongCIU` still requires a manual `longciu.zip` handoff because the DOI landing page does not expose a stable direct archive URL.
+- The builder uses `MedSeg/SIRM` for exact `1/2/3` labels, `LongCIU` for `1/2`, and `PleThora` for `3`.
+- The legacy notebook imports `nibabel`; it is now included in `src/ctscan/requirements.txt`.
+- `train_legacy_vgg11_unet.py` saves `model/legacy_vgg11_unet.epochNNN.pt` after every epoch and keeps the best checkpoint at `model/legacy_vgg11_unet.pt`.
+
 ## Optional Lungmask Backend
 
 Default backend is an internal threshold method.

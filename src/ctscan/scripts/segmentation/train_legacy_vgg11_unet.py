@@ -64,6 +64,7 @@ class TrainConfig:
     epochs: int
     batch_size: int
     learning_rate: float
+    image_size: int
     seed: int
     num_workers: int
     device: str
@@ -73,10 +74,11 @@ class TrainConfig:
 
 
 class LegacyLungDataset(Dataset):
-    def __init__(self, names: list[str], images_dir: Path, masks_dir: Path):
+    def __init__(self, names: list[str], images_dir: Path, masks_dir: Path, image_size: int):
         self.names = list(names)
         self.images_dir = images_dir
         self.masks_dir = masks_dir
+        self.image_size = int(image_size)
 
     def __len__(self) -> int:
         return len(self.names)
@@ -88,6 +90,20 @@ class LegacyLungDataset(Dataset):
 
         image_tensor = torchvision.transforms.functional.to_tensor(image) - 0.5
         mask_tensor = torch.from_numpy(np.asarray(mask, dtype=np.int64)).long()
+
+        target_hw = (self.image_size, self.image_size)
+        if tuple(image_tensor.shape[-2:]) != target_hw:
+            image_tensor = F.interpolate(
+                image_tensor.unsqueeze(0),
+                size=target_hw,
+                mode="bilinear",
+                align_corners=False,
+            ).squeeze(0)
+            mask_tensor = F.interpolate(
+                mask_tensor.unsqueeze(0).unsqueeze(0).float(),
+                size=target_hw,
+                mode="nearest",
+            ).squeeze(0).squeeze(0).long()
         return image_tensor, mask_tensor
 
 
@@ -178,6 +194,7 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--batch-size", type=int, default=10)
     parser.add_argument("--learning-rate", type=float, default=5e-4)
+    parser.add_argument("--image-size", type=int, default=320)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--device", type=str, default="auto")
@@ -196,6 +213,7 @@ def parse_args() -> TrainConfig:
         epochs=max(int(args.epochs), 1),
         batch_size=max(int(args.batch_size), 1),
         learning_rate=float(args.learning_rate),
+        image_size=max(int(args.image_size), 64),
         seed=int(args.seed),
         num_workers=max(int(args.num_workers), 0),
         device=str(args.device).strip().lower(),
@@ -423,9 +441,9 @@ def train(config: TrainConfig) -> dict[str, Any]:
     write_split_json(split_path, train_names, val_names, test_names)
     print(f"train={len(train_names)} val={len(val_names)} test={len(test_names)}")
 
-    train_ds = LegacyLungDataset(train_names, images_dir, masks_dir)
-    val_ds = LegacyLungDataset(val_names, images_dir, masks_dir)
-    test_ds = LegacyLungDataset(test_names, images_dir, masks_dir)
+    train_ds = LegacyLungDataset(train_names, images_dir, masks_dir, image_size=config.image_size)
+    val_ds = LegacyLungDataset(val_names, images_dir, masks_dir, image_size=config.image_size)
+    test_ds = LegacyLungDataset(test_names, images_dir, masks_dir, image_size=config.image_size)
 
     train_loader = DataLoader(train_ds, batch_size=config.batch_size, shuffle=False, num_workers=config.num_workers)
     val_loader = DataLoader(val_ds, batch_size=config.batch_size, shuffle=False, num_workers=config.num_workers)
@@ -533,6 +551,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
         "split_path": str(split_path),
         "log_path": str(config.log_path),
         "class_ids": [0, 1, 2, 3],
+        "image_size": int(config.image_size),
     }
     config.metrics_path.parent.mkdir(parents=True, exist_ok=True)
     config.metrics_path.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
@@ -553,4 +572,3 @@ if __name__ == "__main__":
     except Exception as exc:
         print(f"error: {exc}", file=sys.stderr)
         raise
-
