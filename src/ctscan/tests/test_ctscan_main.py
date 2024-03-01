@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+import json
 
 import src.ctscan.main as ctscan_main
 
@@ -38,7 +39,31 @@ def test_health_and_predict_endpoint(make_ct_zip):
     assert "_viewer" not in payload
 
 
-def test_update_viewer_handles_empty_state():
-    image_path, slice_df = ctscan_main.update_viewer({}, 0, "lung", "all", True, True, 0.32, 0.45)
-    assert Path(image_path).exists()
-    assert list(slice_df.columns) == ctscan_main.SLICE_TABLE_COLUMNS
+def test_blank_viewer_html():
+    html = ctscan_main.render_upload_html(None)
+    assert "Upload DICOM file." in html
+    assert "<img" in html
+
+
+def test_demo_injects_viewer_head():
+    demo = ctscan_main.build_demo()
+    assert demo.head == ctscan_main.VIEWER_HEAD
+
+
+def test_auto_demo_manifest_from_legacy_ct_zips(tmp_path: Path, monkeypatch, make_ct_zip):
+    samples_manifest = tmp_path / "samples" / "samples.json"
+    ct_zips_dir = tmp_path / "ct_zips"
+    ct_zips_dir.mkdir(parents=True, exist_ok=True)
+    sample_zip = make_ct_zip(patient_id="LUNG1-001")
+    target_zip = ct_zips_dir / "LUNG1-001.zip"
+    target_zip.write_bytes(sample_zip.read_bytes())
+
+    monkeypatch.setattr(ctscan_main, "SAMPLES_MANIFEST_PATH", samples_manifest)
+    monkeypatch.setattr(ctscan_main, "EXTERNAL_SAMPLES_MANIFEST_PATH", tmp_path / "missing_samples.json")
+    monkeypatch.setenv("CTSCAN_DEMO_CT_ZIPS_ROOT", str(ct_zips_dir))
+    ctscan_main.load_samples_manifest.cache_clear()
+
+    manifest = ctscan_main.load_samples_manifest()
+    assert "demo_lung1-001" in manifest
+    assert manifest["demo_lung1-001"]["study_zip"] == str(target_zip.resolve())
+    assert json.loads(samples_manifest.read_text(encoding="utf-8"))["demo_lung1-001"]["study_zip"] == str(target_zip.resolve())

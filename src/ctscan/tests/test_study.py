@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import numpy as np
+
+import src.ctscan.study as study_module
 from src.ctscan.study import (
     issue_slice_stats,
     issue_volume_stats,
@@ -52,6 +55,21 @@ def test_render_segmentation_slice(make_ct_zip):
         lung_mask=lung_mask,
         slice_index=loaded.volume_hu.shape[0] // 2,
         preset="lung",
-        focus_issue="all",
+        selected_issues=[],
     )
     assert image.size == (loaded.volume_hu.shape[2], loaded.volume_hu.shape[1])
+
+
+def test_supported_issues_legacy_schema(monkeypatch):
+    monkeypatch.setattr(study_module, "_inspect_model_checkpoint", lambda: {"model_type": "legacy_vgg11_unet"})
+    issues = study_module.supported_issues()
+    assert [issue["key"] for issue in issues] == ["ground_glass", "consolidation", "pleural_effusion"]
+
+
+def test_segment_issues_explicit_model_failure_returns_empty(monkeypatch):
+    monkeypatch.setattr(study_module, "_predict_issue_labels_model", lambda volume_hu: None)
+    monkeypatch.setattr(study_module, "MODEL_PATH_EXPLICIT", True)
+    volume_hu = np.full((2, 8, 8), -700.0, dtype=np.float32)
+    lung_mask = np.ones_like(volume_hu, dtype=bool)
+    labels = study_module.segment_issues(volume_hu, lung_mask)
+    assert not labels.any()

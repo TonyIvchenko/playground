@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import base64
 from functools import lru_cache
+import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -10,15 +13,15 @@ import zipfile
 from typing import Any
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 import gradio as gr
-import numpy as np
-import pandas as pd
+from PIL import Image
 import uvicorn
 
 try:
     from study import (
         blank_viewer_image,
-        issue_rows_for_table,
         issue_slice_stats,
         issue_volume_stats,
         load_study_from_zip_bytes,
@@ -26,20 +29,17 @@ try:
         model_backend_metadata,
         model_backend_name,
         read_temp_bundle,
-        render_segmentation_slice,
         segment_issues,
         segment_lungs,
         segmentation_backend_error,
         segmentation_backend_name,
-        slice_rows_for_table,
         supported_issues,
+        window_slice,
         write_temp_bundle,
-        write_temp_image,
     )
 except ModuleNotFoundError:
     from src.ctscan.study import (
         blank_viewer_image,
-        issue_rows_for_table,
         issue_slice_stats,
         issue_volume_stats,
         load_study_from_zip_bytes,
@@ -47,15 +47,13 @@ except ModuleNotFoundError:
         model_backend_metadata,
         model_backend_name,
         read_temp_bundle,
-        render_segmentation_slice,
         segment_issues,
         segment_lungs,
         segmentation_backend_error,
         segmentation_backend_name,
-        slice_rows_for_table,
         supported_issues,
+        window_slice,
         write_temp_bundle,
-        write_temp_image,
     )
 
 
@@ -63,12 +61,108 @@ HOST = os.getenv("API_HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "8080"))
 SERVICE_NAME = os.getenv("SERVICE_NAME", "ctscan")
 SAMPLES_MANIFEST_PATH = Path(__file__).resolve().parent / "data" / "ctscan" / "samples" / "samples.json"
+SAMPLE_CACHE_DIR = Path(__file__).resolve().parent / "data" / "ctscan" / "samples" / "cache"
 EXTERNAL_SAMPLES_MANIFEST_PATH = Path("/Volumes/Extreme Pro/data/ctscan/samples/samples.json")
+LOCAL_LEGACY_CT_ZIPS_PATH = Path(__file__).resolve().parent / "data" / "ctscan" / "raw" / "legacy_sources" / "plethora" / "ct_zips"
+EXTERNAL_LEGACY_CT_ZIPS_PATH = Path("/Volumes/Extreme Pro/data/ctscan/raw/legacy_sources/plethora/ct_zips")
 DEFAULT_SAMPLE = ""
-WINDOW_CHOICES = ["lung", "mediastinal"]
-ISSUE_CHOICES = ["all"] + [str(item["key"]) for item in supported_issues()]
-ISSUE_TABLE_COLUMNS = ["Issue", "Lung %", "Volume ml", "Voxels"]
-SLICE_TABLE_COLUMNS = ["Issue", "Slice % of lung", "Pixels"]
+METRICS_TABLE_COLUMNS = ["Issue", "Lung %", "Volume ml", "Current slice %"]
+LUNG_COLOR = "#10b981"
+DEFAULT_OPACITY = 0.2
+VIEWER_CACHE_DIR = Path(__file__).resolve().parent / "data" / "ctscan" / "viewer_cache"
+VIEWER_HEAD = """
+<style>
+.ctscan-viewer-root { display: grid; gap: 16px; }
+.ctscan-viewer-root .ctscan-toolbar { display: grid; grid-template-columns: 220px minmax(240px, 1fr) 240px; gap: 16px; align-items: end; }
+.ctscan-viewer-root .ctscan-control { display: grid; gap: 6px; }
+.ctscan-viewer-root .ctscan-control label { font-size: 14px; font-weight: 600; }
+.ctscan-viewer-root .ctscan-checks { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; min-height: 40px; }
+.ctscan-viewer-root .ctscan-check { font-size: 14px; display: inline-flex; gap: 6px; align-items: center; }
+.ctscan-viewer-root .ctscan-stage { display: grid; gap: 10px; }
+.ctscan-viewer-root .ctscan-viewer { position: relative; width: fit-content; max-width: 100%; background: #000; overflow: hidden; }
+.ctscan-viewer-root .ctscan-viewer img { display: block; max-width: 100%; height: auto; }
+.ctscan-viewer-root .ctscan-overlay { position: absolute; inset: 0; pointer-events: none; }
+.ctscan-viewer-root .ctscan-slider-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }
+.ctscan-viewer-root .ctscan-table { border-collapse: collapse; width: 100%; font-size: 14px; }
+.ctscan-viewer-root .ctscan-table th,
+.ctscan-viewer-root .ctscan-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+.ctscan-viewer-root .ctscan-table th { font-weight: 600; }
+@media (max-width: 900px) {
+  .ctscan-viewer-root .ctscan-toolbar { grid-template-columns: 1fr; }
+}
+</style>
+<script>
+(() => {
+  function initViewer(root) {
+    if (!root || root.dataset.ctscanReady === "1") {
+      return;
+    }
+    const stateNode = root.querySelector(".ctscan-state");
+    if (!stateNode) {
+      return;
+    }
+    const state = JSON.parse(stateNode.value || stateNode.textContent || "{}");
+    root.dataset.ctscanReady = "1";
+
+    const overlay = root.querySelector(".ctscan-overlay-select");
+    const findingWrap = root.querySelector(".ctscan-finding-wrap");
+    const opacity = root.querySelector(".ctscan-opacity");
+    const opacityValue = root.querySelector(".ctscan-opacity-value");
+    const slice = root.querySelector(".ctscan-slice");
+    const sliceLabel = root.querySelector(".ctscan-slice-label");
+    const base = root.querySelector(".ctscan-base");
+    const lung = root.querySelector(".ctscan-lung");
+    const rows = Array.from(root.querySelectorAll(".ctscan-table tbody tr"));
+    const findingImages = Object.fromEntries(
+      state.rows.map((row) => [row.key, root.querySelector('.ctscan-finding[data-key="' + row.key + '"]')])
+    );
+    const findingChecks = Array.from(root.querySelectorAll(".ctscan-finding-wrap input[type='checkbox']"));
+
+    function selectedKeys() {
+      return new Set(findingChecks.filter((node) => node.checked).map((node) => node.value));
+    }
+
+    function render() {
+      const index = Number(slice.value || 0);
+      const alpha = Number(opacity.value || 0);
+      const mode = overlay.value;
+      const selected = selectedKeys();
+
+      base.src = state.base_images[index];
+      lung.src = state.lung_images[index];
+      lung.style.opacity = mode === "Lungs" ? String(alpha) : "0";
+      findingWrap.style.display = mode === "Findings" ? "grid" : "none";
+      opacityValue.textContent = alpha.toFixed(2);
+      sliceLabel.textContent = `Slice ${index + 1} / ${state.slice_count}`;
+
+      state.rows.forEach((row, rowIndex) => {
+        const image = findingImages[row.key];
+        image.src = state.finding_images[row.key][index];
+        image.style.opacity = mode === "Findings" && selected.has(row.key) ? String(alpha) : "0";
+        const cells = rows[rowIndex].querySelectorAll("td");
+        cells[3].textContent = Number(row.slice_percents[index] || 0).toFixed(4);
+      });
+    }
+
+    overlay.addEventListener("change", render);
+    opacity.addEventListener("input", render);
+    slice.addEventListener("input", render);
+    findingChecks.forEach((node) => node.addEventListener("change", render));
+    render();
+  }
+
+  function scan() {
+    document.querySelectorAll(".ctscan-viewer-root").forEach(initViewer);
+  }
+
+  window.addEventListener("load", () => {
+    scan();
+    const observer = new MutationObserver(() => scan());
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+})();
+</script>
+"""
 
 
 def _read_manifest(path: Path) -> dict[str, dict[str, str]]:
@@ -107,6 +201,35 @@ def _candidate_lidc_roots() -> list[Path]:
     return dedup
 
 
+def _candidate_legacy_ct_zip_dirs() -> list[Path]:
+    roots: list[Path] = []
+    env_root = os.getenv("CTSCAN_DEMO_CT_ZIPS_ROOT", "").strip()
+    if env_root:
+        roots.append(Path(env_root))
+    roots.extend([LOCAL_LEGACY_CT_ZIPS_PATH, EXTERNAL_LEGACY_CT_ZIPS_PATH])
+    dedup: list[Path] = []
+    seen: set[str] = set()
+    for root in roots:
+        text = str(root.resolve()) if root.exists() else str(root)
+        if text in seen:
+            continue
+        seen.add(text)
+        dedup.append(root)
+    return dedup
+
+
+def _find_demo_ct_zips(limit: int = 24) -> list[Path]:
+    samples: list[Path] = []
+    for root in _candidate_legacy_ct_zip_dirs():
+        if not root.exists():
+            continue
+        for zip_path in sorted(root.glob("*.zip")):
+            samples.append(zip_path.resolve())
+            if len(samples) >= limit:
+                return samples
+    return samples
+
+
 def _find_demo_lidc_series() -> list[Path]:
     for root in _candidate_lidc_roots():
         if not root.exists():
@@ -125,6 +248,16 @@ def _find_demo_lidc_series() -> list[Path]:
 def _ensure_auto_demo_manifest() -> dict[str, dict[str, str]]:
     samples_dir = SAMPLES_MANIFEST_PATH.parent
     samples_dir.mkdir(parents=True, exist_ok=True)
+    demo_zips = _find_demo_ct_zips()
+    if demo_zips:
+        manifest: dict[str, dict[str, str]] = {}
+        for zip_path in demo_zips:
+            key = f"demo_{zip_path.stem.lower()}"
+            if key in manifest:
+                continue
+            manifest[key] = {"study_zip": str(zip_path)}
+        SAMPLES_MANIFEST_PATH.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        return manifest
     sample_zip = samples_dir / "auto_demo_lidc.zip"
     if not sample_zip.exists():
         series_files = _find_demo_lidc_series()
@@ -148,27 +281,28 @@ def load_samples_manifest() -> dict[str, dict[str, str]]:
     return _ensure_auto_demo_manifest()
 
 
+def _resolve_sample_path(sample_id: str) -> Path:
+    manifest = load_samples_manifest()
+    sample = manifest.get(sample_id)
+    if not sample:
+        raise FileNotFoundError(f"Sample `{sample_id}` is unavailable.")
+    study_path = Path(sample["study_zip"])
+    if not study_path.is_absolute():
+        study_path = (Path(__file__).resolve().parent / study_path).resolve()
+    if not study_path.exists():
+        raise FileNotFoundError(f"Sample `{sample_id}` study zip is missing at {study_path}.")
+    return study_path
+
+
 def _study_bytes_from_inputs(study_file: str | None, sample_id: str | None) -> bytes:
     if study_file:
         return Path(study_file).read_bytes()
     if sample_id:
-        manifest = load_samples_manifest()
-        sample = manifest.get(sample_id)
-        if sample:
-            study_path = Path(__file__).resolve().parent / sample["study_zip"]
-            if study_path.exists():
-                return study_path.read_bytes()
-        raise FileNotFoundError(
-            f"Sample `{sample_id}` is unavailable. Run `python scripts/segmentation/download_data.py` from src/ctscan."
-        )
+        return _resolve_sample_path(sample_id).read_bytes()
     raise ValueError("Provide a study zip or a sample id.")
 
 
-def format_json_text(payload: Any) -> str:
-    return json.dumps(payload, indent=2, sort_keys=True)
-
-
-def _slice_damage_percentages(labels: np.ndarray, lung_mask: np.ndarray) -> list[float]:
+def _slice_damage_percentages(labels, lung_mask) -> list[float]:
     values: list[float] = []
     for index in range(int(labels.shape[0])):
         lung_pixels = max(int(lung_mask[index].sum()), 1)
@@ -201,7 +335,6 @@ def analyze_study_bytes(
 
     qc_reasons = list(study.qc_reasons)
     qc_status = "ok" if not qc_reasons else "rejected"
-
     slice_damage = _slice_damage_percentages(labels, lung_mask)
 
     return {
@@ -239,164 +372,389 @@ def analyze_study_bytes(
     }
 
 
-def _slice_count_from_payload(payload: Any) -> int:
-    return int(payload["_viewer"]["slice_count"])
+def _sample_cache_key(sample_id: str, study_path: Path) -> str:
+    model_path = str(model_backend_metadata().get("path") or "")
+    model_mtime = 0
+    model_size = 0
+    if model_path and Path(model_path).exists():
+        stat = Path(model_path).stat()
+        model_mtime = int(stat.st_mtime)
+        model_size = int(stat.st_size)
+    study_stat = study_path.stat()
+    payload = {
+        "sample_id": sample_id,
+        "study_path": str(study_path),
+        "study_mtime": int(study_stat.st_mtime),
+        "study_size": int(study_stat.st_size),
+        "model_path": model_path,
+        "model_mtime": model_mtime,
+        "model_size": model_size,
+        "segmentation_backend": segmentation_backend_name(),
+        "issue_backend": model_backend_name(),
+    }
+    return hashlib.sha1(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()[:16]
 
 
-def render_payload_slice(
-    payload: Any,
-    slice_index: int,
-    preset: str,
-    focus_issue: str,
-    show_lung_layer: bool,
-    show_damage_layer: bool,
-    lung_alpha: float,
-    damage_alpha: float,
-) -> str:
-    volume_hu, labels, lung_mask = read_temp_bundle(payload["_viewer"]["bundle_path"])
-    image = render_segmentation_slice(
-        volume_hu=volume_hu,
-        labels=labels,
-        lung_mask=lung_mask,
-        slice_index=int(slice_index),
-        preset=preset,
-        focus_issue=focus_issue,
-        show_lung_layer=bool(show_lung_layer),
-        show_damage_layer=bool(show_damage_layer),
-        lung_alpha=float(lung_alpha),
-        damage_alpha=float(damage_alpha),
-    )
-    return write_temp_image(image)
-
-
-def dataframe_from_payload(payload: Any) -> pd.DataFrame:
-    return pd.DataFrame(issue_rows_for_table(payload.get("issues", [])), columns=ISSUE_TABLE_COLUMNS)
-
-
-def dataframe_for_slice(payload: Any, slice_index: int) -> pd.DataFrame:
-    _, labels, lung_mask = read_temp_bundle(payload["_viewer"]["bundle_path"])
-    rows = issue_slice_stats(labels, lung_mask, int(slice_index))
-    return pd.DataFrame(slice_rows_for_table(rows), columns=SLICE_TABLE_COLUMNS)
-
-
-def _default_slice_index(payload: Any) -> int:
-    values = payload.get("slice_damage_percent", [])
-    if not values:
-        return 0
-    return int(np.argmax(np.asarray(values, dtype=np.float32)))
-
-
-def analyze_from_inputs(
-    sample_id: str,
-    study_file: str | None,
-    age: float | None,
-    sex: str,
-    smoking_history: str,
-    preset: str,
-    focus_issue: str,
-    show_lung_layer: bool,
-    show_damage_layer: bool,
-    lung_alpha: float,
-    damage_alpha: float,
-) -> tuple[Any, str, pd.DataFrame, pd.DataFrame, str, gr.Slider, str, str, str]:
-    study_bytes = _study_bytes_from_inputs(study_file, sample_id or None)
-    payload = analyze_study_bytes(
-        study_bytes=study_bytes,
-        age=age,
-        sex=sex or None,
-        smoking_history=smoking_history or None,
-    )
-
-    default_slice = _default_slice_index(payload)
-    image_path = render_payload_slice(
-        payload,
-        default_slice,
-        preset,
-        focus_issue,
-        show_lung_layer,
-        show_damage_layer,
-        lung_alpha,
-        damage_alpha,
-    )
-    status_text = "Rejected" if payload["qc"]["status"] != "ok" else "Ready"
-
+def _sample_cache_paths(sample_id: str, study_path: Path) -> tuple[Path, Path, Path]:
+    SAMPLE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    key = _sample_cache_key(sample_id, study_path)
     return (
-        payload,
-        status_text,
-        dataframe_from_payload(payload),
-        dataframe_for_slice(payload, default_slice),
-        image_path,
-        gr.Slider(minimum=0, maximum=max(0, _slice_count_from_payload(payload) - 1), value=default_slice, step=1),
-        format_json_text(payload["qc"]),
-        format_json_text(payload["summary"]),
-        format_json_text(payload["study_metadata"]),
+        SAMPLE_CACHE_DIR / f"{sample_id}.{key}.json",
+        SAMPLE_CACHE_DIR / f"{sample_id}.{key}.npz",
+        SAMPLE_CACHE_DIR / f"{sample_id}.{key}.html",
     )
 
 
-def load_default_demo_state(
-    sample_id: str,
-    preset: str,
-    focus_issue: str,
-    show_lung_layer: bool,
-    show_damage_layer: bool,
-    lung_alpha: float,
-    damage_alpha: float,
-) -> tuple[Any, str, pd.DataFrame, pd.DataFrame, str, gr.Slider, str, str, str]:
-    selected = (sample_id or "").strip()
-    if not selected:
-        return (
-            None,
-            "No sample loaded",
-            pd.DataFrame(columns=ISSUE_TABLE_COLUMNS),
-            pd.DataFrame(columns=SLICE_TABLE_COLUMNS),
-            blank_viewer_image(),
-            gr.Slider(minimum=0, maximum=0, value=0, step=1),
-            format_json_text({"status": "empty", "rejection_reasons": []}),
-            format_json_text({}),
-            format_json_text({}),
+def _image_to_data_url(image: Image.Image, format_name: str = "PNG") -> str:
+    buffer = io.BytesIO()
+    image.save(buffer, format=format_name)
+    encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+    return f"data:image/{format_name.lower()};base64,{encoded}"
+
+
+def _overlay_image(mask, color: tuple[int, int, int]) -> Image.Image:
+    rgba = Image.new("RGBA", (int(mask.shape[1]), int(mask.shape[0])), (0, 0, 0, 0))
+    if bool(mask.any()):
+        alpha = (mask.astype("uint8") * 255)
+        overlay = Image.merge(
+            "RGBA",
+            (
+                Image.fromarray(alpha * 0 + color[0]),
+                Image.fromarray(alpha * 0 + color[1]),
+                Image.fromarray(alpha * 0 + color[2]),
+                Image.fromarray(alpha),
+            ),
         )
-    return analyze_from_inputs(
-        sample_id=selected,
-        study_file=None,
-        age=None,
-        sex="",
-        smoking_history="",
-        preset=preset,
-        focus_issue=focus_issue,
-        show_lung_layer=show_lung_layer,
-        show_damage_layer=show_damage_layer,
-        lung_alpha=lung_alpha,
-        damage_alpha=damage_alpha,
-    )
+        rgba.alpha_composite(overlay)
+    return rgba
 
 
-def update_viewer(
-    payload: Any,
-    slice_index: int,
-    preset: str,
-    focus_issue: str,
-    show_lung_layer: bool,
-    show_damage_layer: bool,
-    lung_alpha: float,
-    damage_alpha: float,
-) -> tuple[str, pd.DataFrame]:
-    if not payload:
-        return blank_viewer_image(), pd.DataFrame(columns=SLICE_TABLE_COLUMNS)
-    image_path = render_payload_slice(
-        payload,
-        int(slice_index),
-        preset,
-        focus_issue,
-        show_lung_layer,
-        show_damage_layer,
-        lung_alpha,
-        damage_alpha,
+def _hex_to_rgb(value: str) -> tuple[int, int, int]:
+    text = value.lstrip("#")
+    return tuple(int(text[i : i + 2], 16) for i in (0, 2, 4))
+
+
+def _viewer_slice_name(index: int) -> str:
+    return f"{index:04d}.png"
+
+
+def _upload_cache_key(study_path: Path) -> str:
+    model_path = str(model_backend_metadata().get("path") or "")
+    model_mtime = 0
+    model_size = 0
+    if model_path and Path(model_path).exists():
+        stat = Path(model_path).stat()
+        model_mtime = int(stat.st_mtime)
+        model_size = int(stat.st_size)
+    study_stat = study_path.stat()
+    payload = {
+        "study_path": str(study_path.resolve()),
+        "study_mtime": int(study_stat.st_mtime),
+        "study_size": int(study_stat.st_size),
+        "model_path": model_path,
+        "model_mtime": model_mtime,
+        "model_size": model_size,
+        "segmentation_backend": segmentation_backend_name(),
+        "issue_backend": model_backend_name(),
+    }
+    return hashlib.sha1(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()[:16]
+
+
+def _viewer_token_for_sample(sample_id: str, study_path: Path) -> str:
+    return f"sample-{sample_id}-{_sample_cache_key(sample_id, study_path)}"
+
+
+def _viewer_token_for_upload(study_path: Path) -> str:
+    return f"upload-{_upload_cache_key(study_path)}"
+
+
+def _viewer_dir(token: str) -> Path:
+    return VIEWER_CACHE_DIR / token
+
+
+def _viewer_state_path(token: str) -> Path:
+    return _viewer_dir(token) / "state.json"
+
+
+def _build_frontend_state(payload: dict[str, Any]) -> dict[str, Any]:
+    _, labels, lung_mask = read_temp_bundle(payload["_viewer"]["bundle_path"])
+    issue_defs = supported_issues()
+    issue_by_key = {str(item["key"]): item for item in issue_defs}
+
+    slice_stats_by_key: dict[str, list[float]] = {str(item["key"]): [] for item in issue_defs}
+
+    for slice_index in range(int(labels.shape[0])):
+        slice_rows = issue_slice_stats(labels, lung_mask, slice_index)
+        slice_lookup = {str(row["issue_key"]): row for row in slice_rows}
+        for issue in issue_defs:
+            key = str(issue["key"])
+            slice_stats_by_key[key].append(round(float(slice_lookup.get(key, {}).get("slice_percent", 0.0)), 4))
+
+    rows = []
+    for row in payload.get("issues", []):
+        key = str(row["issue_key"])
+        issue_def = issue_by_key[key]
+        rows.append(
+            {
+                "key": key,
+                "label": str(row["issue"]),
+                "color": str(issue_def["color"]),
+                "lung_percent": round(float(row["lung_percent"]), 4),
+                "volume_ml": round(float(row["volume_ml"]), 4),
+                "slice_percents": slice_stats_by_key[key],
+            }
+        )
+
+    default_slice = int(max(range(len(payload.get("slice_damage_percent", [])) or [0]), key=lambda idx: payload.get("slice_damage_percent", [0])[idx]))
+    return {
+        "slice_count": int(labels.shape[0]),
+        "default_slice": default_slice,
+        "default_opacity": DEFAULT_OPACITY,
+        "rows": rows,
+    }
+
+
+def _write_viewer_assets(token: str, payload: dict[str, Any]) -> None:
+    state_path = _viewer_state_path(token)
+    if state_path.exists():
+        return
+
+    volume_hu, labels, lung_mask = read_temp_bundle(payload["_viewer"]["bundle_path"])
+    viewer_state = _build_frontend_state(payload)
+    asset_dir = _viewer_dir(token)
+    base_dir = asset_dir / "base"
+    lung_dir = asset_dir / "lung"
+    finding_root = asset_dir / "findings"
+    base_dir.mkdir(parents=True, exist_ok=True)
+    lung_dir.mkdir(parents=True, exist_ok=True)
+    finding_root.mkdir(parents=True, exist_ok=True)
+
+    issue_defs = supported_issues()
+    for issue in issue_defs:
+        (finding_root / str(issue["key"])).mkdir(parents=True, exist_ok=True)
+
+    for slice_index in range(int(volume_hu.shape[0])):
+        grayscale = window_slice(volume_hu[slice_index], "lung")
+        Image.fromarray(grayscale, mode="L").convert("RGB").save(base_dir / _viewer_slice_name(slice_index), format="PNG")
+        _overlay_image(lung_mask[slice_index], _hex_to_rgb(LUNG_COLOR)).save(lung_dir / _viewer_slice_name(slice_index), format="PNG")
+        for issue in issue_defs:
+            overlay = _overlay_image(labels[slice_index] == int(issue["id"]), _hex_to_rgb(str(issue["color"])))
+            overlay.save(finding_root / str(issue["key"]) / _viewer_slice_name(slice_index), format="PNG")
+
+    state = {
+        **viewer_state,
+        "token": token,
+        "asset_root": f"/viewer-cache/{token}",
+    }
+    state_path.write_text(json.dumps(state, indent=2), encoding="utf-8")
+
+
+def _load_viewer_state(token: str) -> dict[str, Any]:
+    state_path = _viewer_state_path(token)
+    if not state_path.exists():
+        raise FileNotFoundError(f"Viewer token `{token}` is unavailable.")
+    return json.loads(state_path.read_text(encoding="utf-8"))
+
+
+def _viewer_iframe_html(token: str, row_count: int) -> str:
+    height = 620 + 44 * row_count
+    return f'<iframe src="/viewer/{token}" style="width:100%;height:{height}px;border:0;display:block" loading="eager"></iframe>'
+
+
+def _viewer_html(viewer_state: dict[str, Any]) -> str:
+    default_slice = int(viewer_state["default_slice"])
+    asset_root = str(viewer_state["asset_root"])
+    finding_items = "".join(
+        f'<label class="ctscan-check"><input type="checkbox" value="{row["key"]}" checked> {row["label"]}</label>'
+        for row in viewer_state["rows"]
     )
-    slice_df = dataframe_for_slice(payload, int(slice_index))
-    return image_path, slice_df
+    table_rows = "".join(
+        "<tr>"
+        f'<td style="color:{row["color"]}">{row["label"]}</td>'
+        f'<td class="lung-pct">{row["lung_percent"]:.4f}</td>'
+        f'<td class="volume-ml">{row["volume_ml"]:.4f}</td>'
+        f'<td class="slice-pct">{float(row["slice_percents"][default_slice] if row["slice_percents"] else 0.0):.4f}</td>'
+        "</tr>"
+        for row in viewer_state["rows"]
+    )
+    payload_json = json.dumps(viewer_state).replace("</script>", "<\\/script>")
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {{ margin: 0; font-family: Arial, Helvetica, sans-serif; color: #1f2937; background: transparent; }}
+    .ctscan-viewer-root {{ display: grid; gap: 16px; }}
+    .ctscan-toolbar {{ display: grid; grid-template-columns: 220px minmax(240px, 1fr) 240px; gap: 16px; align-items: end; }}
+    .ctscan-control {{ display: grid; gap: 6px; }}
+    .ctscan-control label {{ font-size: 14px; font-weight: 600; }}
+    .ctscan-checks {{ display: flex; gap: 14px; flex-wrap: wrap; align-items: center; min-height: 40px; }}
+    .ctscan-check {{ font-size: 14px; display: inline-flex; gap: 6px; align-items: center; }}
+    .ctscan-stage {{ display: grid; gap: 10px; }}
+    .ctscan-viewer {{ position: relative; width: fit-content; max-width: 100%; background: #000; overflow: hidden; }}
+    .ctscan-viewer img {{ display: block; max-width: 100%; height: auto; }}
+    .ctscan-overlay {{ position: absolute; inset: 0; pointer-events: none; }}
+    .ctscan-slider-row {{ display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }}
+    .ctscan-table {{ border-collapse: collapse; width: 100%; font-size: 14px; }}
+    .ctscan-table th, .ctscan-table td {{ padding: 8px 10px; text-align: left; border-bottom: 1px solid #e5e7eb; }}
+    .ctscan-table th {{ font-weight: 600; }}
+    @media (max-width: 900px) {{
+      .ctscan-toolbar {{ grid-template-columns: 1fr; }}
+    }}
+  </style>
+</head>
+<body>
+<div class="ctscan-viewer-root">
+  <div class="ctscan-toolbar">
+    <div class="ctscan-control">
+      <label>Overlay</label>
+      <select class="ctscan-overlay-select">
+        <option value="Findings">Findings</option>
+        <option value="Lungs">Lungs</option>
+      </select>
+    </div>
+    <div class="ctscan-control ctscan-finding-wrap">
+      <label>Findings</label>
+      <div class="ctscan-checks">{finding_items}</div>
+    </div>
+    <div class="ctscan-control">
+      <label>Opacity</label>
+      <div class="ctscan-slider-row">
+        <input class="ctscan-opacity" type="range" min="0" max="1" step="0.05" value="{viewer_state['default_opacity']}">
+        <span class="ctscan-opacity-value">{viewer_state['default_opacity']:.2f}</span>
+      </div>
+    </div>
+  </div>
+  <div class="ctscan-stage">
+    <div class="ctscan-viewer">
+      <img class="ctscan-base" src="{asset_root}/base/{_viewer_slice_name(default_slice)}" alt="Axial viewer">
+      <img class="ctscan-overlay ctscan-lung" src="{asset_root}/lung/{_viewer_slice_name(default_slice)}" alt="Lung overlay" style="opacity:0">
+      {''.join(f'<img class="ctscan-overlay ctscan-finding" data-key="{row["key"]}" src="{asset_root}/findings/{row["key"]}/{_viewer_slice_name(default_slice)}" alt="{row["label"]} overlay" style="opacity:{viewer_state["default_opacity"]}">' for row in viewer_state["rows"])}
+    </div>
+    <div class="ctscan-slider-row">
+      <input class="ctscan-slice" type="range" min="0" max="{max(0, viewer_state["slice_count"] - 1)}" step="1" value="{default_slice}">
+      <span class="ctscan-slice-label">Slice {default_slice + 1} / {viewer_state["slice_count"]}</span>
+    </div>
+  </div>
+  <table class="ctscan-table">
+    <thead>
+      <tr>
+        <th>Issue</th>
+        <th>Lung %</th>
+        <th>Volume ml</th>
+        <th>Current slice %</th>
+      </tr>
+    </thead>
+    <tbody>{table_rows}</tbody>
+  </table>
+</div>
+<script type="application/json" id="ctscan-state">{payload_json}</script>
+<script>
+(() => {{
+  const root = document.querySelector(".ctscan-viewer-root");
+  const state = JSON.parse(document.getElementById("ctscan-state").textContent || "{{}}");
+  const overlay = root.querySelector(".ctscan-overlay-select");
+  const findingWrap = root.querySelector(".ctscan-finding-wrap");
+  const opacity = root.querySelector(".ctscan-opacity");
+  const opacityValue = root.querySelector(".ctscan-opacity-value");
+  const slice = root.querySelector(".ctscan-slice");
+  const sliceLabel = root.querySelector(".ctscan-slice-label");
+  const base = root.querySelector(".ctscan-base");
+  const lung = root.querySelector(".ctscan-lung");
+  const rows = Array.from(root.querySelectorAll(".ctscan-table tbody tr"));
+  const findingImages = Object.fromEntries(
+    state.rows.map((row) => [row.key, root.querySelector('.ctscan-finding[data-key="' + row.key + '"]')])
+  );
+  const findingChecks = Array.from(root.querySelectorAll(".ctscan-finding-wrap input[type='checkbox']"));
+
+  function selectedKeys() {{
+    return new Set(findingChecks.filter((node) => node.checked).map((node) => node.value));
+  }}
+
+  function render() {{
+    const index = Number(slice.value || 0);
+    const alpha = Number(opacity.value || 0);
+    const mode = overlay.value;
+    const selected = selectedKeys();
+
+    base.src = `${{state.asset_root}}/base/${{String(index).padStart(4, "0")}}.png`;
+    lung.src = `${{state.asset_root}}/lung/${{String(index).padStart(4, "0")}}.png`;
+    lung.style.opacity = mode === "Lungs" ? String(alpha) : "0";
+    findingWrap.style.display = mode === "Findings" ? "grid" : "none";
+    opacityValue.textContent = alpha.toFixed(2);
+    sliceLabel.textContent = `Slice ${{index + 1}} / ${{state.slice_count}}`;
+
+    state.rows.forEach((row, rowIndex) => {{
+      const image = findingImages[row.key];
+      image.src = `${{state.asset_root}}/findings/${{row.key}}/${{String(index).padStart(4, "0")}}.png`;
+      image.style.opacity = mode === "Findings" && selected.has(row.key) ? String(alpha) : "0";
+      const cells = rows[rowIndex].querySelectorAll("td");
+      cells[3].textContent = Number(row.slice_percents[index] || 0).toFixed(4);
+    }});
+  }}
+
+  overlay.addEventListener("change", render);
+  opacity.addEventListener("input", render);
+  slice.addEventListener("input", render);
+  findingChecks.forEach((node) => node.addEventListener("change", render));
+  render();
+}})();
+</script>
+</body>
+</html>
+"""
+
+
+def _blank_viewer_html() -> str:
+    blank_path = Path(blank_viewer_image())
+    blank_image = Image.open(blank_path)
+    data_url = _image_to_data_url(blank_image)
+    return f"<div style='display:grid;gap:12px'><img src='{data_url}' alt='Viewer' style='max-width:100%;width:512px;background:#000'><div style='font-size:14px;color:#6b7280'>Upload DICOM file.</div></div>"
+
+
+def render_sample_cached_html(sample_id: str) -> str:
+    study_path = _resolve_sample_path(sample_id)
+    payload_path, bundle_path, _html_path = _sample_cache_paths(sample_id, study_path)
+    if payload_path.exists() and bundle_path.exists():
+        try:
+            payload = json.loads(payload_path.read_text(encoding="utf-8"))
+            payload["_viewer"]["bundle_path"] = str(bundle_path)
+            token = _viewer_token_for_sample(sample_id, study_path)
+            _write_viewer_assets(token, payload)
+            return _viewer_iframe_html(token, len(payload.get("issues", [])))
+        except Exception:
+            pass
+
+    payload = analyze_study_bytes(study_path.read_bytes())
+    source_bundle = Path(payload["_viewer"]["bundle_path"])
+    bundle_path.write_bytes(source_bundle.read_bytes())
+    payload["_viewer"]["bundle_path"] = str(bundle_path)
+    payload_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    token = _viewer_token_for_sample(sample_id, study_path)
+    _write_viewer_assets(token, payload)
+    return _viewer_iframe_html(token, len(payload.get("issues", [])))
+
+
+def render_upload_html(study_file: str | None) -> str:
+    if not study_file:
+        return _blank_viewer_html()
+    study_path = Path(study_file)
+    payload = analyze_study_bytes(study_path.read_bytes())
+    token = _viewer_token_for_upload(study_path)
+    _write_viewer_assets(token, payload)
+    return _viewer_iframe_html(token, len(payload.get("issues", [])))
 
 
 api = FastAPI(title=SERVICE_NAME)
+VIEWER_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+api.mount("/viewer-cache", StaticFiles(directory=str(VIEWER_CACHE_DIR)), name="viewer-cache")
+
+
+@api.get("/viewer/{token}", response_class=HTMLResponse)
+def viewer(token: str) -> str:
+    state = _load_viewer_state(token)
+    return _viewer_html(state)
 
 
 @api.get("/health")
@@ -437,192 +795,29 @@ async def predict(
 
 def build_demo() -> gr.Blocks:
     sample_keys = sorted(load_samples_manifest().keys())
-    sample_choices = [""] + sample_keys
     initial_sample = DEFAULT_SAMPLE or (sample_keys[0] if sample_keys else "")
-    with gr.Blocks(title=SERVICE_NAME) as demo:
-        payload_state = gr.State(value=None)
+    with gr.Blocks(title=SERVICE_NAME, head=VIEWER_HEAD) as demo:
+        sample_state = gr.State(value=initial_sample)
         gr.Markdown(
             """
             # CT Scan Semantic Segmentation
-            **Research use only.** Upload chest CT DICOM zip and review semantic issue overlays by slice.
+            **Research use only.** Upload DICOM file and review semantic issue overlays by slice.
             """
         )
-
-        with gr.Row():
-            with gr.Column(scale=1):
-                sample_id = gr.Dropdown(label="Sample case", choices=sample_choices, value=initial_sample)
-                study_zip = gr.File(label="Chest CT DICOM zip", type="filepath")
-                age = gr.Number(label="Age", value=None, precision=0)
-                sex = gr.Dropdown(label="Sex", choices=["", "female", "male"], value="")
-                smoking_history = gr.Textbox(label="Smoking history", value="")
-                analyze_button = gr.Button("Analyze")
-                status_box = gr.Textbox(label="Status", interactive=False)
-                summary_json = gr.Code(label="Summary", language="json", interactive=False)
-                qc_json = gr.Code(label="QC", language="json", interactive=False)
-                metadata_json = gr.Code(label="Study metadata", language="json", interactive=False)
-
-            with gr.Column(scale=2):
-                with gr.Row():
-                    window_preset = gr.Dropdown(label="Window", choices=WINDOW_CHOICES, value="lung")
-                    focus_issue = gr.Dropdown(label="Focus issue", choices=ISSUE_CHOICES, value="all")
-                with gr.Row():
-                    show_lung_layer = gr.Checkbox(label="Lung mask layer", value=True)
-                    show_damage_layer = gr.Checkbox(label="Damage layer", value=True)
-                with gr.Row():
-                    lung_alpha = gr.Slider(label="Lung opacity", minimum=0.0, maximum=1.0, value=0.32, step=0.05)
-                    damage_alpha = gr.Slider(label="Damage opacity", minimum=0.0, maximum=1.0, value=0.45, step=0.05)
-                viewer = gr.Image(label="Axial viewer", type="filepath")
-                slice_slider = gr.Slider(label="Slice", minimum=0, maximum=0, value=0, step=1)
-                issues_df = gr.Dataframe(
-                    label="Lung damage by issue type",
-                    headers=ISSUE_TABLE_COLUMNS,
-                    datatype=["str", "number", "number", "number"],
-                    interactive=False,
-                )
-                slice_df = gr.Dataframe(
-                    label="Current slice damage by issue type",
-                    headers=SLICE_TABLE_COLUMNS,
-                    datatype=["str", "number", "number"],
-                    interactive=False,
-                )
-
-        analyze_button.click(
-            fn=analyze_from_inputs,
-            inputs=[
-                sample_id,
-                study_zip,
-                age,
-                sex,
-                smoking_history,
-                window_preset,
-                focus_issue,
-                show_lung_layer,
-                show_damage_layer,
-                lung_alpha,
-                damage_alpha,
-            ],
-            outputs=[payload_state, status_box, issues_df, slice_df, viewer, slice_slider, qc_json, summary_json, metadata_json],
-                show_api=False,
-            )
+        study_zip = gr.File(label="Upload DICOM file", type="filepath")
+        viewer = gr.HTML(value=_blank_viewer_html())
 
         demo.load(
-            fn=load_default_demo_state,
-            inputs=[
-                sample_id,
-                window_preset,
-                focus_issue,
-                show_lung_layer,
-                show_damage_layer,
-                lung_alpha,
-                damage_alpha,
-            ],
-            outputs=[payload_state, status_box, issues_df, slice_df, viewer, slice_slider, qc_json, summary_json, metadata_json],
+            fn=render_sample_cached_html if initial_sample else (lambda: _blank_viewer_html()),
+            inputs=[sample_state] if initial_sample else None,
+            outputs=[viewer],
             show_api=False,
         )
 
-        slice_slider.change(
-            fn=update_viewer,
-            inputs=[
-                payload_state,
-                slice_slider,
-                window_preset,
-                focus_issue,
-                show_lung_layer,
-                show_damage_layer,
-                lung_alpha,
-                damage_alpha,
-            ],
-            outputs=[viewer, slice_df],
-            show_api=False,
-        )
-        window_preset.change(
-            fn=update_viewer,
-            inputs=[
-                payload_state,
-                slice_slider,
-                window_preset,
-                focus_issue,
-                show_lung_layer,
-                show_damage_layer,
-                lung_alpha,
-                damage_alpha,
-            ],
-            outputs=[viewer, slice_df],
-            show_api=False,
-        )
-        focus_issue.change(
-            fn=update_viewer,
-            inputs=[
-                payload_state,
-                slice_slider,
-                window_preset,
-                focus_issue,
-                show_lung_layer,
-                show_damage_layer,
-                lung_alpha,
-                damage_alpha,
-            ],
-            outputs=[viewer, slice_df],
-            show_api=False,
-        )
-        show_lung_layer.change(
-            fn=update_viewer,
-            inputs=[
-                payload_state,
-                slice_slider,
-                window_preset,
-                focus_issue,
-                show_lung_layer,
-                show_damage_layer,
-                lung_alpha,
-                damage_alpha,
-            ],
-            outputs=[viewer, slice_df],
-            show_api=False,
-        )
-        show_damage_layer.change(
-            fn=update_viewer,
-            inputs=[
-                payload_state,
-                slice_slider,
-                window_preset,
-                focus_issue,
-                show_lung_layer,
-                show_damage_layer,
-                lung_alpha,
-                damage_alpha,
-            ],
-            outputs=[viewer, slice_df],
-            show_api=False,
-        )
-        lung_alpha.change(
-            fn=update_viewer,
-            inputs=[
-                payload_state,
-                slice_slider,
-                window_preset,
-                focus_issue,
-                show_lung_layer,
-                show_damage_layer,
-                lung_alpha,
-                damage_alpha,
-            ],
-            outputs=[viewer, slice_df],
-            show_api=False,
-        )
-        damage_alpha.change(
-            fn=update_viewer,
-            inputs=[
-                payload_state,
-                slice_slider,
-                window_preset,
-                focus_issue,
-                show_lung_layer,
-                show_damage_layer,
-                lung_alpha,
-                damage_alpha,
-            ],
-            outputs=[viewer, slice_df],
+        study_zip.change(
+            fn=render_upload_html,
+            inputs=[study_zip],
+            outputs=[viewer],
             show_api=False,
         )
 
