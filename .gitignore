@@ -139,6 +139,5 @@ src/*/data/*/processed/
 src/*/data/*/samples/
 src/disasters/data/*/raw/
 src/disasters/data/*/processed/
-src/ctscan/data/legacy_vgg11_unet/
-src/ctscan/data/legacy_vgg11_unet_png/
+src/ctscan/data/
 tmp/
