@@ -6,8 +6,9 @@ import numpy as np
 from PIL import Image
 import torch
 from torch.utils.data import DataLoader
+import torchvision
 
-from src.ctscan.scripts.segmentation.train_legacy_vgg11_unet import LegacyLungDataset
+from src.ctscan.scripts.segmentation.train_legacy_vgg11_unet import LegacyLungDataset, TrainConfig, train
 
 
 def _write_pair(images_dir: Path, masks_dir: Path, name: str, size: int) -> None:
@@ -35,3 +36,53 @@ def test_legacy_dataset_resizes_for_batching(tmp_path: Path):
     assert tuple(images.shape) == (2, 1, 320, 320)
     assert tuple(masks.shape) == (2, 320, 320)
 
+
+def test_legacy_trainer_writes_epoch_checkpoints(tmp_path: Path, monkeypatch):
+    data_root = tmp_path / "data_root"
+    dataset_dir = data_root / "dataset"
+    mask_dir = data_root / "mask"
+    dataset_dir.mkdir(parents=True, exist_ok=True)
+    mask_dir.mkdir(parents=True, exist_ok=True)
+
+    volume = np.zeros((4, 32, 32), dtype=np.float32)
+    mask = np.zeros((4, 32, 32), dtype=np.uint8)
+    mask[:, 4:8, 4:8] = 2
+
+    import SimpleITK as sitk
+
+    sitk.WriteImage(sitk.GetImageFromArray(volume), str(dataset_dir / "case001.nii.gz"), useCompression=True)
+    sitk.WriteImage(sitk.GetImageFromArray(mask), str(mask_dir / "case001mask.nii"), useCompression=False)
+
+    original_vgg11 = torchvision.models.vgg11
+
+    def _vgg11_no_weights(*args, **kwargs):
+        kwargs["weights"] = None
+        return original_vgg11(*args, **kwargs)
+
+    monkeypatch.setattr(torchvision.models, "vgg11", _vgg11_no_weights)
+
+    config = TrainConfig(
+        data_root=data_root,
+        work_dir=tmp_path / "work",
+        output_path=tmp_path / "model" / "legacy_vgg11_unet.pt",
+        metrics_path=tmp_path / "model" / "legacy_vgg11_unet.metrics.json",
+        log_path=tmp_path / "model" / "legacy_vgg11_unet.train.log",
+        model_version="test-legacy-vgg11-unet-0.1.0",
+        epochs=2,
+        batch_size=1,
+        learning_rate=1e-3,
+        image_size=64,
+        seed=42,
+        num_workers=0,
+        device="cpu",
+        overwrite_workdir=True,
+        skip_existing_png=False,
+        max_volumes=1,
+    )
+
+    metrics = train(config)
+
+    assert (tmp_path / "model" / "legacy_vgg11_unet.epoch001.pt").exists()
+    assert (tmp_path / "model" / "legacy_vgg11_unet.epoch002.pt").exists()
+    assert config.output_path.exists()
+    assert metrics["epoch_checkpoint_pattern"].endswith("legacy_vgg11_unet.epochNNN.pt")

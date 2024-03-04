@@ -223,6 +223,14 @@ def parse_args() -> TrainConfig:
     )
 
 
+def epoch_checkpoint_path(output_path: Path, epoch: int) -> Path:
+    if epoch < 1:
+        raise ValueError("epoch must be >= 1")
+    if output_path.suffix:
+        return output_path.with_name(f"{output_path.stem}.epoch{epoch:03d}{output_path.suffix}")
+    return output_path.with_name(f"{output_path.name}.epoch{epoch:03d}")
+
+
 def resolve_device(name: str) -> torch.device:
     if name and name != "auto":
         return torch.device(name)
@@ -507,6 +515,22 @@ def train(config: TrainConfig) -> dict[str, Any]:
                 best_epoch = epoch
                 best_state = {k: v.detach().cpu() for k, v in model.state_dict().items()}
 
+            epoch_state = {k: v.detach().cpu() for k, v in model.state_dict().items()}
+            epoch_checkpoint = {
+                "model_version": config.model_version,
+                "model_type": "legacy_vgg11_unet",
+                "num_classes": 4,
+                "in_channels": 1,
+                "epoch": epoch,
+                "best_epoch": best_epoch,
+                "best_val_loss": float(best_val_loss),
+                "state_dict": epoch_state,
+                "history": history,
+                "data_root": str(config.data_root),
+                "work_dir": str(config.work_dir),
+            }
+            torch.save(epoch_checkpoint, epoch_checkpoint_path(config.output_path, epoch))
+
     if best_state is None:
         best_state = {k: v.detach().cpu() for k, v in model.state_dict().items()}
 
@@ -552,6 +576,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
         "log_path": str(config.log_path),
         "class_ids": [0, 1, 2, 3],
         "image_size": int(config.image_size),
+        "epoch_checkpoint_pattern": str(epoch_checkpoint_path(config.output_path, 1)).replace("epoch001", "epochNNN"),
     }
     config.metrics_path.parent.mkdir(parents=True, exist_ok=True)
     config.metrics_path.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
