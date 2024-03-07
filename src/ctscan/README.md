@@ -327,7 +327,10 @@ Notes:
 - `LongCIU` still requires a manual `longciu.zip` handoff because the DOI landing page does not expose a stable direct archive URL.
 - The builder uses `MedSeg/SIRM` for exact `1/2/3` labels, `LongCIU` for `1/2`, and `PleThora` for `3`.
 - The legacy notebook imports `nibabel`; it is now included in `src/ctscan/requirements.txt`.
-- `train_legacy_vgg11_unet.py` saves `model/legacy_vgg11_unet.epochNNN.pt` after every epoch and keeps the best checkpoint at `model/legacy_vgg11_unet.pt`.
+- `train_legacy_vgg11_unet.py` now follows the old notebook path closely: nibabel slice conversion, sklearn split, no resize by default, raw `state_dict` saves, and `model/legacy_vgg11_unet.pt` updated immediately when validation loss improves.
+- `train_legacy_vgg11_unet.py` also saves `model/legacy_vgg11_unet.epochNNN.pt` after every epoch.
+- If you want the same warm-start behavior as the notebook's manual `load_state_dict(...)` cell, pass `--resume-path model/legacy_vgg11_unet.pt`.
+- If your PNG slices are mixed sizes, resize them first or pass `--image-size 512` to force batching to a fixed size.
 
 ## Optional Lungmask Backend
 

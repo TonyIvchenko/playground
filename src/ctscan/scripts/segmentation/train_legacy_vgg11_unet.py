@@ -22,9 +22,10 @@ import sys
 import time
 from typing import Any
 
+import nibabel
 import numpy as np
 from PIL import Image
-import SimpleITK as sitk
+from sklearn.model_selection import train_test_split
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -38,8 +39,8 @@ except Exception:  # pragma: no cover - optional
 
 
 CTSCAN_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_DATA_ROOT = CTSCAN_ROOT / "data" / "legacy_vgg11_unet"
-DEFAULT_WORK_DIR = CTSCAN_ROOT / "data" / "legacy_vgg11_unet_png"
+DEFAULT_DATA_ROOT = CTSCAN_ROOT / "data" / "legacy_compatible"
+DEFAULT_WORK_DIR = CTSCAN_ROOT / "data" / "legacy_compatible_png"
 DEFAULT_OUTPUT_PATH = CTSCAN_ROOT / "model" / "legacy_vgg11_unet.pt"
 DEFAULT_METRICS_PATH = CTSCAN_ROOT / "model" / "legacy_vgg11_unet.metrics.json"
 DEFAULT_LOG_PATH = CTSCAN_ROOT / "model" / "legacy_vgg11_unet.train.log"
@@ -60,6 +61,7 @@ class TrainConfig:
     output_path: Path
     metrics_path: Path
     log_path: Path
+    resume_path: Path | None
     model_version: str
     epochs: int
     batch_size: int
@@ -91,8 +93,11 @@ class LegacyLungDataset(Dataset):
         image_tensor = torchvision.transforms.functional.to_tensor(image) - 0.5
         mask_tensor = torch.from_numpy(np.asarray(mask, dtype=np.int64)).long()
 
-        target_hw = (self.image_size, self.image_size)
-        if tuple(image_tensor.shape[-2:]) != target_hw:
+        if self.image_size > 0:
+            target_hw = (self.image_size, self.image_size)
+        else:
+            target_hw = None
+        if target_hw is not None and tuple(image_tensor.shape[-2:]) != target_hw:
             image_tensor = F.interpolate(
                 image_tensor.unsqueeze(0),
                 size=target_hw,
@@ -136,8 +141,11 @@ class LegacyUNet(nn.Module):
         self.upscale_mode = upscale_mode
         self.init_conv = nn.Conv2d(in_channels, 3, 1)
 
-        weights = torchvision.models.VGG11_Weights.IMAGENET1K_V1
-        encoder = torchvision.models.vgg11(weights=weights).features
+        try:
+            encoder = torchvision.models.vgg11(pretrained=True).features
+        except TypeError:
+            weights = torchvision.models.VGG11_Weights.IMAGENET1K_V1
+            encoder = torchvision.models.vgg11(weights=weights).features
         self.conv1 = encoder[0]   # 64
         self.conv2 = encoder[3]   # 128
         self.conv3 = encoder[6]   # 256
@@ -156,7 +164,7 @@ class LegacyUNet(nn.Module):
         self.out = nn.Conv2d(in_channels=32, out_channels=out_channels, kernel_size=1)
 
     def up(self, x: torch.Tensor, size: tuple[int, int]) -> torch.Tensor:
-        return F.interpolate(x, size=size, mode=self.upscale_mode, align_corners=False if self.upscale_mode != "nearest" else None)
+        return F.interpolate(x, size=size, mode=self.upscale_mode)
 
     @staticmethod
     def down(x: torch.Tensor) -> torch.Tensor:
@@ -190,11 +198,12 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--output-path", type=Path, default=DEFAULT_OUTPUT_PATH)
     parser.add_argument("--metrics-path", type=Path, default=DEFAULT_METRICS_PATH)
     parser.add_argument("--log-path", type=Path, default=DEFAULT_LOG_PATH)
+    parser.add_argument("--resume-path", type=Path, default=None)
     parser.add_argument("--model-version", type=str, default="legacy-vgg11-unet-0.1.0")
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--batch-size", type=int, default=10)
     parser.add_argument("--learning-rate", type=float, default=5e-4)
-    parser.add_argument("--image-size", type=int, default=320)
+    parser.add_argument("--image-size", type=int, default=0, help="Resize PNG slices to NxN before batching. Default 0 keeps original notebook behavior.")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--device", type=str, default="auto")
@@ -209,11 +218,12 @@ def parse_args() -> TrainConfig:
         output_path=args.output_path.resolve(),
         metrics_path=args.metrics_path.resolve(),
         log_path=args.log_path.resolve(),
+        resume_path=args.resume_path.resolve() if args.resume_path is not None else None,
         model_version=str(args.model_version),
         epochs=max(int(args.epochs), 1),
         batch_size=max(int(args.batch_size), 1),
         learning_rate=float(args.learning_rate),
-        image_size=max(int(args.image_size), 64),
+        image_size=max(int(args.image_size), 0),
         seed=int(args.seed),
         num_workers=max(int(args.num_workers), 0),
         device=str(args.device).strip().lower(),
@@ -299,12 +309,12 @@ def convert_volumes_to_png(
 
     names: list[str] = []
     for volume_id, image_path, mask_path in progress_iter(matches, total=len(matches), desc="Convert NIfTI", unit="vol"):
-        image_zyx = sitk.GetArrayFromImage(sitk.ReadImage(str(image_path))).astype(np.float32)
-        mask_zyx = sitk.GetArrayFromImage(sitk.ReadImage(str(mask_path))).astype(np.uint8)
-        if image_zyx.shape != mask_zyx.shape or image_zyx.ndim != 3:
+        image_xyz = np.asanyarray(nibabel.load(str(image_path)).dataobj).astype(np.float32)
+        mask_xyz = np.asanyarray(nibabel.load(str(mask_path)).dataobj).astype(np.uint8)
+        if image_xyz.shape != mask_xyz.shape or image_xyz.ndim != 3:
             continue
 
-        z_slices = int(image_zyx.shape[0])
+        z_slices = int(image_xyz.shape[2])
         for z in range(z_slices):
             stem = f"{volume_id}_z{z + 1:03d}"
             image_png = images_dir / f"{stem}.png"
@@ -314,8 +324,8 @@ def convert_volumes_to_png(
             if skip_existing_png and image_png.exists() and mask_png.exists():
                 continue
 
-            image_uint8 = normalize_slice_to_uint8(image_zyx[z])
-            mask_uint8 = np.asarray(mask_zyx[z], dtype=np.uint8)
+            image_uint8 = normalize_slice_to_uint8(image_xyz[:, :, z])
+            mask_uint8 = np.asarray(mask_xyz[:, :, z], dtype=np.uint8)
             Image.fromarray(image_uint8, mode="L").save(image_png)
             Image.fromarray(mask_uint8, mode="L").save(mask_png)
 
@@ -327,26 +337,9 @@ def convert_volumes_to_png(
 def split_names(names: list[str], seed: int) -> tuple[list[str], list[str], list[str]]:
     if not names:
         return [], [], []
-    rng = random.Random(seed)
-    shuffled = list(names)
-    rng.shuffle(shuffled)
-
-    test_size = max(1, int(round(len(shuffled) * 0.2))) if len(shuffled) >= 5 else 1
-    test_size = min(test_size, max(len(shuffled) - 1, 1))
-    test_names = shuffled[:test_size]
-    train_pool = shuffled[test_size:]
-    if not train_pool:
-        return test_names, [], test_names
-
-    val_size = max(1, int(round(len(train_pool) * 0.1))) if len(train_pool) >= 10 else (1 if len(train_pool) > 1 else 0)
-    val_size = min(val_size, max(len(train_pool) - 1, 0))
-    val_names = train_pool[:val_size]
-    train_names = train_pool[val_size:] if val_size > 0 else train_pool
-
-    if not train_names:
-        train_names = val_names
-        val_names = []
-    return train_names, val_names, test_names
+    train_names, test_names = train_test_split(list(names), test_size=0.2, random_state=seed)
+    train_names, val_names = train_test_split(list(train_names), test_size=0.1, random_state=seed)
+    return list(train_names), list(val_names), list(test_names)
 
 
 def write_split_json(path: Path, train_names: list[str], val_names: list[str], test_names: list[str]) -> None:
@@ -374,14 +367,16 @@ def compute_class_jaccard(y_true: torch.Tensor, y_pred: torch.Tensor, classes: i
 def run_epoch(
     model: nn.Module,
     loader: DataLoader,
+    dataset_size: int,
     optimizer: torch.optim.Optimizer | None,
     device: torch.device,
     classes: int,
+    nominal_batch_size: int,
     desc: str,
 ) -> dict[str, Any]:
     training = optimizer is not None
     model.train(training)
-    losses: list[float] = []
+    total_loss = 0.0
     jaccard_sum = np.zeros(classes, dtype=np.float64)
     count = 0
 
@@ -399,19 +394,19 @@ def run_epoch(
                 loss.backward()
                 optimizer.step()
 
-        losses.append(float(loss.item()))
+        total_loss += float(loss.item()) * nominal_batch_size
         preds = torch.argmax(log_probs, dim=1)
         batch_j = compute_class_jaccard(masks.detach().cpu(), preds.detach().cpu(), classes=classes)
         jaccard_sum += np.asarray(batch_j, dtype=np.float64)
         count += 1
 
-    if not losses:
+    if dataset_size <= 0 or count <= 0:
         return {"loss": 0.0, "jaccard": [0.0] * classes, "dice": [0.0] * classes}
 
     mean_j = (jaccard_sum / max(count, 1)).tolist()
     mean_d = [float((2.0 * j) / (1.0 + j + 1e-6)) for j in mean_j]
     return {
-        "loss": float(np.mean(losses)),
+        "loss": float(total_loss / dataset_size),
         "jaccard": [float(v) for v in mean_j],
         "dice": [float(v) for v in mean_d],
     }
@@ -458,6 +453,11 @@ def train(config: TrainConfig) -> dict[str, Any]:
     test_loader = DataLoader(test_ds, batch_size=config.batch_size, shuffle=False, num_workers=config.num_workers)
 
     model = LegacyUNet(in_channels=1, out_channels=4, batch_norm=True, upscale_mode="bilinear").to(device)
+    if config.resume_path is not None:
+        state_dict = torch.load(config.resume_path, map_location=torch.device("cpu"))
+        if not isinstance(state_dict, dict):
+            raise ValueError(f"resume checkpoint must be a raw state_dict: {config.resume_path}")
+        model.load_state_dict(state_dict, strict=True)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
 
     best_val_loss = float("inf")
@@ -472,18 +472,22 @@ def train(config: TrainConfig) -> dict[str, Any]:
             train_metrics = run_epoch(
                 model=model,
                 loader=train_loader,
+                dataset_size=len(train_ds),
                 optimizer=optimizer,
                 device=device,
                 classes=4,
+                nominal_batch_size=config.batch_size,
                 desc=f"Epoch {epoch}/{config.epochs} train",
             )
             with torch.no_grad():
                 val_metrics = run_epoch(
                     model=model,
                     loader=val_loader,
+                    dataset_size=len(val_ds),
                     optimizer=None,
                     device=device,
                     classes=4,
+                    nominal_batch_size=config.batch_size,
                     desc=f"Epoch {epoch}/{config.epochs} val",
                 ) if len(val_ds) > 0 else {"loss": 0.0, "jaccard": [0.0] * 4, "dice": [0.0] * 4}
 
@@ -500,36 +504,25 @@ def train(config: TrainConfig) -> dict[str, Any]:
             }
             history.append(row)
             message = (
-                f"epoch={epoch}/{config.epochs} "
-                f"train_loss={train_metrics['loss']:.6f} "
-                f"val_loss={val_metrics['loss']:.6f} "
-                f"val_jaccard={','.join(f'{v:.4f}' for v in val_metrics['jaccard'])} "
-                f"time_sec={elapsed:.2f}"
+                f"Epoch: {epoch}/{config.epochs}, Time spent: {elapsed}, "
+                f"Training loss: {train_metrics['loss']}, Validation loss: {val_metrics['loss']}"
             )
             print(message)
             log_handle.write(message + "\n")
             log_handle.flush()
 
-            if val_metrics["loss"] <= best_val_loss:
+            if val_metrics["loss"] < best_val_loss:
                 best_val_loss = float(val_metrics["loss"])
                 best_epoch = epoch
                 best_state = {k: v.detach().cpu() for k, v in model.state_dict().items()}
+                config.output_path.parent.mkdir(parents=True, exist_ok=True)
+                torch.save(best_state, config.output_path)
+                print("Model saved")
+                log_handle.write("Model saved\n")
+                log_handle.flush()
 
             epoch_state = {k: v.detach().cpu() for k, v in model.state_dict().items()}
-            epoch_checkpoint = {
-                "model_version": config.model_version,
-                "model_type": "legacy_vgg11_unet",
-                "num_classes": 4,
-                "in_channels": 1,
-                "epoch": epoch,
-                "best_epoch": best_epoch,
-                "best_val_loss": float(best_val_loss),
-                "state_dict": epoch_state,
-                "history": history,
-                "data_root": str(config.data_root),
-                "work_dir": str(config.work_dir),
-            }
-            torch.save(epoch_checkpoint, epoch_checkpoint_path(config.output_path, epoch))
+            torch.save(epoch_state, epoch_checkpoint_path(config.output_path, epoch))
 
     if best_state is None:
         best_state = {k: v.detach().cpu() for k, v in model.state_dict().items()}
@@ -539,26 +532,17 @@ def train(config: TrainConfig) -> dict[str, Any]:
         test_metrics = run_epoch(
             model=model,
             loader=test_loader,
+            dataset_size=len(test_ds),
             optimizer=None,
             device=device,
             classes=4,
+            nominal_batch_size=config.batch_size,
             desc="Test",
         ) if len(test_ds) > 0 else {"loss": 0.0, "jaccard": [0.0] * 4, "dice": [0.0] * 4}
 
-    checkpoint = {
-        "model_version": config.model_version,
-        "model_type": "legacy_vgg11_unet",
-        "num_classes": 4,
-        "in_channels": 1,
-        "best_epoch": best_epoch,
-        "best_val_loss": float(best_val_loss),
-        "state_dict": best_state,
-        "history": history,
-        "data_root": str(config.data_root),
-        "work_dir": str(config.work_dir),
-    }
-    config.output_path.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(checkpoint, config.output_path)
+    if not config.output_path.exists():
+        config.output_path.parent.mkdir(parents=True, exist_ok=True)
+        torch.save(best_state, config.output_path)
 
     metrics = {
         "model_version": config.model_version,
@@ -577,6 +561,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
         "class_ids": [0, 1, 2, 3],
         "image_size": int(config.image_size),
         "epoch_checkpoint_pattern": str(epoch_checkpoint_path(config.output_path, 1)).replace("epoch001", "epochNNN"),
+        "resume_path": str(config.resume_path) if config.resume_path is not None else None,
     }
     config.metrics_path.parent.mkdir(parents=True, exist_ok=True)
     config.metrics_path.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
