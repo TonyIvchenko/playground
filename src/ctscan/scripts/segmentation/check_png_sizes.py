@@ -5,7 +5,7 @@ from collections import Counter
 from pathlib import Path
 import sys
 
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 
 CTSCAN_ROOT = Path(__file__).resolve().parents[2]
@@ -25,14 +25,19 @@ def image_size(path: Path) -> tuple[int, int]:
     return int(width), int(height)
 
 
-def collect_sizes(folder: Path) -> tuple[Counter[tuple[int, int]], dict[str, tuple[int, int]]]:
+def collect_sizes(folder: Path) -> tuple[Counter[tuple[int, int]], dict[str, tuple[int, int]], list[str]]:
     counts: Counter[tuple[int, int]] = Counter()
     by_stem: dict[str, tuple[int, int]] = {}
+    invalid: list[str] = []
     for path in sorted(folder.glob("*.png")):
-        size = image_size(path)
+        try:
+            size = image_size(path)
+        except (UnidentifiedImageError, OSError) as exc:
+            invalid.append(f"{path.name}: {type(exc).__name__}")
+            continue
         counts[size] += 1
         by_stem[path.stem] = size
-    return counts, by_stem
+    return counts, by_stem, invalid
 
 
 def print_counts(label: str, counts: Counter[tuple[int, int]]) -> None:
@@ -52,11 +57,17 @@ def main() -> int:
         print(f"missing dataset dirs under {root}", file=sys.stderr)
         return 1
 
-    image_counts, image_sizes = collect_sizes(images_dir)
-    mask_counts, mask_sizes = collect_sizes(masks_dir)
+    image_counts, image_sizes, image_invalid = collect_sizes(images_dir)
+    mask_counts, mask_sizes, mask_invalid = collect_sizes(masks_dir)
 
     print_counts("images", image_counts)
     print_counts("masks", mask_counts)
+    print(f"invalid_images={len(image_invalid)}")
+    for line in image_invalid[: max(int(args.limit), 0)]:
+        print(f"  {line}")
+    print(f"invalid_masks={len(mask_invalid)}")
+    for line in mask_invalid[: max(int(args.limit), 0)]:
+        print(f"  {line}")
 
     all_stems = sorted(set(image_sizes) | set(mask_sizes))
     mismatches: list[str] = []

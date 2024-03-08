@@ -5,7 +5,7 @@ from collections import Counter
 from pathlib import Path
 import sys
 
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 
 CTSCAN_ROOT = Path(__file__).resolve().parents[2]
@@ -41,13 +41,16 @@ def resize_folder(folder: Path, size: int, dry_run: bool) -> dict[str, object]:
     counts: Counter[tuple[int, int]] = Counter()
 
     for path in sorted(folder.glob("*.png")):
-        with Image.open(path) as image:
-            original_size = image.size
-            counts[(int(original_size[0]), int(original_size[1]))] += 1
-            if original_size == target:
-                unchanged += 1
-                continue
-            resized_image = image.convert(mode).resize(target, resample=resample)
+        try:
+            with Image.open(path) as image:
+                original_size = image.size
+                counts[(int(original_size[0]), int(original_size[1]))] += 1
+                if original_size == target:
+                    unchanged += 1
+                    continue
+                resized_image = image.convert(mode).resize(target, resample=resample)
+        except (UnidentifiedImageError, OSError) as exc:
+            raise RuntimeError(f"invalid PNG in {folder.name}: {path}") from exc
         resized += 1
         if dry_run:
             continue

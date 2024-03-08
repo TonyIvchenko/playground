@@ -13,6 +13,7 @@ This script reproduces the notebook flow on exported NIfTI data:
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 from dataclasses import dataclass
 import json
 from pathlib import Path
@@ -24,7 +25,7 @@ from typing import Any
 
 import nibabel
 import numpy as np
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 from sklearn.model_selection import train_test_split
 import torch
 from torch import nn
@@ -345,6 +346,46 @@ def existing_png_names(images_dir: Path, masks_dir: Path) -> list[str]:
     return names
 
 
+def inspect_png_pairs(names: list[str], images_dir: Path, masks_dir: Path) -> dict[str, object]:
+    image_sizes: Counter[tuple[int, int]] = Counter()
+    mask_sizes: Counter[tuple[int, int]] = Counter()
+    invalid: list[str] = []
+    mismatched: list[str] = []
+
+    for name in names:
+        image_path = images_dir / f"{name}.png"
+        mask_path = masks_dir / f"{name}.png"
+
+        image_size: tuple[int, int] | None = None
+        mask_size: tuple[int, int] | None = None
+
+        try:
+            with Image.open(image_path) as image:
+                image.load()
+                image_size = (int(image.size[0]), int(image.size[1]))
+                image_sizes[image_size] += 1
+        except (FileNotFoundError, UnidentifiedImageError, OSError) as exc:
+            invalid.append(f"{image_path}: {type(exc).__name__}")
+
+        try:
+            with Image.open(mask_path) as mask:
+                mask.load()
+                mask_size = (int(mask.size[0]), int(mask.size[1]))
+                mask_sizes[mask_size] += 1
+        except (FileNotFoundError, UnidentifiedImageError, OSError) as exc:
+            invalid.append(f"{mask_path}: {type(exc).__name__}")
+
+        if image_size is not None and mask_size is not None and image_size != mask_size:
+            mismatched.append(f"{name}: image={image_size} mask={mask_size}")
+
+    return {
+        "image_sizes": image_sizes,
+        "mask_sizes": mask_sizes,
+        "invalid": invalid,
+        "mismatched": mismatched,
+    }
+
+
 def split_names(names: list[str], seed: int) -> tuple[list[str], list[str], list[str]]:
     if not names:
         return [], [], []
@@ -457,6 +498,33 @@ def train(config: TrainConfig) -> dict[str, Any]:
     if not names:
         raise RuntimeError("No PNG slices created.")
     print(f"png_slices={len(names)}")
+
+    png_report = inspect_png_pairs(names, images_dir=images_dir, masks_dir=masks_dir)
+    invalid_pngs = list(png_report["invalid"])
+    if invalid_pngs:
+        preview = "\n".join(f"  - {line}" for line in invalid_pngs[:10])
+        raise RuntimeError(
+            "PNG cache contains invalid files.\n"
+            f"{preview}\n"
+            "Repair the bad files or rebuild the PNG cache from NIfTI."
+        )
+    mismatched_pairs = list(png_report["mismatched"])
+    if mismatched_pairs:
+        preview = "\n".join(f"  - {line}" for line in mismatched_pairs[:10])
+        raise RuntimeError(
+            "PNG cache contains image/mask size mismatches.\n"
+            f"{preview}\n"
+            "Rebuild the PNG cache so every image and mask pair has the same size."
+        )
+    if config.image_size <= 0:
+        distinct_sizes = sorted(set(png_report["image_sizes"]) | set(png_report["mask_sizes"]))
+        if len(distinct_sizes) > 1:
+            summary = ", ".join(f"{width}x{height}" for width, height in distinct_sizes)
+            raise RuntimeError(
+                "PNG cache contains mixed slice sizes "
+                f"({summary}). Run `python scripts/segmentation/resize_png_dataset.py --root {config.work_dir}` "
+                "or pass `--image-size 512` to resize during training."
+            )
 
     train_names, val_names, test_names = split_names(names, seed=42)
     write_split_json(split_path, train_names, val_names, test_names)

@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 import nibabel
+import pytest
 import torch
 from torch.utils.data import DataLoader
 import torchvision
@@ -63,6 +64,40 @@ def test_existing_png_names_returns_only_paired_pngs(tmp_path: Path):
     Image.fromarray(np.zeros((64, 64), dtype=np.uint8), mode="L").save(masks_dir / "orphan.png")
 
     assert existing_png_names(images_dir, masks_dir) == ["a", "b"]
+
+
+def test_legacy_trainer_rejects_mixed_png_cache_without_resize(tmp_path: Path):
+    work_dir = tmp_path / "work"
+    images_dir = work_dir / "images"
+    masks_dir = work_dir / "masks"
+    images_dir.mkdir(parents=True, exist_ok=True)
+    masks_dir.mkdir(parents=True, exist_ok=True)
+
+    _write_pair(images_dir, masks_dir, "a", 512)
+    _write_pair(images_dir, masks_dir, "b", 630)
+
+    config = TrainConfig(
+        data_root=tmp_path / "unused_data_root",
+        work_dir=work_dir,
+        output_path=tmp_path / "model" / "legacy_vgg11_unet.pt",
+        metrics_path=tmp_path / "model" / "legacy_vgg11_unet.metrics.json",
+        log_path=tmp_path / "model" / "legacy_vgg11_unet.train.log",
+        resume_path=None,
+        model_version="test-legacy-vgg11-unet-0.1.0",
+        epochs=1,
+        batch_size=1,
+        learning_rate=1e-3,
+        image_size=0,
+        seed=42,
+        num_workers=0,
+        device="cpu",
+        overwrite_workdir=False,
+        skip_existing_png=True,
+        max_volumes=1,
+    )
+
+    with pytest.raises(RuntimeError, match="mixed slice sizes"):
+        train(config)
 
 
 def test_legacy_trainer_writes_epoch_checkpoints(tmp_path: Path, monkeypatch):

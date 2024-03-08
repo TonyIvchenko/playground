@@ -286,13 +286,18 @@ Notes:
 - PNG pairs are written under `.../slice_dataset_backbone_smoke/images` and `.../slice_dataset_backbone_smoke/masks`.
 
 
-## Legacy-Compatible Dataset
+## Legacy End-To-End Runbook
 
-This path builds the same on-disk layout the legacy notebook expects:
+Use this path if you want the old VGG11 U-Net workflow end to end.
+
+Output layout:
 - `data/legacy_compatible/dataset/*.nii.gz`
 - `data/legacy_compatible/mask/*mask.nii`
+- `data/legacy_compatible_png/images/*.png`
+- `data/legacy_compatible_png/masks/*.png`
+- `model/legacy_vgg11_unet.pt`
 
-Label ids are:
+Label ids:
 - `0`: background
 - `1`: ground-glass opacity
 - `2`: consolidation
@@ -300,18 +305,28 @@ Label ids are:
 
 From `src/ctscan`:
 
+1. Download raw source datasets.
+
 ```bash
 python scripts/segmentation/download_legacy_sources.py \
   --raw-dir data/ctscan/raw/legacy_sources \
   --longciu-archive /path/to/longciu.zip
+```
 
+2. Build the legacy-compatible NIfTI dataset.
+
+```bash
 python scripts/segmentation/build_legacy_dataset.py \
   --raw-dir data/ctscan/raw/legacy_sources \
   --output-dir data/legacy_compatible \
   --longciu-mask-source staple \
   --plethora-vote-mode union \
   --overwrite
+```
 
+3. First training run: generate PNG cache from the NIfTI volumes and train.
+
+```bash
 python scripts/segmentation/train_legacy_vgg11_unet.py \
   --data-root data/legacy_compatible \
   --work-dir data/legacy_compatible_png \
@@ -321,16 +336,65 @@ python scripts/segmentation/train_legacy_vgg11_unet.py \
   --model-version legacy-vgg11-unet-0.1.0
 ```
 
+4. Check the PNG cache before reuse.
+
+```bash
+python scripts/segmentation/check_png_sizes.py --root data/legacy_compatible_png
+```
+
+Healthy output should show:
+- `invalid_images=0`
+- `invalid_masks=0`
+- one size only, usually `512x512`
+- `pair_mismatches=0`
+
+5. If the PNG cache is mixed-size, normalize it once.
+
+```bash
+python scripts/segmentation/resize_png_dataset.py --root data/legacy_compatible_png --size 512
+```
+
+6. Later training runs: reuse the cached PNG slices instead of converting NIfTI again.
+
+```bash
+python scripts/segmentation/train_legacy_vgg11_unet.py \
+  --data-root data/legacy_compatible \
+  --work-dir data/legacy_compatible_png \
+  --output-path model/legacy_vgg11_unet.pt \
+  --metrics-path model/legacy_vgg11_unet.metrics.json \
+  --log-path model/legacy_vgg11_unet.train.log \
+  --model-version legacy-vgg11-unet-0.1.0 \
+  --skip-existing-png
+```
+
+7. Resume from the last best checkpoint if needed.
+
+```bash
+python scripts/segmentation/train_legacy_vgg11_unet.py \
+  --data-root data/legacy_compatible \
+  --work-dir data/legacy_compatible_png \
+  --output-path model/legacy_vgg11_unet.pt \
+  --metrics-path model/legacy_vgg11_unet.metrics.json \
+  --log-path model/legacy_vgg11_unet.train.log \
+  --model-version legacy-vgg11-unet-0.1.0 \
+  --skip-existing-png \
+  --resume-path model/legacy_vgg11_unet.pt
+```
+
+8. Launch the app with the trained checkpoint.
+
+```bash
+CTSCAN_MODEL_PATH=model/legacy_vgg11_unet.pt python main.py
+```
+
 Notes:
 - `download_legacy_sources.py` downloads `MedSeg/SIRM` automatically.
 - `PleThora` masks and paired CT series are also downloaded automatically. By default the script downloads CTs only for the `78` effusion-positive PleThora patients.
 - `LongCIU` still requires a manual `longciu.zip` handoff because the DOI landing page does not expose a stable direct archive URL.
 - The builder uses `MedSeg/SIRM` for exact `1/2/3` labels, `LongCIU` for `1/2`, and `PleThora` for `3`.
-- The legacy notebook imports `nibabel`; it is now included in `src/ctscan/requirements.txt`.
-- `train_legacy_vgg11_unet.py` now follows the old notebook path closely: nibabel slice conversion, sklearn split, no resize by default, raw `state_dict` saves, and `model/legacy_vgg11_unet.pt` updated immediately when validation loss improves.
+- `train_legacy_vgg11_unet.py` follows the notebook path closely: nibabel slice conversion, sklearn split, no resize by default, raw `state_dict` saves, and best-model save on validation improvement.
 - `train_legacy_vgg11_unet.py` also saves `model/legacy_vgg11_unet.epochNNN.pt` after every epoch.
-- If you want the same warm-start behavior as the notebook's manual `load_state_dict(...)` cell, pass `--resume-path model/legacy_vgg11_unet.pt`.
-- If your PNG slices are mixed sizes, resize them first or pass `--image-size 512` to force batching to a fixed size.
+- If you already have older folders named `data/jemys_compatible` and `data/jemys_compatible_png`, use those same paths consistently in every command instead of mixing naming schemes.
 
 ## Optional Lungmask Backend
 
