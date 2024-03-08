@@ -9,7 +9,7 @@ import torch
 from torch.utils.data import DataLoader
 import torchvision
 
-from src.ctscan.scripts.segmentation.train_legacy_vgg11_unet import LegacyLungDataset, TrainConfig, train
+from src.ctscan.scripts.segmentation.train_legacy_vgg11_unet import LegacyLungDataset, TrainConfig, existing_png_names, train
 
 
 def _write_pair(images_dir: Path, masks_dir: Path, name: str, size: int) -> None:
@@ -50,6 +50,19 @@ def test_legacy_dataset_optionally_resizes_for_batching(tmp_path: Path):
     assert isinstance(masks, torch.Tensor)
     assert tuple(images.shape) == (2, 1, 320, 320)
     assert tuple(masks.shape) == (2, 320, 320)
+
+
+def test_existing_png_names_returns_only_paired_pngs(tmp_path: Path):
+    images_dir = tmp_path / "images"
+    masks_dir = tmp_path / "masks"
+    images_dir.mkdir(parents=True, exist_ok=True)
+    masks_dir.mkdir(parents=True, exist_ok=True)
+
+    _write_pair(images_dir, masks_dir, "a", 64)
+    _write_pair(images_dir, masks_dir, "b", 64)
+    Image.fromarray(np.zeros((64, 64), dtype=np.uint8), mode="L").save(masks_dir / "orphan.png")
+
+    assert existing_png_names(images_dir, masks_dir) == ["a", "b"]
 
 
 def test_legacy_trainer_writes_epoch_checkpoints(tmp_path: Path, monkeypatch):

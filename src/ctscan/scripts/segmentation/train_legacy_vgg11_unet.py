@@ -334,6 +334,17 @@ def convert_volumes_to_png(
     return final_names
 
 
+def existing_png_names(images_dir: Path, masks_dir: Path) -> list[str]:
+    if not images_dir.exists() or not masks_dir.exists():
+        return []
+    names = []
+    for mask_png in sorted(masks_dir.glob("*.png")):
+        stem = mask_png.stem
+        if (images_dir / f"{stem}.png").exists():
+            names.append(stem)
+    return names
+
+
 def split_names(names: list[str], seed: int) -> tuple[list[str], list[str], list[str]]:
     if not names:
         return [], [], []
@@ -425,17 +436,24 @@ def train(config: TrainConfig) -> dict[str, Any]:
     masks_dir = config.work_dir / "masks"
     split_path = config.work_dir / "splits.json"
 
-    matches = match_volumes(config.data_root, config.max_volumes)
-    if not matches:
-        raise RuntimeError(f"No matched image/mask NIfTI pairs found under {config.data_root}")
-    print(f"matched_volumes={len(matches)}")
+    names: list[str]
+    matches: list[tuple[str, Path, Path]] = []
+    cached_names = existing_png_names(images_dir, masks_dir) if config.skip_existing_png else []
+    if cached_names:
+        names = cached_names
+        print(f"using_existing_png_slices={len(names)}")
+    else:
+        matches = match_volumes(config.data_root, config.max_volumes)
+        if not matches:
+            raise RuntimeError(f"No matched image/mask NIfTI pairs found under {config.data_root}")
+        print(f"matched_volumes={len(matches)}")
 
-    names = convert_volumes_to_png(
-        matches=matches,
-        images_dir=images_dir,
-        masks_dir=masks_dir,
-        skip_existing_png=config.skip_existing_png,
-    )
+        names = convert_volumes_to_png(
+            matches=matches,
+            images_dir=images_dir,
+            masks_dir=masks_dir,
+            skip_existing_png=config.skip_existing_png,
+        )
     if not names:
         raise RuntimeError("No PNG slices created.")
     print(f"png_slices={len(names)}")
