@@ -35,6 +35,7 @@ class TrainConfig:
     output_path: Path
     metrics_path: Path
     model_version: str
+    architecture: str
     encoder_name: str
     encoder_weights: str | None
     classes: int
@@ -43,6 +44,9 @@ class TrainConfig:
     batch_size: int
     epochs: int
     learning_rate: float
+    weight_decay: float
+    optimizer_name: str
+    loss_name: str
     num_workers: int
     seed: int
     device: str
@@ -52,13 +56,10 @@ class TrainConfig:
 
 
 class SlicePairDataset(Dataset):
-    def __init__(self, root: Path, split_csv: Path, image_size: int):
+    def __init__(self, root: Path, rows: list[dict[str, str]], image_size: int):
         self.root = root
         self.image_size = int(image_size)
-        self.rows: list[dict[str, str]] = []
-        if split_csv.exists():
-            with split_csv.open("r", encoding="utf-8", newline="") as handle:
-                self.rows = list(csv.DictReader(handle))
+        self.rows = list(rows)
 
     def __len__(self) -> int:
         return len(self.rows)
@@ -96,6 +97,7 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--output-path", type=Path, default=DEFAULT_OUTPUT_PATH)
     parser.add_argument("--metrics-path", type=Path, default=DEFAULT_METRICS_PATH)
     parser.add_argument("--model-version", type=str, default="0.1.0-backbone")
+    parser.add_argument("--architecture", type=str, default="unet")
     parser.add_argument("--encoder-name", type=str, default="resnet34")
     parser.add_argument("--encoder-weights", type=str, default="imagenet")
     parser.add_argument("--classes", type=int, default=8)
@@ -104,6 +106,9 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--epochs", type=int, default=5)
     parser.add_argument("--learning-rate", type=float, default=1e-3)
+    parser.add_argument("--weight-decay", type=float, default=0.0)
+    parser.add_argument("--optimizer", type=str, default="adamw")
+    parser.add_argument("--loss", type=str, default="dice_ce")
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--device", type=str, default="auto")
@@ -118,6 +123,7 @@ def parse_args() -> TrainConfig:
         output_path=args.output_path.resolve(),
         metrics_path=args.metrics_path.resolve(),
         model_version=str(args.model_version),
+        architecture=str(args.architecture).strip().lower(),
         encoder_name=str(args.encoder_name),
         encoder_weights=encoder_weights,
         classes=max(int(args.classes), 2),
@@ -126,6 +132,9 @@ def parse_args() -> TrainConfig:
         batch_size=max(int(args.batch_size), 1),
         epochs=max(int(args.epochs), 1),
         learning_rate=float(args.learning_rate),
+        weight_decay=max(float(args.weight_decay), 0.0),
+        optimizer_name=str(args.optimizer).strip().lower(),
+        loss_name=str(args.loss).strip().lower(),
         num_workers=max(int(args.num_workers), 0),
         seed=int(args.seed),
         device=str(args.device).strip().lower(),
@@ -150,6 +159,91 @@ def seed_everything(seed: int) -> None:
     np.random.seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
+
+
+def _rows_from_csv(split_csv: Path) -> list[dict[str, str]]:
+    if not split_csv.exists():
+        return []
+    with split_csv.open("r", encoding="utf-8", newline="") as handle:
+        return list(csv.DictReader(handle))
+
+
+def _rows_from_legacy_split_json(root: Path, split_name: str) -> list[dict[str, str]]:
+    split_json = root / "splits.json"
+    if not split_json.exists():
+        return []
+    payload = json.loads(split_json.read_text(encoding="utf-8"))
+    stems = payload.get(split_name, [])
+    if not isinstance(stems, list):
+        return []
+    rows: list[dict[str, str]] = []
+    for stem in stems:
+        stem_value = str(stem).strip()
+        if not stem_value:
+            continue
+        rows.append(
+            {
+                "image": f"images/{stem_value}.png",
+                "mask": f"masks/{stem_value}.png",
+            }
+        )
+    return rows
+
+
+def load_split_rows(root: Path, split_name: str) -> list[dict[str, str]]:
+    split_csv = root / "splits" / f"{split_name}.csv"
+    rows = _rows_from_csv(split_csv)
+    if rows:
+        return rows
+    return _rows_from_legacy_split_json(root, split_name)
+
+
+def build_model(config: TrainConfig) -> nn.Module:
+    builders = {
+        "unet": smp.Unet,
+        "unetplusplus": smp.UnetPlusPlus,
+        "fpn": smp.FPN,
+        "deeplabv3plus": smp.DeepLabV3Plus,
+        "manet": smp.MAnet,
+    }
+    if config.architecture not in builders:
+        raise ValueError(f"unsupported architecture: {config.architecture}")
+    return builders[config.architecture](
+        encoder_name=config.encoder_name,
+        encoder_weights=config.encoder_weights,
+        in_channels=config.in_channels,
+        classes=config.classes,
+    )
+
+
+class DiceCELoss(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.ce = nn.CrossEntropyLoss()
+        self.dice = smp.losses.DiceLoss(mode="multiclass", from_logits=True)
+
+    def forward(self, logits: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        return self.ce(logits, target) + self.dice(logits, target)
+
+
+def build_loss(name: str) -> nn.Module:
+    loss_name = str(name).strip().lower()
+    if loss_name == "ce":
+        return nn.CrossEntropyLoss()
+    if loss_name == "dice_ce":
+        return DiceCELoss()
+    if loss_name == "focal":
+        return smp.losses.FocalLoss(mode="multiclass")
+    raise ValueError(f"unsupported loss: {name}")
+
+
+def build_optimizer(name: str, params, learning_rate: float, weight_decay: float) -> torch.optim.Optimizer:
+    optimizer_name = str(name).strip().lower()
+    if optimizer_name == "adam":
+        return torch.optim.Adam(params, lr=learning_rate, weight_decay=weight_decay)
+    if optimizer_name == "adamw":
+        return torch.optim.AdamW(params, lr=learning_rate, weight_decay=weight_decay)
+    raise ValueError(f"unsupported optimizer: {name}")
 
 
 def class_metrics(
@@ -244,26 +338,24 @@ def train(config: TrainConfig) -> dict[str, Any]:
     device = resolve_device(config.device)
     print(f"device={device}")
 
-    splits_dir = config.slice_dir / "splits"
-    train_ds = SlicePairDataset(config.slice_dir, splits_dir / "train.csv", config.image_size)
-    val_ds = SlicePairDataset(config.slice_dir, splits_dir / "val.csv", config.image_size)
-    test_ds = SlicePairDataset(config.slice_dir, splits_dir / "test.csv", config.image_size)
+    train_rows = load_split_rows(config.slice_dir, "train")
+    val_rows = load_split_rows(config.slice_dir, "val")
+    test_rows = load_split_rows(config.slice_dir, "test")
+
+    train_ds = SlicePairDataset(config.slice_dir, train_rows, config.image_size)
+    val_ds = SlicePairDataset(config.slice_dir, val_rows, config.image_size)
+    test_ds = SlicePairDataset(config.slice_dir, test_rows, config.image_size)
 
     if len(train_ds) == 0:
-        raise RuntimeError(f"No training rows found in {splits_dir / 'train.csv'}")
+        raise RuntimeError(f"No training rows found under {config.slice_dir}")
 
     train_loader = DataLoader(train_ds, batch_size=config.batch_size, shuffle=True, num_workers=config.num_workers)
     val_loader = DataLoader(val_ds, batch_size=config.batch_size, shuffle=False, num_workers=config.num_workers)
     test_loader = DataLoader(test_ds, batch_size=config.batch_size, shuffle=False, num_workers=config.num_workers)
 
-    model = smp.Unet(
-        encoder_name=config.encoder_name,
-        encoder_weights=config.encoder_weights,
-        in_channels=config.in_channels,
-        classes=config.classes,
-    ).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
-    criterion = nn.CrossEntropyLoss()
+    model = build_model(config).to(device)
+    optimizer = build_optimizer(config.optimizer_name, model.parameters(), config.learning_rate, config.weight_decay)
+    criterion = build_loss(config.loss_name)
 
     history: list[dict[str, float]] = []
     best_val = float("inf")
@@ -320,8 +412,11 @@ def train(config: TrainConfig) -> dict[str, Any]:
     checkpoint = {
         "model_version": config.model_version,
         "model_type": "unet_pretrained_backbone",
+        "architecture": config.architecture,
         "encoder_name": config.encoder_name,
         "encoder_weights": config.encoder_weights,
+        "optimizer_name": config.optimizer_name,
+        "loss_name": config.loss_name,
         "in_channels": config.in_channels,
         "classes": config.classes,
         "image_size": config.image_size,
@@ -346,8 +441,13 @@ def train(config: TrainConfig) -> dict[str, Any]:
 
     metrics = {
         "model_version": config.model_version,
+        "architecture": config.architecture,
         "encoder_name": config.encoder_name,
         "encoder_weights": config.encoder_weights,
+        "optimizer_name": config.optimizer_name,
+        "loss_name": config.loss_name,
+        "learning_rate": config.learning_rate,
+        "weight_decay": config.weight_decay,
         "device": str(device),
         "train_rows": len(train_ds),
         "val_rows": len(val_ds),
