@@ -47,6 +47,7 @@ class TrainConfig:
     weight_decay: float
     optimizer_name: str
     loss_name: str
+    selection_metric: str
     num_workers: int
     seed: int
     device: str
@@ -109,6 +110,7 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--weight-decay", type=float, default=0.0)
     parser.add_argument("--optimizer", type=str, default="adamw")
     parser.add_argument("--loss", type=str, default="dice_ce")
+    parser.add_argument("--selection-metric", type=str, default="val_mean_dice_fg")
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--device", type=str, default="auto")
@@ -135,6 +137,7 @@ def parse_args() -> TrainConfig:
         weight_decay=max(float(args.weight_decay), 0.0),
         optimizer_name=str(args.optimizer).strip().lower(),
         loss_name=str(args.loss).strip().lower(),
+        selection_metric=str(args.selection_metric).strip().lower(),
         num_workers=max(int(args.num_workers), 0),
         seed=int(args.seed),
         device=str(args.device).strip().lower(),
@@ -244,6 +247,17 @@ def build_optimizer(name: str, params, learning_rate: float, weight_decay: float
     if optimizer_name == "adamw":
         return torch.optim.AdamW(params, lr=learning_rate, weight_decay=weight_decay)
     raise ValueError(f"unsupported optimizer: {name}")
+
+
+def metric_direction(name: str) -> int:
+    metric_name = str(name).strip().lower()
+    if metric_name.endswith("loss"):
+        return -1
+    return 1
+
+
+def metric_value(row: dict[str, float], name: str) -> float:
+    return float(row.get(name, 0.0))
 
 
 def class_metrics(
@@ -358,9 +372,10 @@ def train(config: TrainConfig) -> dict[str, Any]:
     criterion = build_loss(config.loss_name)
 
     history: list[dict[str, float]] = []
-    best_val = float("inf")
+    best_score: float | None = None
     best_state: dict[str, torch.Tensor] | None = None
     best_epoch = 0
+    selection_direction = metric_direction(config.selection_metric)
 
     for epoch in range(1, config.epochs + 1):
         train_m = run_epoch(
@@ -401,8 +416,15 @@ def train(config: TrainConfig) -> dict[str, Any]:
             f"val_loss={val_m['loss']:.4f} val_iou_fg={val_m['mean_iou_fg']:.4f}"
         )
 
-        if val_m["loss"] <= best_val:
-            best_val = val_m["loss"]
+        score = metric_value(row, config.selection_metric)
+        should_update = best_score is None
+        if best_score is not None:
+            if selection_direction > 0:
+                should_update = score >= best_score
+            else:
+                should_update = score <= best_score
+        if should_update:
+            best_score = score
             best_epoch = epoch
             best_state = {k: v.detach().cpu() for k, v in model.state_dict().items()}
 
@@ -417,10 +439,12 @@ def train(config: TrainConfig) -> dict[str, Any]:
         "encoder_weights": config.encoder_weights,
         "optimizer_name": config.optimizer_name,
         "loss_name": config.loss_name,
+        "selection_metric": config.selection_metric,
         "in_channels": config.in_channels,
         "classes": config.classes,
         "image_size": config.image_size,
         "best_epoch": best_epoch,
+        "best_score": best_score,
         "history": history,
         "state_dict": best_state,
     }
@@ -446,6 +470,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
         "encoder_weights": config.encoder_weights,
         "optimizer_name": config.optimizer_name,
         "loss_name": config.loss_name,
+        "selection_metric": config.selection_metric,
         "learning_rate": config.learning_rate,
         "weight_decay": config.weight_decay,
         "device": str(device),
@@ -453,6 +478,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
         "val_rows": len(val_ds),
         "test_rows": len(test_ds),
         "best_epoch": best_epoch,
+        "best_score": best_score,
         "history": history,
         "test": test_m,
     }

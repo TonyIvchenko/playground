@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from src.ctscan.scripts.segmentation.train_unet_backbone import SlicePairDataset, load_split_rows
+from src.ctscan.scripts.segmentation.train_unet_backbone import SlicePairDataset, load_split_rows, metric_direction
 
 
 def _write_pair(images_dir: Path, masks_dir: Path, name: str, size: int = 64) -> None:
@@ -50,3 +50,8 @@ def test_slice_pair_dataset_reads_legacy_rows(tmp_path: Path):
 
     assert tuple(image.shape) == (1, 64, 64)
     assert tuple(mask.shape) == (64, 64)
+
+
+def test_metric_direction_prefers_higher_for_dice_and_lower_for_loss():
+    assert metric_direction("val_mean_dice_fg") == 1
+    assert metric_direction("val_loss") == -1
