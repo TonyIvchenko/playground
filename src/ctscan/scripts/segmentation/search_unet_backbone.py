@@ -47,6 +47,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--device", type=str, default="auto")
+    parser.add_argument("--selection-metric", type=str, default="val_mean_dice_fg")
     parser.add_argument("--max-train-batches", type=int, default=0)
     parser.add_argument("--max-val-batches", type=int, default=0)
     parser.add_argument("--max-test-batches", type=int, default=0)
@@ -111,6 +112,7 @@ def main() -> int:
             weight_decay=max(float(weight_decay), 0.0),
             optimizer_name=optimizer_name,
             loss_name=loss_name,
+            selection_metric=str(args.selection_metric).strip().lower(),
             num_workers=max(int(args.num_workers), 0),
             seed=int(args.seed),
             device=str(args.device).strip().lower(),
