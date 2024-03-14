@@ -27,6 +27,21 @@ CTSCAN_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SLICE_DIR = CTSCAN_ROOT / "data" / "ctscan" / "processed" / "slice_dataset"
 DEFAULT_OUTPUT_PATH = CTSCAN_ROOT / "model" / "unet_backbone.pt"
 DEFAULT_METRICS_PATH = CTSCAN_ROOT / "model" / "unet_backbone.metrics.json"
+PRESET_DEFAULTS: dict[str, dict[str, Any]] = {
+    "default": {},
+    "legacy_png_best": {
+        "architecture": "fpn",
+        "encoder_name": "efficientnet-b0",
+        "classes": 4,
+        "image_size": 256,
+        "batch_size": 8,
+        "learning_rate": 3e-4,
+        "weight_decay": 1e-4,
+        "optimizer": "adamw",
+        "loss": "dice_ce",
+        "selection_metric": "val_mean_dice_fg",
+    },
+}
 
 
 @dataclass
@@ -93,7 +108,12 @@ class SlicePairDataset(Dataset):
 
 
 def parse_args() -> TrainConfig:
+    pre_parser = argparse.ArgumentParser(add_help=False)
+    pre_parser.add_argument("--preset", type=str, default="default", choices=sorted(PRESET_DEFAULTS))
+    preset_args, _ = pre_parser.parse_known_args()
+
     parser = argparse.ArgumentParser(description="Train pretrained-backbone U-Net on slice PNG pairs.")
+    parser.add_argument("--preset", type=str, default="default", choices=sorted(PRESET_DEFAULTS))
     parser.add_argument("--slice-dir", type=Path, default=DEFAULT_SLICE_DIR)
     parser.add_argument("--output-path", type=Path, default=DEFAULT_OUTPUT_PATH)
     parser.add_argument("--metrics-path", type=Path, default=DEFAULT_METRICS_PATH)
@@ -117,6 +137,7 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--max-train-batches", type=int, default=0)
     parser.add_argument("--max-val-batches", type=int, default=0)
     parser.add_argument("--max-test-batches", type=int, default=0)
+    parser.set_defaults(**PRESET_DEFAULTS[preset_args.preset])
     args = parser.parse_args()
 
     encoder_weights = None if str(args.encoder_weights).strip().lower() in {"", "none"} else str(args.encoder_weights)
@@ -229,6 +250,18 @@ class DiceCELoss(nn.Module):
         return self.ce(logits, target) + self.dice(logits, target)
 
 
+class MulticlassFocalLoss(nn.Module):
+    def __init__(self, gamma: float = 2.0) -> None:
+        super().__init__()
+        self.gamma = gamma
+
+    def forward(self, logits: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        ce = F.cross_entropy(logits, target, reduction="none")
+        pt = torch.exp(-ce)
+        loss = torch.pow(1.0 - pt, self.gamma) * ce
+        return loss.mean()
+
+
 def build_loss(name: str) -> nn.Module:
     loss_name = str(name).strip().lower()
     if loss_name == "ce":
@@ -236,7 +269,7 @@ def build_loss(name: str) -> nn.Module:
     if loss_name == "dice_ce":
         return DiceCELoss()
     if loss_name == "focal":
-        return smp.losses.FocalLoss(mode="multiclass")
+        return MulticlassFocalLoss()
     raise ValueError(f"unsupported loss: {name}")
 
 

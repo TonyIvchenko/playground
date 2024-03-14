@@ -270,8 +270,7 @@ python scripts/segmentation/train_unet_backbone.py \
   --slice-dir /Volumes/Extreme\ Pro/data/ctscan/processed/slice_dataset_backbone_smoke \
   --output-path model/unet_backbone_smoke.pt \
   --metrics-path model/unet_backbone_smoke.metrics.json \
-  --encoder-name resnet34 \
-  --encoder-weights imagenet \
+  --preset legacy_png_best \
   --epochs 1 \
   --batch-size 4 \
   --max-train-batches 4 \
@@ -284,6 +283,8 @@ Notes:
 - This is a smoke baseline only; run with larger `--max-cases`, more epochs, and remove `--max-*-batches` for real training.
 - Split files are written to `.../slice_dataset_backbone_smoke/splits/*.csv`.
 - PNG pairs are written under `.../slice_dataset_backbone_smoke/images` and `.../slice_dataset_backbone_smoke/masks`.
+- `--preset legacy_png_best` applies the strongest measured legacy-PNG setting so far:
+  `fpn + efficientnet-b0 + dice_ce + adamw + image_size=256 + batch_size=8 + lr=3e-4 + weight_decay=1e-4`.
 
 
 ## Legacy End-To-End Runbook

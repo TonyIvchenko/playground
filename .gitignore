@@ -140,4 +140,7 @@ src/*/data/*/samples/
 src/disasters/data/*/raw/
 src/disasters/data/*/processed/
 src/ctscan/data/
+src/ctscan/model/*.pt
+src/ctscan/model/*.metrics.json
+src/ctscan/model/backbone_search*/
 tmp/
