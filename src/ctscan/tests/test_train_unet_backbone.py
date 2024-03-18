@@ -7,14 +7,17 @@ import sys
 import numpy as np
 from PIL import Image
 import torch
+from torch import nn
 
 from src.ctscan.scripts.segmentation.train_unet_backbone import (
     MulticlassFocalLoss,
     PRESET_DEFAULTS,
     SlicePairDataset,
+    TrainConfig,
     load_split_rows,
     metric_direction,
     parse_args,
+    train,
 )
 
 
@@ -87,3 +90,73 @@ def test_legacy_png_best_preset_sets_measured_winner(monkeypatch):
     assert config.classes == PRESET_DEFAULTS["legacy_png_best"]["classes"]
     assert config.image_size == PRESET_DEFAULTS["legacy_png_best"]["image_size"]
     assert config.batch_size == PRESET_DEFAULTS["legacy_png_best"]["batch_size"]
+
+
+def test_train_evaluates_test_metrics_with_best_checkpoint_state(tmp_path: Path, monkeypatch):
+    root = tmp_path / "slice_png"
+    images_dir = root / "images"
+    masks_dir = root / "masks"
+    images_dir.mkdir(parents=True, exist_ok=True)
+    masks_dir.mkdir(parents=True, exist_ok=True)
+    _write_pair(images_dir, masks_dir, "case001")
+    rows = [{"image": "images/case001.png", "mask": "masks/case001.png"}]
+
+    class DummyModel(nn.Module):
+        def __init__(self) -> None:
+            super().__init__()
+            self.weight = nn.Parameter(torch.tensor([0.0]))
+
+        def forward(self, image):  # pragma: no cover - not used by patched run_epoch
+            batch, _, height, width = image.shape
+            return torch.zeros((batch, 2, height, width), dtype=image.dtype, device=image.device)
+
+    call_state = {"train_epoch": 0, "val_epoch": 0}
+
+    def fake_run_epoch(model, loader, optimizer, criterion, device, classes, max_batches, progress_desc):
+        if optimizer is not None:
+            call_state["train_epoch"] += 1
+            model.weight.data.fill_(float(call_state["train_epoch"]))
+            return {"loss": 1.0, "mean_iou": 0.0, "mean_dice": 0.0, "mean_iou_fg": 0.0, "mean_dice_fg": 0.0}
+        if progress_desc.startswith("Epoch"):
+            call_state["val_epoch"] += 1
+            if call_state["val_epoch"] == 1:
+                return {"loss": 0.5, "mean_iou": 0.0, "mean_dice": 0.0, "mean_iou_fg": 0.8, "mean_dice_fg": 0.8}
+            return {"loss": 0.6, "mean_iou": 0.0, "mean_dice": 0.0, "mean_iou_fg": 0.1, "mean_dice_fg": 0.1}
+        assert float(model.weight.item()) == 1.0
+        return {"loss": 0.4, "mean_iou": 0.0, "mean_dice": 0.0, "mean_iou_fg": 0.7, "mean_dice_fg": 0.7}
+
+    monkeypatch.setattr("src.ctscan.scripts.segmentation.train_unet_backbone.build_model", lambda config: DummyModel())
+    monkeypatch.setattr("src.ctscan.scripts.segmentation.train_unet_backbone.build_optimizer", lambda *args, **kwargs: object())
+    monkeypatch.setattr("src.ctscan.scripts.segmentation.train_unet_backbone.build_loss", lambda *args, **kwargs: nn.CrossEntropyLoss())
+    monkeypatch.setattr("src.ctscan.scripts.segmentation.train_unet_backbone.load_split_rows", lambda *_args, **_kwargs: rows)
+    monkeypatch.setattr("src.ctscan.scripts.segmentation.train_unet_backbone.run_epoch", fake_run_epoch)
+
+    config = TrainConfig(
+        slice_dir=root,
+        output_path=tmp_path / "model.pt",
+        metrics_path=tmp_path / "metrics.json",
+        model_version="test",
+        architecture="fpn",
+        encoder_name="efficientnet-b0",
+        encoder_weights=None,
+        classes=2,
+        in_channels=1,
+        image_size=64,
+        batch_size=1,
+        epochs=2,
+        learning_rate=1e-3,
+        weight_decay=0.0,
+        optimizer_name="adamw",
+        loss_name="dice_ce",
+        selection_metric="val_mean_dice_fg",
+        num_workers=0,
+        seed=17,
+        device="cpu",
+        max_train_batches=0,
+        max_val_batches=0,
+        max_test_batches=0,
+    )
+
+    metrics = train(config)
+
+    assert metrics["best_epoch"] == 1

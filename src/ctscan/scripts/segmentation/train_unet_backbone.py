@@ -243,11 +243,10 @@ def build_model(config: TrainConfig) -> nn.Module:
 class DiceCELoss(nn.Module):
     def __init__(self) -> None:
         super().__init__()
-        self.ce = nn.CrossEntropyLoss()
         self.dice = smp.losses.DiceLoss(mode="multiclass", from_logits=True)
 
     def forward(self, logits: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        return self.ce(logits, target) + self.dice(logits, target)
+        return F.cross_entropy(logits, target) + self.dice(logits, target)
 
 
 class MulticlassFocalLoss(nn.Module):
@@ -459,10 +458,10 @@ def train(config: TrainConfig) -> dict[str, Any]:
         if should_update:
             best_score = score
             best_epoch = epoch
-            best_state = {k: v.detach().cpu() for k, v in model.state_dict().items()}
+            best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
 
     if best_state is None:
-        best_state = {k: v.detach().cpu() for k, v in model.state_dict().items()}
+        best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
 
     checkpoint = {
         "model_version": config.model_version,
@@ -484,6 +483,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
     config.output_path.parent.mkdir(parents=True, exist_ok=True)
     torch.save(checkpoint, config.output_path)
 
+    model.load_state_dict(best_state)
     with torch.no_grad():
         test_m = run_epoch(
             model=model,
