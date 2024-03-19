@@ -284,7 +284,10 @@ Notes:
 - Split files are written to `.../slice_dataset_backbone_smoke/splits/*.csv`.
 - PNG pairs are written under `.../slice_dataset_backbone_smoke/images` and `.../slice_dataset_backbone_smoke/masks`.
 - `--preset legacy_png_best` applies the strongest measured legacy-PNG setting so far:
-  `fpn + efficientnet-b0 + dice_ce + adamw + image_size=256 + batch_size=8 + lr=3e-4 + weight_decay=1e-4`.
+  `fpn + efficientnet-b0 + dice_ce + adamw + image_size=320 + batch_size=6 + lr=3e-4 + weight_decay=1e-4`.
+  On the current `data/jemys_compatible_png` cache, the latest 1-epoch check reached
+  `val_mean_dice_fg=0.6219`, `val_mean_iou_fg=0.4565`, `val_loss=0.1578`,
+  `test_mean_dice_fg=0.6451`.
 
 
 ## Legacy End-To-End Runbook
