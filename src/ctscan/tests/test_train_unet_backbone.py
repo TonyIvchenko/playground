@@ -10,6 +10,8 @@ import torch
 from torch import nn
 
 from src.ctscan.scripts.segmentation.train_unet_backbone import (
+    build_scheduler,
+    compute_class_weights,
     MulticlassFocalLoss,
     PRESET_DEFAULTS,
     SlicePairDataset,
@@ -80,6 +82,39 @@ def test_multiclass_focal_loss_runs_on_logits_and_integer_targets():
     assert loss.item() > 0
 
 
+def test_build_scheduler_returns_onecycle_when_requested():
+    model = nn.Conv2d(1, 2, kernel_size=1)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
+
+    scheduler = build_scheduler("onecycle", optimizer, learning_rate=3e-4, steps_per_epoch=4, epochs=2)
+
+    assert scheduler is not None
+
+
+def test_compute_class_weights_scales_down_background(tmp_path: Path):
+    root = tmp_path / "legacy_png"
+    images_dir = root / "images"
+    masks_dir = root / "masks"
+    images_dir.mkdir(parents=True, exist_ok=True)
+    masks_dir.mkdir(parents=True, exist_ok=True)
+
+    _write_pair(images_dir, masks_dir, "case001")
+    sparse = np.zeros((64, 64), dtype=np.uint8)
+    sparse[0:4, 0:4] = 1
+    sparse[4:6, 4:6] = 2
+    sparse[6:10, 6:10] = 3
+    Image.fromarray(sparse, mode="L").save(masks_dir / "case001.png")
+
+    weights = compute_class_weights(root, [{"image": "images/case001.png", "mask": "masks/case001.png"}], 4, "inverse_sqrt")
+
+    assert weights is not None
+    assert tuple(weights.shape) == (4,)
+    assert weights[0].item() < weights[1].item()
+    assert weights[0].item() < weights[2].item()
+    assert weights[0].item() < weights[3].item()
+    assert abs(weights.mean().item() - 1.0) < 1e-6
+
+
 def test_legacy_png_best_preset_sets_measured_winner(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--preset", "legacy_png_best"])
 
@@ -90,6 +125,8 @@ def test_legacy_png_best_preset_sets_measured_winner(monkeypatch):
     assert config.classes == PRESET_DEFAULTS["legacy_png_best"]["classes"]
     assert config.image_size == PRESET_DEFAULTS["legacy_png_best"]["image_size"]
     assert config.batch_size == PRESET_DEFAULTS["legacy_png_best"]["batch_size"]
+    assert config.class_weight_mode == PRESET_DEFAULTS["legacy_png_best"]["class_weight_mode"]
+    assert config.scheduler_name == PRESET_DEFAULTS["legacy_png_best"]["scheduler"]
 
 
 def test_train_evaluates_test_metrics_with_best_checkpoint_state(tmp_path: Path, monkeypatch):
@@ -112,7 +149,7 @@ def test_train_evaluates_test_metrics_with_best_checkpoint_state(tmp_path: Path,
 
     call_state = {"train_epoch": 0, "val_epoch": 0}
 
-    def fake_run_epoch(model, loader, optimizer, criterion, device, classes, max_batches, progress_desc):
+    def fake_run_epoch(model, loader, optimizer, scheduler, criterion, device, classes, max_batches, progress_desc):
         if optimizer is not None:
             call_state["train_epoch"] += 1
             model.weight.data.fill_(float(call_state["train_epoch"]))
@@ -148,6 +185,8 @@ def test_train_evaluates_test_metrics_with_best_checkpoint_state(tmp_path: Path,
         weight_decay=0.0,
         optimizer_name="adamw",
         loss_name="dice_ce",
+        class_weight_mode="none",
+        scheduler_name="none",
         selection_metric="val_mean_dice_fg",
         num_workers=0,
         seed=17,

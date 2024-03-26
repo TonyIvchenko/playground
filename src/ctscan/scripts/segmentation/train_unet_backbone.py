@@ -39,6 +39,8 @@ PRESET_DEFAULTS: dict[str, dict[str, Any]] = {
         "weight_decay": 1e-4,
         "optimizer": "adamw",
         "loss": "dice_ce",
+        "class_weight_mode": "none",
+        "scheduler": "none",
         "selection_metric": "val_mean_dice_fg",
     },
 }
@@ -62,6 +64,8 @@ class TrainConfig:
     weight_decay: float
     optimizer_name: str
     loss_name: str
+    class_weight_mode: str
+    scheduler_name: str
     selection_metric: str
     num_workers: int
     seed: int
@@ -130,6 +134,8 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--weight-decay", type=float, default=0.0)
     parser.add_argument("--optimizer", type=str, default="adamw")
     parser.add_argument("--loss", type=str, default="dice_ce")
+    parser.add_argument("--class-weight-mode", type=str, default="none")
+    parser.add_argument("--scheduler", type=str, default="none")
     parser.add_argument("--selection-metric", type=str, default="val_mean_dice_fg")
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--seed", type=int, default=17)
@@ -158,6 +164,8 @@ def parse_args() -> TrainConfig:
         weight_decay=max(float(args.weight_decay), 0.0),
         optimizer_name=str(args.optimizer).strip().lower(),
         loss_name=str(args.loss).strip().lower(),
+        class_weight_mode=str(args.class_weight_mode).strip().lower(),
+        scheduler_name=str(args.scheduler).strip().lower(),
         selection_metric=str(args.selection_metric).strip().lower(),
         num_workers=max(int(args.num_workers), 0),
         seed=int(args.seed),
@@ -241,12 +249,16 @@ def build_model(config: TrainConfig) -> nn.Module:
 
 
 class DiceCELoss(nn.Module):
-    def __init__(self) -> None:
+    def __init__(self, class_weights: torch.Tensor | None = None) -> None:
         super().__init__()
         self.dice = smp.losses.DiceLoss(mode="multiclass", from_logits=True)
+        if class_weights is not None:
+            self.register_buffer("class_weights", class_weights)
+        else:
+            self.class_weights = None
 
     def forward(self, logits: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        return F.cross_entropy(logits, target) + self.dice(logits, target)
+        return F.cross_entropy(logits, target, weight=self.class_weights) + self.dice(logits, target)
 
 
 class MulticlassFocalLoss(nn.Module):
@@ -261,12 +273,12 @@ class MulticlassFocalLoss(nn.Module):
         return loss.mean()
 
 
-def build_loss(name: str) -> nn.Module:
+def build_loss(name: str, class_weights: torch.Tensor | None = None) -> nn.Module:
     loss_name = str(name).strip().lower()
     if loss_name == "ce":
-        return nn.CrossEntropyLoss()
+        return nn.CrossEntropyLoss(weight=class_weights)
     if loss_name == "dice_ce":
-        return DiceCELoss()
+        return DiceCELoss(class_weights=class_weights)
     if loss_name == "focal":
         return MulticlassFocalLoss()
     raise ValueError(f"unsupported loss: {name}")
@@ -279,6 +291,28 @@ def build_optimizer(name: str, params, learning_rate: float, weight_decay: float
     if optimizer_name == "adamw":
         return torch.optim.AdamW(params, lr=learning_rate, weight_decay=weight_decay)
     raise ValueError(f"unsupported optimizer: {name}")
+
+
+def build_scheduler(
+    name: str,
+    optimizer: torch.optim.Optimizer,
+    learning_rate: float,
+    steps_per_epoch: int,
+    epochs: int,
+) -> torch.optim.lr_scheduler.LRScheduler | None:
+    scheduler_name = str(name).strip().lower()
+    if scheduler_name in {"", "none"}:
+        return None
+    if scheduler_name == "onecycle":
+        total_steps = max(int(steps_per_epoch), 1) * max(int(epochs), 1)
+        return torch.optim.lr_scheduler.OneCycleLR(
+            optimizer,
+            max_lr=learning_rate,
+            total_steps=total_steps,
+            pct_start=0.1,
+            anneal_strategy="cos",
+        )
+    raise ValueError(f"unsupported scheduler: {name}")
 
 
 def metric_direction(name: str) -> int:
@@ -323,10 +357,34 @@ def class_metrics(
     }
 
 
+def compute_class_weights(root: Path, rows: list[dict[str, str]], classes: int, mode: str) -> torch.Tensor | None:
+    weight_mode = str(mode).strip().lower()
+    if weight_mode in {"", "none"}:
+        return None
+    if weight_mode not in {"inverse", "inverse_sqrt"}:
+        raise ValueError(f"unsupported class weight mode: {mode}")
+
+    counts = np.zeros(classes, dtype=np.float64)
+    for row in rows:
+        mask_arr = np.asarray(Image.open(root / row["mask"]).convert("L"), dtype=np.int64)
+        bincount = np.bincount(mask_arr.reshape(-1), minlength=classes)
+        counts[:classes] += bincount[:classes]
+
+    counts = np.maximum(counts, 1.0)
+    freqs = counts / counts.sum()
+    if weight_mode == "inverse":
+        weights = 1.0 / freqs
+    else:
+        weights = 1.0 / np.sqrt(freqs)
+    weights = weights / weights.mean()
+    return torch.tensor(weights, dtype=torch.float32)
+
+
 def run_epoch(
     model: nn.Module,
     loader: DataLoader,
     optimizer: torch.optim.Optimizer | None,
+    scheduler: torch.optim.lr_scheduler.LRScheduler | None,
     criterion: nn.Module,
     device: torch.device,
     classes: int,
@@ -358,6 +416,8 @@ def run_epoch(
                 optimizer.zero_grad(set_to_none=True)
                 loss.backward()
                 optimizer.step()
+                if scheduler is not None:
+                    scheduler.step()
 
         losses.append(float(loss.item()))
         pred = torch.argmax(logits, dim=1).detach().cpu()
@@ -401,7 +461,18 @@ def train(config: TrainConfig) -> dict[str, Any]:
 
     model = build_model(config).to(device)
     optimizer = build_optimizer(config.optimizer_name, model.parameters(), config.learning_rate, config.weight_decay)
-    criterion = build_loss(config.loss_name)
+    scheduler = build_scheduler(
+        config.scheduler_name,
+        optimizer,
+        config.learning_rate,
+        steps_per_epoch=len(train_loader),
+        epochs=config.epochs,
+    )
+    class_weights = compute_class_weights(config.slice_dir, train_rows, config.classes, config.class_weight_mode)
+    criterion = build_loss(
+        config.loss_name,
+        class_weights=class_weights.to(device) if class_weights is not None else None,
+    )
 
     history: list[dict[str, float]] = []
     best_score: float | None = None
@@ -414,6 +485,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
             model=model,
             loader=train_loader,
             optimizer=optimizer,
+            scheduler=scheduler,
             criterion=criterion,
             device=device,
             classes=config.classes,
@@ -425,6 +497,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
                 model=model,
                 loader=val_loader,
                 optimizer=None,
+                scheduler=None,
                 criterion=criterion,
                 device=device,
                 classes=config.classes,
@@ -471,6 +544,9 @@ def train(config: TrainConfig) -> dict[str, Any]:
         "encoder_weights": config.encoder_weights,
         "optimizer_name": config.optimizer_name,
         "loss_name": config.loss_name,
+        "class_weight_mode": config.class_weight_mode,
+        "scheduler_name": config.scheduler_name,
+        "class_weights": class_weights.tolist() if class_weights is not None else None,
         "selection_metric": config.selection_metric,
         "in_channels": config.in_channels,
         "classes": config.classes,
@@ -489,6 +565,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
             model=model,
             loader=test_loader,
             optimizer=None,
+            scheduler=None,
             criterion=criterion,
             device=device,
             classes=config.classes,
@@ -503,6 +580,9 @@ def train(config: TrainConfig) -> dict[str, Any]:
         "encoder_weights": config.encoder_weights,
         "optimizer_name": config.optimizer_name,
         "loss_name": config.loss_name,
+        "class_weight_mode": config.class_weight_mode,
+        "scheduler_name": config.scheduler_name,
+        "class_weights": class_weights.tolist() if class_weights is not None else None,
         "selection_metric": config.selection_metric,
         "learning_rate": config.learning_rate,
         "weight_decay": config.weight_decay,
