@@ -35,7 +35,7 @@ PRESET_DEFAULTS: dict[str, dict[str, Any]] = {
         "classes": 4,
         "image_size": 320,
         "batch_size": 6,
-        "learning_rate": 3e-4,
+        "learning_rate": 2e-4,
         "weight_decay": 1e-4,
         "optimizer": "adamw",
         "loss": "dice_ce",
