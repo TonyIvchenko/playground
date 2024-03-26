@@ -12,6 +12,7 @@ from torch import nn
 from src.ctscan.scripts.segmentation.train_unet_backbone import (
     build_scheduler,
     compute_class_weights,
+    compute_sample_weights,
     MulticlassFocalLoss,
     PRESET_DEFAULTS,
     SlicePairDataset,
@@ -115,6 +116,39 @@ def test_compute_class_weights_scales_down_background(tmp_path: Path):
     assert abs(weights.mean().item() - 1.0) < 1e-6
 
 
+def test_compute_sample_weights_boosts_rare_foreground_slices(tmp_path: Path):
+    root = tmp_path / "legacy_png"
+    images_dir = root / "images"
+    masks_dir = root / "masks"
+    images_dir.mkdir(parents=True, exist_ok=True)
+    masks_dir.mkdir(parents=True, exist_ok=True)
+
+    _write_pair(images_dir, masks_dir, "bg")
+    Image.fromarray(np.zeros((64, 64), dtype=np.uint8), mode="L").save(masks_dir / "bg.png")
+
+    _write_pair(images_dir, masks_dir, "common")
+    common = np.zeros((64, 64), dtype=np.uint8)
+    common[0:8, 0:8] = 3
+    Image.fromarray(common, mode="L").save(masks_dir / "common.png")
+
+    _write_pair(images_dir, masks_dir, "rare")
+    rare = np.zeros((64, 64), dtype=np.uint8)
+    rare[0:8, 0:8] = 1
+    Image.fromarray(rare, mode="L").save(masks_dir / "rare.png")
+
+    rows = [
+        {"image": "images/bg.png", "mask": "masks/bg.png"},
+        {"image": "images/common.png", "mask": "masks/common.png"},
+        {"image": "images/rare.png", "mask": "masks/rare.png"},
+    ]
+    weights = compute_sample_weights(root, rows, 4, "rare_fg")
+
+    assert weights is not None
+    assert weights[0] == 1.0
+    assert weights[1] > weights[0]
+    assert weights[2] > weights[0]
+
+
 def test_legacy_png_best_preset_sets_measured_winner(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--preset", "legacy_png_best"])
 
@@ -127,6 +161,7 @@ def test_legacy_png_best_preset_sets_measured_winner(monkeypatch):
     assert config.batch_size == PRESET_DEFAULTS["legacy_png_best"]["batch_size"]
     assert config.class_weight_mode == PRESET_DEFAULTS["legacy_png_best"]["class_weight_mode"]
     assert config.scheduler_name == PRESET_DEFAULTS["legacy_png_best"]["scheduler"]
+    assert config.sampler_name == PRESET_DEFAULTS["legacy_png_best"]["sampler"]
 
 
 def test_train_evaluates_test_metrics_with_best_checkpoint_state(tmp_path: Path, monkeypatch):
@@ -187,6 +222,7 @@ def test_train_evaluates_test_metrics_with_best_checkpoint_state(tmp_path: Path,
         loss_name="dice_ce",
         class_weight_mode="none",
         scheduler_name="none",
+        sampler_name="none",
         selection_metric="val_mean_dice_fg",
         num_workers=0,
         seed=17,

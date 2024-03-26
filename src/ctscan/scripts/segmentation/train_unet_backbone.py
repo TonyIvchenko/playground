@@ -14,7 +14,7 @@ from PIL import Image
 import torch
 from torch import nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, WeightedRandomSampler
 try:
     from tqdm.auto import tqdm as _tqdm
 except Exception:  # pragma: no cover - optional
@@ -41,6 +41,7 @@ PRESET_DEFAULTS: dict[str, dict[str, Any]] = {
         "loss": "dice_ce",
         "class_weight_mode": "none",
         "scheduler": "none",
+        "sampler": "none",
         "selection_metric": "val_mean_dice_fg",
     },
 }
@@ -66,6 +67,7 @@ class TrainConfig:
     loss_name: str
     class_weight_mode: str
     scheduler_name: str
+    sampler_name: str
     selection_metric: str
     num_workers: int
     seed: int
@@ -136,6 +138,7 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--loss", type=str, default="dice_ce")
     parser.add_argument("--class-weight-mode", type=str, default="none")
     parser.add_argument("--scheduler", type=str, default="none")
+    parser.add_argument("--sampler", type=str, default="none")
     parser.add_argument("--selection-metric", type=str, default="val_mean_dice_fg")
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--seed", type=int, default=17)
@@ -166,6 +169,7 @@ def parse_args() -> TrainConfig:
         loss_name=str(args.loss).strip().lower(),
         class_weight_mode=str(args.class_weight_mode).strip().lower(),
         scheduler_name=str(args.scheduler).strip().lower(),
+        sampler_name=str(args.sampler).strip().lower(),
         selection_metric=str(args.selection_metric).strip().lower(),
         num_workers=max(int(args.num_workers), 0),
         seed=int(args.seed),
@@ -380,6 +384,39 @@ def compute_class_weights(root: Path, rows: list[dict[str, str]], classes: int, 
     return torch.tensor(weights, dtype=torch.float32)
 
 
+def compute_sample_weights(root: Path, rows: list[dict[str, str]], classes: int, mode: str) -> list[float] | None:
+    sampler_mode = str(mode).strip().lower()
+    if sampler_mode in {"", "none"}:
+        return None
+    if sampler_mode != "rare_fg":
+        raise ValueError(f"unsupported sampler: {mode}")
+
+    row_labels: list[set[int]] = []
+    class_counts = np.zeros(classes, dtype=np.int64)
+    for row in rows:
+        mask_arr = np.asarray(Image.open(root / row["mask"]).convert("L"), dtype=np.int64)
+        labels = {int(value) for value in np.unique(mask_arr).tolist() if int(value) > 0}
+        row_labels.append(labels)
+        for label in labels:
+            if label < classes:
+                class_counts[label] += 1
+
+    fg_counts = class_counts[1:]
+    valid_counts = fg_counts[fg_counts > 0]
+    if valid_counts.size == 0:
+        return [1.0] * len(rows)
+    reference = float(valid_counts.max())
+
+    weights: list[float] = []
+    for labels in row_labels:
+        weight = 1.0
+        for label in labels:
+            if 0 < label < classes and class_counts[label] > 0:
+                weight += float(np.sqrt(reference / float(class_counts[label])))
+        weights.append(weight)
+    return weights
+
+
 def run_epoch(
     model: nn.Module,
     loader: DataLoader,
@@ -455,7 +492,24 @@ def train(config: TrainConfig) -> dict[str, Any]:
     if len(train_ds) == 0:
         raise RuntimeError(f"No training rows found under {config.slice_dir}")
 
-    train_loader = DataLoader(train_ds, batch_size=config.batch_size, shuffle=True, num_workers=config.num_workers)
+    sample_weights = compute_sample_weights(config.slice_dir, train_rows, config.classes, config.sampler_name)
+    train_sampler = None
+    train_shuffle = True
+    if sample_weights is not None:
+        train_sampler = WeightedRandomSampler(
+            weights=torch.tensor(sample_weights, dtype=torch.double),
+            num_samples=len(sample_weights),
+            replacement=True,
+        )
+        train_shuffle = False
+
+    train_loader = DataLoader(
+        train_ds,
+        batch_size=config.batch_size,
+        shuffle=train_shuffle,
+        sampler=train_sampler,
+        num_workers=config.num_workers,
+    )
     val_loader = DataLoader(val_ds, batch_size=config.batch_size, shuffle=False, num_workers=config.num_workers)
     test_loader = DataLoader(test_ds, batch_size=config.batch_size, shuffle=False, num_workers=config.num_workers)
 
@@ -546,7 +600,13 @@ def train(config: TrainConfig) -> dict[str, Any]:
         "loss_name": config.loss_name,
         "class_weight_mode": config.class_weight_mode,
         "scheduler_name": config.scheduler_name,
+        "sampler_name": config.sampler_name,
         "class_weights": class_weights.tolist() if class_weights is not None else None,
+        "sample_weights_summary": {
+            "min": float(min(sample_weights)) if sample_weights else None,
+            "max": float(max(sample_weights)) if sample_weights else None,
+            "mean": float(np.mean(sample_weights)) if sample_weights else None,
+        },
         "selection_metric": config.selection_metric,
         "in_channels": config.in_channels,
         "classes": config.classes,
@@ -582,7 +642,13 @@ def train(config: TrainConfig) -> dict[str, Any]:
         "loss_name": config.loss_name,
         "class_weight_mode": config.class_weight_mode,
         "scheduler_name": config.scheduler_name,
+        "sampler_name": config.sampler_name,
         "class_weights": class_weights.tolist() if class_weights is not None else None,
+        "sample_weights_summary": {
+            "min": float(min(sample_weights)) if sample_weights else None,
+            "max": float(max(sample_weights)) if sample_weights else None,
+            "mean": float(np.mean(sample_weights)) if sample_weights else None,
+        },
         "selection_metric": config.selection_metric,
         "learning_rate": config.learning_rate,
         "weight_decay": config.weight_decay,
