@@ -41,7 +41,7 @@ PRESET_DEFAULTS: dict[str, dict[str, Any]] = {
         "loss": "dice_ce",
         "class_weight_mode": "none",
         "scheduler": "none",
-        "sampler": "none",
+        "sampler": "rare_fg",
         "selection_metric": "val_mean_dice_fg",
     },
 }
