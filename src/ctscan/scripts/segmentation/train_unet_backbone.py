@@ -43,6 +43,7 @@ PRESET_DEFAULTS: dict[str, dict[str, Any]] = {
         "scheduler": "none",
         "sampler": "rare_fg",
         "augmentation": "none",
+        "gradient_accumulation_steps": 1,
         "selection_metric": "val_mean_dice_fg",
     },
 }
@@ -70,6 +71,7 @@ class TrainConfig:
     scheduler_name: str
     sampler_name: str
     augmentation_name: str
+    gradient_accumulation_steps: int
     selection_metric: str
     num_workers: int
     seed: int
@@ -153,6 +155,7 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--scheduler", type=str, default="none")
     parser.add_argument("--sampler", type=str, default="none")
     parser.add_argument("--augmentation", type=str, default="none")
+    parser.add_argument("--gradient-accumulation-steps", type=int, default=1)
     parser.add_argument("--selection-metric", type=str, default="val_mean_dice_fg")
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--seed", type=int, default=17)
@@ -185,6 +188,7 @@ def parse_args() -> TrainConfig:
         scheduler_name=str(args.scheduler).strip().lower(),
         sampler_name=str(args.sampler).strip().lower(),
         augmentation_name=str(args.augmentation).strip().lower(),
+        gradient_accumulation_steps=max(int(args.gradient_accumulation_steps), 1),
         selection_metric=str(args.selection_metric).strip().lower(),
         num_workers=max(int(args.num_workers), 0),
         seed=int(args.seed),
@@ -437,6 +441,7 @@ def run_epoch(
     loader: DataLoader,
     optimizer: torch.optim.Optimizer | None,
     scheduler: torch.optim.lr_scheduler.LRScheduler | None,
+    gradient_accumulation_steps: int,
     criterion: nn.Module,
     device: torch.device,
     classes: int,
@@ -448,6 +453,9 @@ def run_epoch(
     losses = []
     all_pred: list[torch.Tensor] = []
     all_target: list[torch.Tensor] = []
+    grad_steps = max(int(gradient_accumulation_steps), 1)
+    if training:
+        optimizer.zero_grad(set_to_none=True)
 
     total_batches = len(loader)
     if max_batches > 0:
@@ -465,11 +473,14 @@ def run_epoch(
             logits = model(image)
             loss = criterion(logits, mask)
             if training:
-                optimizer.zero_grad(set_to_none=True)
-                loss.backward()
-                optimizer.step()
-                if scheduler is not None:
-                    scheduler.step()
+                (loss / grad_steps).backward()
+                reached_limit = max_batches > 0 and batch_idx >= max_batches
+                should_step = (batch_idx % grad_steps == 0) or reached_limit or (batch_idx == total_batches)
+                if should_step:
+                    optimizer.step()
+                    optimizer.zero_grad(set_to_none=True)
+                    if scheduler is not None:
+                        scheduler.step()
 
         losses.append(float(loss.item()))
         pred = torch.argmax(logits, dim=1).detach().cpu()
@@ -534,7 +545,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
         config.scheduler_name,
         optimizer,
         config.learning_rate,
-        steps_per_epoch=len(train_loader),
+        steps_per_epoch=max(int(np.ceil(len(train_loader) / config.gradient_accumulation_steps)), 1),
         epochs=config.epochs,
     )
     class_weights = compute_class_weights(config.slice_dir, train_rows, config.classes, config.class_weight_mode)
@@ -555,6 +566,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
             loader=train_loader,
             optimizer=optimizer,
             scheduler=scheduler,
+            gradient_accumulation_steps=config.gradient_accumulation_steps,
             criterion=criterion,
             device=device,
             classes=config.classes,
@@ -567,6 +579,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
                 loader=val_loader,
                 optimizer=None,
                 scheduler=None,
+                gradient_accumulation_steps=1,
                 criterion=criterion,
                 device=device,
                 classes=config.classes,
@@ -617,6 +630,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
         "scheduler_name": config.scheduler_name,
         "sampler_name": config.sampler_name,
         "augmentation_name": config.augmentation_name,
+        "gradient_accumulation_steps": config.gradient_accumulation_steps,
         "class_weights": class_weights.tolist() if class_weights is not None else None,
         "sample_weights_summary": {
             "min": float(min(sample_weights)) if sample_weights else None,
@@ -642,6 +656,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
             loader=test_loader,
             optimizer=None,
             scheduler=None,
+            gradient_accumulation_steps=1,
             criterion=criterion,
             device=device,
             classes=config.classes,
@@ -660,6 +675,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
         "scheduler_name": config.scheduler_name,
         "sampler_name": config.sampler_name,
         "augmentation_name": config.augmentation_name,
+        "gradient_accumulation_steps": config.gradient_accumulation_steps,
         "class_weights": class_weights.tolist() if class_weights is not None else None,
         "sample_weights_summary": {
             "min": float(min(sample_weights)) if sample_weights else None,

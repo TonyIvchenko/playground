@@ -182,6 +182,7 @@ def test_legacy_png_best_preset_sets_measured_winner(monkeypatch):
     assert config.scheduler_name == PRESET_DEFAULTS["legacy_png_best"]["scheduler"]
     assert config.sampler_name == PRESET_DEFAULTS["legacy_png_best"]["sampler"]
     assert config.augmentation_name == PRESET_DEFAULTS["legacy_png_best"]["augmentation"]
+    assert config.gradient_accumulation_steps == PRESET_DEFAULTS["legacy_png_best"]["gradient_accumulation_steps"]
 
 
 def test_train_evaluates_test_metrics_with_best_checkpoint_state(tmp_path: Path, monkeypatch):
@@ -204,7 +205,7 @@ def test_train_evaluates_test_metrics_with_best_checkpoint_state(tmp_path: Path,
 
     call_state = {"train_epoch": 0, "val_epoch": 0}
 
-    def fake_run_epoch(model, loader, optimizer, scheduler, criterion, device, classes, max_batches, progress_desc):
+    def fake_run_epoch(model, loader, optimizer, scheduler, gradient_accumulation_steps, criterion, device, classes, max_batches, progress_desc):
         if optimizer is not None:
             call_state["train_epoch"] += 1
             model.weight.data.fill_(float(call_state["train_epoch"]))
@@ -244,6 +245,7 @@ def test_train_evaluates_test_metrics_with_best_checkpoint_state(tmp_path: Path,
         scheduler_name="none",
         sampler_name="none",
         augmentation_name="none",
+        gradient_accumulation_steps=1,
         selection_metric="val_mean_dice_fg",
         num_workers=0,
         seed=17,
