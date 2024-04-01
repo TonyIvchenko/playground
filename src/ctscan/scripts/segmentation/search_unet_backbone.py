@@ -47,6 +47,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--class-weight-mode", type=str, default="none")
     parser.add_argument("--scheduler", type=str, default="none")
     parser.add_argument("--sampler", type=str, default="none")
+    parser.add_argument("--augmentation", type=str, default="none")
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--device", type=str, default="auto")
@@ -118,6 +119,7 @@ def main() -> int:
             class_weight_mode=str(args.class_weight_mode).strip().lower(),
             scheduler_name=str(args.scheduler).strip().lower(),
             sampler_name=str(args.sampler).strip().lower(),
+            augmentation_name=str(args.augmentation).strip().lower(),
             selection_metric=str(args.selection_metric).strip().lower(),
             num_workers=max(int(args.num_workers), 0),
             seed=int(args.seed),
@@ -144,6 +146,7 @@ def main() -> int:
                     "weight_decay": weight_decay,
                     "scheduler": str(args.scheduler).strip().lower(),
                     "sampler": str(args.sampler).strip().lower(),
+                    "augmentation": str(args.augmentation).strip().lower(),
                     "val_loss": float(final_row.get("val_loss", 0.0)),
                     "val_mean_iou_fg": float(final_row.get("val_mean_iou_fg", 0.0)),
                     "val_mean_dice_fg": float(final_row.get("val_mean_dice_fg", 0.0)),
@@ -165,6 +168,7 @@ def main() -> int:
                     "weight_decay": weight_decay,
                     "scheduler": str(args.scheduler).strip().lower(),
                     "sampler": str(args.sampler).strip().lower(),
+                    "augmentation": str(args.augmentation).strip().lower(),
                     "error": str(exc),
                 }
             )

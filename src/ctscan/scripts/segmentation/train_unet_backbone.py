@@ -42,6 +42,7 @@ PRESET_DEFAULTS: dict[str, dict[str, Any]] = {
         "class_weight_mode": "none",
         "scheduler": "none",
         "sampler": "rare_fg",
+        "augmentation": "none",
         "selection_metric": "val_mean_dice_fg",
     },
 }
@@ -68,6 +69,7 @@ class TrainConfig:
     class_weight_mode: str
     scheduler_name: str
     sampler_name: str
+    augmentation_name: str
     selection_metric: str
     num_workers: int
     seed: int
@@ -78,10 +80,11 @@ class TrainConfig:
 
 
 class SlicePairDataset(Dataset):
-    def __init__(self, root: Path, rows: list[dict[str, str]], image_size: int):
+    def __init__(self, root: Path, rows: list[dict[str, str]], image_size: int, augmentation_name: str = "none"):
         self.root = root
         self.image_size = int(image_size)
         self.rows = list(rows)
+        self.augmentation_name = str(augmentation_name).strip().lower()
 
     def __len__(self) -> int:
         return len(self.rows)
@@ -109,6 +112,16 @@ class SlicePairDataset(Dataset):
                 size=(self.image_size, self.image_size),
                 mode="nearest",
             ).squeeze(0).squeeze(0).long()
+
+        if self.augmentation_name == "light":
+            if torch.rand(1).item() < 0.5:
+                image_t = torch.flip(image_t, dims=(-1,))
+                mask_t = torch.flip(mask_t, dims=(-1,))
+            scale = 1.0 + ((torch.rand(1).item() * 0.2) - 0.1)
+            bias = (torch.rand(1).item() * 0.1) - 0.05
+            image_t = torch.clamp((image_t * scale) + bias, 0.0, 1.0)
+        elif self.augmentation_name not in {"", "none"}:
+            raise ValueError(f"unsupported augmentation: {self.augmentation_name}")
 
         return image_t, mask_t
 
@@ -139,6 +152,7 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--class-weight-mode", type=str, default="none")
     parser.add_argument("--scheduler", type=str, default="none")
     parser.add_argument("--sampler", type=str, default="none")
+    parser.add_argument("--augmentation", type=str, default="none")
     parser.add_argument("--selection-metric", type=str, default="val_mean_dice_fg")
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--seed", type=int, default=17)
@@ -170,6 +184,7 @@ def parse_args() -> TrainConfig:
         class_weight_mode=str(args.class_weight_mode).strip().lower(),
         scheduler_name=str(args.scheduler).strip().lower(),
         sampler_name=str(args.sampler).strip().lower(),
+        augmentation_name=str(args.augmentation).strip().lower(),
         selection_metric=str(args.selection_metric).strip().lower(),
         num_workers=max(int(args.num_workers), 0),
         seed=int(args.seed),
@@ -485,7 +500,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
     val_rows = load_split_rows(config.slice_dir, "val")
     test_rows = load_split_rows(config.slice_dir, "test")
 
-    train_ds = SlicePairDataset(config.slice_dir, train_rows, config.image_size)
+    train_ds = SlicePairDataset(config.slice_dir, train_rows, config.image_size, augmentation_name=config.augmentation_name)
     val_ds = SlicePairDataset(config.slice_dir, val_rows, config.image_size)
     test_ds = SlicePairDataset(config.slice_dir, test_rows, config.image_size)
 
@@ -601,6 +616,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
         "class_weight_mode": config.class_weight_mode,
         "scheduler_name": config.scheduler_name,
         "sampler_name": config.sampler_name,
+        "augmentation_name": config.augmentation_name,
         "class_weights": class_weights.tolist() if class_weights is not None else None,
         "sample_weights_summary": {
             "min": float(min(sample_weights)) if sample_weights else None,
@@ -643,6 +659,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
         "class_weight_mode": config.class_weight_mode,
         "scheduler_name": config.scheduler_name,
         "sampler_name": config.sampler_name,
+        "augmentation_name": config.augmentation_name,
         "class_weights": class_weights.tolist() if class_weights is not None else None,
         "sample_weights_summary": {
             "min": float(min(sample_weights)) if sample_weights else None,

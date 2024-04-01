@@ -67,6 +67,25 @@ def test_slice_pair_dataset_reads_legacy_rows(tmp_path: Path):
     assert tuple(mask.shape) == (64, 64)
 
 
+def test_slice_pair_dataset_light_augmentation_preserves_shape(tmp_path: Path):
+    root = tmp_path / "legacy_png"
+    images_dir = root / "images"
+    masks_dir = root / "masks"
+    images_dir.mkdir(parents=True, exist_ok=True)
+    masks_dir.mkdir(parents=True, exist_ok=True)
+
+    _write_pair(images_dir, masks_dir, "case001", size=80)
+    rows = [{"image": "images/case001.png", "mask": "masks/case001.png"}]
+
+    dataset = SlicePairDataset(root, rows, image_size=64, augmentation_name="light")
+    image, mask = dataset[0]
+
+    assert tuple(image.shape) == (1, 64, 64)
+    assert tuple(mask.shape) == (64, 64)
+    assert image.min().item() >= 0.0
+    assert image.max().item() <= 1.0
+
+
 def test_metric_direction_prefers_higher_for_dice_and_lower_for_loss():
     assert metric_direction("val_mean_dice_fg") == 1
     assert metric_direction("val_loss") == -1
@@ -162,6 +181,7 @@ def test_legacy_png_best_preset_sets_measured_winner(monkeypatch):
     assert config.class_weight_mode == PRESET_DEFAULTS["legacy_png_best"]["class_weight_mode"]
     assert config.scheduler_name == PRESET_DEFAULTS["legacy_png_best"]["scheduler"]
     assert config.sampler_name == PRESET_DEFAULTS["legacy_png_best"]["sampler"]
+    assert config.augmentation_name == PRESET_DEFAULTS["legacy_png_best"]["augmentation"]
 
 
 def test_train_evaluates_test_metrics_with_best_checkpoint_state(tmp_path: Path, monkeypatch):
@@ -223,6 +243,7 @@ def test_train_evaluates_test_metrics_with_best_checkpoint_state(tmp_path: Path,
         class_weight_mode="none",
         scheduler_name="none",
         sampler_name="none",
+        augmentation_name="none",
         selection_metric="val_mean_dice_fg",
         num_workers=0,
         seed=17,
