@@ -14,6 +14,7 @@ from src.ctscan.scripts.segmentation.train_unet_backbone import (
     compute_class_weights,
     compute_sample_weights,
     MulticlassFocalLoss,
+    TverskyCELoss,
     PRESET_DEFAULTS,
     SlicePairDataset,
     TrainConfig,
@@ -93,6 +94,17 @@ def test_metric_direction_prefers_higher_for_dice_and_lower_for_loss():
 
 def test_multiclass_focal_loss_runs_on_logits_and_integer_targets():
     criterion = MulticlassFocalLoss()
+    logits = torch.randn(2, 4, 16, 16)
+    target = torch.randint(0, 4, (2, 16, 16))
+
+    loss = criterion(logits, target)
+
+    assert torch.isfinite(loss)
+    assert loss.item() > 0
+
+
+def test_tversky_ce_loss_runs_on_logits_and_integer_targets():
+    criterion = TverskyCELoss()
     logits = torch.randn(2, 4, 16, 16)
     target = torch.randint(0, 4, (2, 16, 16))
 
