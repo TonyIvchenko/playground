@@ -38,7 +38,7 @@ PRESET_DEFAULTS: dict[str, dict[str, Any]] = {
         "learning_rate": 2e-4,
         "weight_decay": 1e-4,
         "optimizer": "adamw",
-        "loss": "dice_ce",
+        "loss": "tversky_ce",
         "class_weight_mode": "none",
         "scheduler": "none",
         "sampler": "rare_fg",
