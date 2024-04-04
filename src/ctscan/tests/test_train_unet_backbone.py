@@ -195,6 +195,8 @@ def test_legacy_png_best_preset_sets_measured_winner(monkeypatch):
     assert config.sampler_name == PRESET_DEFAULTS["legacy_png_best"]["sampler"]
     assert config.augmentation_name == PRESET_DEFAULTS["legacy_png_best"]["augmentation"]
     assert config.gradient_accumulation_steps == PRESET_DEFAULTS["legacy_png_best"]["gradient_accumulation_steps"]
+    assert config.tversky_alpha == PRESET_DEFAULTS["legacy_png_best"]["tversky_alpha"]
+    assert config.tversky_beta == PRESET_DEFAULTS["legacy_png_best"]["tversky_beta"]
 
 
 def test_train_evaluates_test_metrics_with_best_checkpoint_state(tmp_path: Path, monkeypatch):
@@ -258,6 +260,8 @@ def test_train_evaluates_test_metrics_with_best_checkpoint_state(tmp_path: Path,
         sampler_name="none",
         augmentation_name="none",
         gradient_accumulation_steps=1,
+        tversky_alpha=0.3,
+        tversky_beta=0.7,
         selection_metric="val_mean_dice_fg",
         num_workers=0,
         seed=17,

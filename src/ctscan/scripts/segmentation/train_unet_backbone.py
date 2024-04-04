@@ -44,6 +44,8 @@ PRESET_DEFAULTS: dict[str, dict[str, Any]] = {
         "sampler": "rare_fg",
         "augmentation": "none",
         "gradient_accumulation_steps": 1,
+        "tversky_alpha": 0.3,
+        "tversky_beta": 0.7,
         "selection_metric": "val_mean_dice_fg",
     },
 }
@@ -72,6 +74,8 @@ class TrainConfig:
     sampler_name: str
     augmentation_name: str
     gradient_accumulation_steps: int
+    tversky_alpha: float
+    tversky_beta: float
     selection_metric: str
     num_workers: int
     seed: int
@@ -156,6 +160,8 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--sampler", type=str, default="none")
     parser.add_argument("--augmentation", type=str, default="none")
     parser.add_argument("--gradient-accumulation-steps", type=int, default=1)
+    parser.add_argument("--tversky-alpha", type=float, default=0.3)
+    parser.add_argument("--tversky-beta", type=float, default=0.7)
     parser.add_argument("--selection-metric", type=str, default="val_mean_dice_fg")
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--seed", type=int, default=17)
@@ -189,6 +195,8 @@ def parse_args() -> TrainConfig:
         sampler_name=str(args.sampler).strip().lower(),
         augmentation_name=str(args.augmentation).strip().lower(),
         gradient_accumulation_steps=max(int(args.gradient_accumulation_steps), 1),
+        tversky_alpha=float(args.tversky_alpha),
+        tversky_beta=float(args.tversky_beta),
         selection_metric=str(args.selection_metric).strip().lower(),
         num_workers=max(int(args.num_workers), 0),
         seed=int(args.seed),
@@ -314,14 +322,19 @@ class MulticlassFocalLoss(nn.Module):
         return loss.mean()
 
 
-def build_loss(name: str, class_weights: torch.Tensor | None = None) -> nn.Module:
+def build_loss(
+    name: str,
+    class_weights: torch.Tensor | None = None,
+    tversky_alpha: float = 0.3,
+    tversky_beta: float = 0.7,
+) -> nn.Module:
     loss_name = str(name).strip().lower()
     if loss_name == "ce":
         return nn.CrossEntropyLoss(weight=class_weights)
     if loss_name == "dice_ce":
         return DiceCELoss(class_weights=class_weights)
     if loss_name == "tversky_ce":
-        return TverskyCELoss(class_weights=class_weights)
+        return TverskyCELoss(class_weights=class_weights, alpha=tversky_alpha, beta=tversky_beta)
     if loss_name == "focal":
         return MulticlassFocalLoss()
     raise ValueError(f"unsupported loss: {name}")
@@ -572,6 +585,8 @@ def train(config: TrainConfig) -> dict[str, Any]:
     criterion = build_loss(
         config.loss_name,
         class_weights=class_weights.to(device) if class_weights is not None else None,
+        tversky_alpha=config.tversky_alpha,
+        tversky_beta=config.tversky_beta,
     )
 
     history: list[dict[str, float]] = []
@@ -651,6 +666,8 @@ def train(config: TrainConfig) -> dict[str, Any]:
         "sampler_name": config.sampler_name,
         "augmentation_name": config.augmentation_name,
         "gradient_accumulation_steps": config.gradient_accumulation_steps,
+        "tversky_alpha": config.tversky_alpha,
+        "tversky_beta": config.tversky_beta,
         "class_weights": class_weights.tolist() if class_weights is not None else None,
         "sample_weights_summary": {
             "min": float(min(sample_weights)) if sample_weights else None,
@@ -696,6 +713,8 @@ def train(config: TrainConfig) -> dict[str, Any]:
         "sampler_name": config.sampler_name,
         "augmentation_name": config.augmentation_name,
         "gradient_accumulation_steps": config.gradient_accumulation_steps,
+        "tversky_alpha": config.tversky_alpha,
+        "tversky_beta": config.tversky_beta,
         "class_weights": class_weights.tolist() if class_weights is not None else None,
         "sample_weights_summary": {
             "min": float(min(sample_weights)) if sample_weights else None,
