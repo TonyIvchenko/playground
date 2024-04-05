@@ -13,6 +13,7 @@ from src.ctscan.scripts.segmentation.train_unet_backbone import (
     build_scheduler,
     compute_class_weights,
     compute_sample_weights,
+    LovaszCELoss,
     MulticlassFocalLoss,
     TverskyCELoss,
     PRESET_DEFAULTS,
@@ -105,6 +106,17 @@ def test_multiclass_focal_loss_runs_on_logits_and_integer_targets():
 
 def test_tversky_ce_loss_runs_on_logits_and_integer_targets():
     criterion = TverskyCELoss()
+    logits = torch.randn(2, 4, 16, 16)
+    target = torch.randint(0, 4, (2, 16, 16))
+
+    loss = criterion(logits, target)
+
+    assert torch.isfinite(loss)
+    assert loss.item() > 0
+
+
+def test_lovasz_ce_loss_runs_on_logits_and_integer_targets():
+    criterion = LovaszCELoss()
     logits = torch.randn(2, 4, 16, 16)
     target = torch.randint(0, 4, (2, 16, 16))
 

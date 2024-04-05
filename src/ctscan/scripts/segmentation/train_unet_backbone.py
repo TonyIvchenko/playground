@@ -310,6 +310,19 @@ class TverskyCELoss(nn.Module):
         return F.cross_entropy(logits, target, weight=self.class_weights) + self.tversky(logits, target)
 
 
+class LovaszCELoss(nn.Module):
+    def __init__(self, class_weights: torch.Tensor | None = None) -> None:
+        super().__init__()
+        self.lovasz = smp.losses.LovaszLoss(mode="multiclass", per_image=False)
+        if class_weights is not None:
+            self.register_buffer("class_weights", class_weights)
+        else:
+            self.class_weights = None
+
+    def forward(self, logits: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        return F.cross_entropy(logits, target, weight=self.class_weights) + self.lovasz(logits, target)
+
+
 class MulticlassFocalLoss(nn.Module):
     def __init__(self, gamma: float = 2.0) -> None:
         super().__init__()
@@ -335,6 +348,8 @@ def build_loss(
         return DiceCELoss(class_weights=class_weights)
     if loss_name == "tversky_ce":
         return TverskyCELoss(class_weights=class_weights, alpha=tversky_alpha, beta=tversky_beta)
+    if loss_name == "lovasz_ce":
+        return LovaszCELoss(class_weights=class_weights)
     if loss_name == "focal":
         return MulticlassFocalLoss()
     raise ValueError(f"unsupported loss: {name}")
