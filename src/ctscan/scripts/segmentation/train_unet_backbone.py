@@ -46,6 +46,7 @@ PRESET_DEFAULTS: dict[str, dict[str, Any]] = {
         "gradient_accumulation_steps": 1,
         "tversky_alpha": 0.3,
         "tversky_beta": 0.7,
+        "ce_label_smoothing": 0.0,
         "selection_metric": "val_mean_dice_fg",
     },
 }
@@ -76,6 +77,7 @@ class TrainConfig:
     gradient_accumulation_steps: int
     tversky_alpha: float
     tversky_beta: float
+    ce_label_smoothing: float
     selection_metric: str
     num_workers: int
     seed: int
@@ -162,6 +164,7 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--gradient-accumulation-steps", type=int, default=1)
     parser.add_argument("--tversky-alpha", type=float, default=0.3)
     parser.add_argument("--tversky-beta", type=float, default=0.7)
+    parser.add_argument("--ce-label-smoothing", type=float, default=0.0)
     parser.add_argument("--selection-metric", type=str, default="val_mean_dice_fg")
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--seed", type=int, default=17)
@@ -197,6 +200,7 @@ def parse_args() -> TrainConfig:
         gradient_accumulation_steps=max(int(args.gradient_accumulation_steps), 1),
         tversky_alpha=float(args.tversky_alpha),
         tversky_beta=float(args.tversky_beta),
+        ce_label_smoothing=max(float(args.ce_label_smoothing), 0.0),
         selection_metric=str(args.selection_metric).strip().lower(),
         num_workers=max(int(args.num_workers), 0),
         seed=int(args.seed),
@@ -280,20 +284,32 @@ def build_model(config: TrainConfig) -> nn.Module:
 
 
 class DiceCELoss(nn.Module):
-    def __init__(self, class_weights: torch.Tensor | None = None) -> None:
+    def __init__(self, class_weights: torch.Tensor | None = None, label_smoothing: float = 0.0) -> None:
         super().__init__()
         self.dice = smp.losses.DiceLoss(mode="multiclass", from_logits=True)
+        self.label_smoothing = float(label_smoothing)
         if class_weights is not None:
             self.register_buffer("class_weights", class_weights)
         else:
             self.class_weights = None
 
     def forward(self, logits: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        return F.cross_entropy(logits, target, weight=self.class_weights) + self.dice(logits, target)
+        return F.cross_entropy(
+            logits,
+            target,
+            weight=self.class_weights,
+            label_smoothing=self.label_smoothing,
+        ) + self.dice(logits, target)
 
 
 class TverskyCELoss(nn.Module):
-    def __init__(self, class_weights: torch.Tensor | None = None, alpha: float = 0.3, beta: float = 0.7) -> None:
+    def __init__(
+        self,
+        class_weights: torch.Tensor | None = None,
+        alpha: float = 0.3,
+        beta: float = 0.7,
+        label_smoothing: float = 0.0,
+    ) -> None:
         super().__init__()
         self.tversky = smp.losses.TverskyLoss(
             mode="multiclass",
@@ -301,26 +317,38 @@ class TverskyCELoss(nn.Module):
             alpha=alpha,
             beta=beta,
         )
+        self.label_smoothing = float(label_smoothing)
         if class_weights is not None:
             self.register_buffer("class_weights", class_weights)
         else:
             self.class_weights = None
 
     def forward(self, logits: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        return F.cross_entropy(logits, target, weight=self.class_weights) + self.tversky(logits, target)
+        return F.cross_entropy(
+            logits,
+            target,
+            weight=self.class_weights,
+            label_smoothing=self.label_smoothing,
+        ) + self.tversky(logits, target)
 
 
 class LovaszCELoss(nn.Module):
-    def __init__(self, class_weights: torch.Tensor | None = None) -> None:
+    def __init__(self, class_weights: torch.Tensor | None = None, label_smoothing: float = 0.0) -> None:
         super().__init__()
         self.lovasz = smp.losses.LovaszLoss(mode="multiclass", per_image=False)
+        self.label_smoothing = float(label_smoothing)
         if class_weights is not None:
             self.register_buffer("class_weights", class_weights)
         else:
             self.class_weights = None
 
     def forward(self, logits: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
-        return F.cross_entropy(logits, target, weight=self.class_weights) + self.lovasz(logits, target)
+        return F.cross_entropy(
+            logits,
+            target,
+            weight=self.class_weights,
+            label_smoothing=self.label_smoothing,
+        ) + self.lovasz(logits, target)
 
 
 class MulticlassFocalLoss(nn.Module):
@@ -340,16 +368,22 @@ def build_loss(
     class_weights: torch.Tensor | None = None,
     tversky_alpha: float = 0.3,
     tversky_beta: float = 0.7,
+    ce_label_smoothing: float = 0.0,
 ) -> nn.Module:
     loss_name = str(name).strip().lower()
     if loss_name == "ce":
-        return nn.CrossEntropyLoss(weight=class_weights)
+        return nn.CrossEntropyLoss(weight=class_weights, label_smoothing=ce_label_smoothing)
     if loss_name == "dice_ce":
-        return DiceCELoss(class_weights=class_weights)
+        return DiceCELoss(class_weights=class_weights, label_smoothing=ce_label_smoothing)
     if loss_name == "tversky_ce":
-        return TverskyCELoss(class_weights=class_weights, alpha=tversky_alpha, beta=tversky_beta)
+        return TverskyCELoss(
+            class_weights=class_weights,
+            alpha=tversky_alpha,
+            beta=tversky_beta,
+            label_smoothing=ce_label_smoothing,
+        )
     if loss_name == "lovasz_ce":
-        return LovaszCELoss(class_weights=class_weights)
+        return LovaszCELoss(class_weights=class_weights, label_smoothing=ce_label_smoothing)
     if loss_name == "focal":
         return MulticlassFocalLoss()
     raise ValueError(f"unsupported loss: {name}")
@@ -602,6 +636,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
         class_weights=class_weights.to(device) if class_weights is not None else None,
         tversky_alpha=config.tversky_alpha,
         tversky_beta=config.tversky_beta,
+        ce_label_smoothing=config.ce_label_smoothing,
     )
 
     history: list[dict[str, float]] = []
@@ -683,6 +718,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
         "gradient_accumulation_steps": config.gradient_accumulation_steps,
         "tversky_alpha": config.tversky_alpha,
         "tversky_beta": config.tversky_beta,
+        "ce_label_smoothing": config.ce_label_smoothing,
         "class_weights": class_weights.tolist() if class_weights is not None else None,
         "sample_weights_summary": {
             "min": float(min(sample_weights)) if sample_weights else None,
@@ -730,6 +766,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
         "gradient_accumulation_steps": config.gradient_accumulation_steps,
         "tversky_alpha": config.tversky_alpha,
         "tversky_beta": config.tversky_beta,
+        "ce_label_smoothing": config.ce_label_smoothing,
         "class_weights": class_weights.tolist() if class_weights is not None else None,
         "sample_weights_summary": {
             "min": float(min(sample_weights)) if sample_weights else None,
