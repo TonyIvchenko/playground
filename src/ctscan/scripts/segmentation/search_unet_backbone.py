@@ -49,6 +49,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--sampler", type=str, default="none")
     parser.add_argument("--augmentation", type=str, default="none")
     parser.add_argument("--gradient-accumulation-steps", type=int, default=1)
+    parser.add_argument("--fpn-decoder-dropout", type=float, default=0.2)
+    parser.add_argument("--fpn-decoder-merge-policy", type=str, default="add")
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--device", type=str, default="auto")
@@ -122,6 +124,8 @@ def main() -> int:
             sampler_name=str(args.sampler).strip().lower(),
             augmentation_name=str(args.augmentation).strip().lower(),
             gradient_accumulation_steps=max(int(args.gradient_accumulation_steps), 1),
+            fpn_decoder_dropout=max(float(args.fpn_decoder_dropout), 0.0),
+            fpn_decoder_merge_policy=str(args.fpn_decoder_merge_policy).strip().lower(),
             selection_metric=str(args.selection_metric).strip().lower(),
             num_workers=max(int(args.num_workers), 0),
             seed=int(args.seed),
@@ -150,6 +154,8 @@ def main() -> int:
                     "sampler": str(args.sampler).strip().lower(),
                     "augmentation": str(args.augmentation).strip().lower(),
                     "gradient_accumulation_steps": max(int(args.gradient_accumulation_steps), 1),
+                    "fpn_decoder_dropout": max(float(args.fpn_decoder_dropout), 0.0),
+                    "fpn_decoder_merge_policy": str(args.fpn_decoder_merge_policy).strip().lower(),
                     "val_loss": float(final_row.get("val_loss", 0.0)),
                     "val_mean_iou_fg": float(final_row.get("val_mean_iou_fg", 0.0)),
                     "val_mean_dice_fg": float(final_row.get("val_mean_dice_fg", 0.0)),
@@ -173,6 +179,8 @@ def main() -> int:
                     "sampler": str(args.sampler).strip().lower(),
                     "augmentation": str(args.augmentation).strip().lower(),
                     "gradient_accumulation_steps": max(int(args.gradient_accumulation_steps), 1),
+                    "fpn_decoder_dropout": max(float(args.fpn_decoder_dropout), 0.0),
+                    "fpn_decoder_merge_policy": str(args.fpn_decoder_merge_policy).strip().lower(),
                     "error": str(exc),
                 }
             )

@@ -10,6 +10,7 @@ import torch
 from torch import nn
 
 from src.ctscan.scripts.segmentation.train_unet_backbone import (
+    build_model,
     build_scheduler,
     compute_class_weights,
     compute_sample_weights,
@@ -210,6 +211,63 @@ def test_legacy_png_best_preset_sets_measured_winner(monkeypatch):
     assert config.tversky_alpha == PRESET_DEFAULTS["legacy_png_best"]["tversky_alpha"]
     assert config.tversky_beta == PRESET_DEFAULTS["legacy_png_best"]["tversky_beta"]
     assert config.ce_label_smoothing == PRESET_DEFAULTS["legacy_png_best"]["ce_label_smoothing"]
+    assert config.fpn_decoder_dropout == PRESET_DEFAULTS["legacy_png_best"]["fpn_decoder_dropout"]
+    assert config.fpn_decoder_merge_policy == PRESET_DEFAULTS["legacy_png_best"]["fpn_decoder_merge_policy"]
+
+
+def test_build_model_passes_fpn_decoder_settings(monkeypatch):
+    captured = {}
+
+    class DummyModel(nn.Module):
+        pass
+
+    def fake_fpn(**kwargs):
+        captured.update(kwargs)
+        return DummyModel()
+
+    monkeypatch.setattr("src.ctscan.scripts.segmentation.train_unet_backbone.smp.FPN", fake_fpn)
+
+    config = TrainConfig(
+        slice_dir=Path("."),
+        output_path=Path("model.pt"),
+        metrics_path=Path("metrics.json"),
+        model_version="test",
+        architecture="fpn",
+        encoder_name="efficientnet-b0",
+        encoder_weights="imagenet",
+        classes=4,
+        in_channels=1,
+        image_size=320,
+        batch_size=6,
+        epochs=1,
+        learning_rate=2e-4,
+        weight_decay=1e-4,
+        optimizer_name="adamw",
+        loss_name="lovasz_ce",
+        class_weight_mode="none",
+        scheduler_name="none",
+        sampler_name="rare_fg",
+        augmentation_name="none",
+        gradient_accumulation_steps=1,
+        tversky_alpha=0.3,
+        tversky_beta=0.7,
+        ce_label_smoothing=0.0,
+        fpn_decoder_dropout=0.1,
+        fpn_decoder_merge_policy="cat",
+        selection_metric="val_mean_dice_fg",
+        num_workers=0,
+        seed=17,
+        device="cpu",
+        max_train_batches=0,
+        max_val_batches=0,
+        max_test_batches=0,
+    )
+
+    model = build_model(config)
+
+    assert isinstance(model, DummyModel)
+    assert captured["decoder_dropout"] == 0.1
+    assert captured["decoder_merge_policy"] == "cat"
 
 
 def test_train_evaluates_test_metrics_with_best_checkpoint_state(tmp_path: Path, monkeypatch):
@@ -276,6 +334,8 @@ def test_train_evaluates_test_metrics_with_best_checkpoint_state(tmp_path: Path,
         tversky_alpha=0.3,
         tversky_beta=0.7,
         ce_label_smoothing=0.0,
+        fpn_decoder_dropout=0.2,
+        fpn_decoder_merge_policy="add",
         selection_metric="val_mean_dice_fg",
         num_workers=0,
         seed=17,
