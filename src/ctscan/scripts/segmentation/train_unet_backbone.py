@@ -31,7 +31,7 @@ PRESET_DEFAULTS: dict[str, dict[str, Any]] = {
     "default": {},
     "legacy_png_best": {
         "architecture": "fpn",
-        "encoder_name": "efficientnet-b0",
+        "encoder_name": "efficientnet-b1",
         "classes": 4,
         "image_size": 320,
         "batch_size": 6,
