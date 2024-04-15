@@ -1,0 +1,112 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+import sys
+
+from src.ctscan.scripts.segmentation import search_unet_backbone as sweep
+
+
+def test_result_row_from_metrics_extracts_final_metrics():
+    row = sweep.result_row_from_metrics(
+        slug="trial001",
+        metrics={
+            "history": [
+                {"val_loss": 0.4, "val_mean_iou_fg": 0.2, "val_mean_dice_fg": 0.3},
+                {"val_loss": 0.3, "val_mean_iou_fg": 0.4, "val_mean_dice_fg": 0.5},
+            ],
+            "test": {"mean_iou_fg": 0.6, "mean_dice_fg": 0.7},
+        },
+        architecture="fpn",
+        encoder="efficientnet-b1",
+        loss_name="lovasz_ce",
+        optimizer_name="adamw",
+        image_size=320,
+        batch_size=6,
+        learning_rate=2e-4,
+        weight_decay=1e-4,
+        scheduler_name="none",
+        sampler_name="rare_fg",
+        augmentation_name="none",
+        gradient_accumulation_steps=1,
+        tversky_alpha=0.3,
+        tversky_beta=0.7,
+        ce_label_smoothing=0.0,
+        fpn_decoder_dropout=0.2,
+        fpn_decoder_merge_policy="add",
+    )
+
+    assert row["trial"] == "trial001"
+    assert row["val_loss"] == 0.3
+    assert row["val_mean_iou_fg"] == 0.4
+    assert row["val_mean_dice_fg"] == 0.5
+    assert row["test_mean_iou_fg"] == 0.6
+    assert row["test_mean_dice_fg"] == 0.7
+
+
+def test_write_leaderboard_writes_json_and_csv(tmp_path: Path):
+    rows = [
+        {"trial": "a", "val_mean_dice_fg": 0.5, "val_loss": 0.2},
+        {"trial": "b", "val_mean_dice_fg": 0.4, "val_loss": 0.3},
+    ]
+
+    sweep.write_leaderboard(tmp_path, rows)
+
+    leaderboard_json = json.loads((tmp_path / "leaderboard.json").read_text(encoding="utf-8"))
+    leaderboard_csv = (tmp_path / "leaderboard.csv").read_text(encoding="utf-8")
+
+    assert leaderboard_json[0]["trial"] == "a"
+    assert "trial,val_loss,val_mean_dice_fg" in leaderboard_csv or "trial,val_mean_dice_fg,val_loss" in leaderboard_csv
+    assert "a" in leaderboard_csv
+    assert "b" in leaderboard_csv
+
+
+def test_main_reuses_existing_metrics_when_skip_existing(tmp_path: Path, monkeypatch):
+    output_dir = tmp_path / "search"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    slug = "001_fpn_resnet18_dice_ce_adamw_img256_bs4_lr0.0003_wd0"
+    (output_dir / f"{slug}.metrics.json").write_text(
+        json.dumps(
+            {
+                "history": [{"val_loss": 0.25, "val_mean_iou_fg": 0.45, "val_mean_dice_fg": 0.55}],
+                "test": {"mean_iou_fg": 0.5, "mean_dice_fg": 0.6},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "search_unet_backbone.py",
+            "--slice-dir",
+            str(tmp_path / "slice_dataset"),
+            "--output-dir",
+            str(output_dir),
+            "--architectures",
+            "fpn",
+            "--encoders",
+            "resnet18",
+            "--losses",
+            "dice_ce",
+            "--optimizers",
+            "adamw",
+            "--image-sizes",
+            "256",
+            "--batch-sizes",
+            "4",
+            "--learning-rates",
+            "0.0003",
+            "--weight-decays",
+            "0",
+            "--skip-existing",
+        ],
+    )
+    monkeypatch.setattr(sweep, "train", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("train should not run")))
+
+    assert sweep.main() == 0
+
+    leaderboard = json.loads((output_dir / "leaderboard.json").read_text(encoding="utf-8"))
+    assert leaderboard[0]["trial"] == slug
+    assert leaderboard[0]["val_mean_dice_fg"] == 0.55

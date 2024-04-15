@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import itertools
 import json
 from pathlib import Path
 from typing import Any
 
-from train_unet_backbone import TrainConfig, train
+try:
+    from .train_unet_backbone import TrainConfig, train
+except ImportError:  # pragma: no cover - script execution path
+    from train_unet_backbone import TrainConfig, train
 
 
 CTSCAN_ROOT = Path(__file__).resolve().parents[2]
@@ -26,6 +30,70 @@ def parse_int_list(value: str) -> list[int]:
 
 def parse_float_list(value: str) -> list[float]:
     return [float(item.strip()) for item in str(value).split(",") if item.strip()]
+
+
+def result_row_from_metrics(
+    slug: str,
+    metrics: dict[str, Any],
+    architecture: str,
+    encoder: str,
+    loss_name: str,
+    optimizer_name: str,
+    image_size: int,
+    batch_size: int,
+    learning_rate: float,
+    weight_decay: float,
+    scheduler_name: str,
+    sampler_name: str,
+    augmentation_name: str,
+    gradient_accumulation_steps: int,
+    tversky_alpha: float,
+    tversky_beta: float,
+    ce_label_smoothing: float,
+    fpn_decoder_dropout: float,
+    fpn_decoder_merge_policy: str,
+) -> dict[str, Any]:
+    history = metrics.get("history", [])
+    final_row = history[-1] if history else {}
+    return {
+        "trial": slug,
+        "architecture": architecture,
+        "encoder": encoder,
+        "loss": loss_name,
+        "optimizer": optimizer_name,
+        "image_size": image_size,
+        "batch_size": batch_size,
+        "learning_rate": learning_rate,
+        "weight_decay": weight_decay,
+        "scheduler": scheduler_name,
+        "sampler": sampler_name,
+        "augmentation": augmentation_name,
+        "gradient_accumulation_steps": gradient_accumulation_steps,
+        "tversky_alpha": tversky_alpha,
+        "tversky_beta": tversky_beta,
+        "ce_label_smoothing": ce_label_smoothing,
+        "fpn_decoder_dropout": fpn_decoder_dropout,
+        "fpn_decoder_merge_policy": fpn_decoder_merge_policy,
+        "val_loss": float(final_row.get("val_loss", 0.0)),
+        "val_mean_iou_fg": float(final_row.get("val_mean_iou_fg", 0.0)),
+        "val_mean_dice_fg": float(final_row.get("val_mean_dice_fg", 0.0)),
+        "test_mean_iou_fg": float(metrics.get("test", {}).get("mean_iou_fg", 0.0)),
+        "test_mean_dice_fg": float(metrics.get("test", {}).get("mean_dice_fg", 0.0)),
+    }
+
+
+def write_leaderboard(output_dir: Path, rows: list[dict[str, Any]]) -> None:
+    leaderboard_json = output_dir / "leaderboard.json"
+    leaderboard_csv = output_dir / "leaderboard.csv"
+    leaderboard_json.write_text(json.dumps(rows, indent=2), encoding="utf-8")
+    if not rows:
+        leaderboard_csv.write_text("", encoding="utf-8")
+        return
+    fieldnames = sorted({key for row in rows for key in row.keys()})
+    with leaderboard_csv.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
 
 
 def parse_args() -> argparse.Namespace:
@@ -49,6 +117,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--sampler", type=str, default="none")
     parser.add_argument("--augmentation", type=str, default="none")
     parser.add_argument("--gradient-accumulation-steps", type=int, default=1)
+    parser.add_argument("--tversky-alpha", type=float, default=0.3)
+    parser.add_argument("--tversky-beta", type=float, default=0.7)
+    parser.add_argument("--ce-label-smoothing", type=float, default=0.0)
     parser.add_argument("--fpn-decoder-dropout", type=float, default=0.2)
     parser.add_argument("--fpn-decoder-merge-policy", type=str, default="add")
     parser.add_argument("--num-workers", type=int, default=0)
@@ -60,6 +131,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-test-batches", type=int, default=0)
     parser.add_argument("--max-trials", type=int, default=12)
     parser.add_argument("--sort-metric", type=str, default="val_mean_dice_fg")
+    parser.add_argument("--skip-existing", action="store_true")
     return parser.parse_args()
 
 
@@ -124,6 +196,9 @@ def main() -> int:
             sampler_name=str(args.sampler).strip().lower(),
             augmentation_name=str(args.augmentation).strip().lower(),
             gradient_accumulation_steps=max(int(args.gradient_accumulation_steps), 1),
+            tversky_alpha=float(args.tversky_alpha),
+            tversky_beta=float(args.tversky_beta),
+            ce_label_smoothing=max(float(args.ce_label_smoothing), 0.0),
             fpn_decoder_dropout=max(float(args.fpn_decoder_dropout), 0.0),
             fpn_decoder_merge_policy=str(args.fpn_decoder_merge_policy).strip().lower(),
             selection_metric=str(args.selection_metric).strip().lower(),
@@ -136,32 +211,33 @@ def main() -> int:
         )
 
         try:
-            metrics = train(config)
-            history = metrics.get("history", [])
-            final_row = history[-1] if history else {}
+            if args.skip_existing and config.metrics_path.exists():
+                metrics = json.loads(config.metrics_path.read_text(encoding="utf-8"))
+                print("  reused existing metrics")
+            else:
+                metrics = train(config)
             results.append(
-                {
-                    "trial": slug,
-                    "architecture": architecture,
-                    "encoder": encoder,
-                    "loss": loss_name,
-                    "optimizer": optimizer_name,
-                    "image_size": image_size,
-                    "batch_size": batch_size,
-                    "learning_rate": learning_rate,
-                    "weight_decay": weight_decay,
-                    "scheduler": str(args.scheduler).strip().lower(),
-                    "sampler": str(args.sampler).strip().lower(),
-                    "augmentation": str(args.augmentation).strip().lower(),
-                    "gradient_accumulation_steps": max(int(args.gradient_accumulation_steps), 1),
-                    "fpn_decoder_dropout": max(float(args.fpn_decoder_dropout), 0.0),
-                    "fpn_decoder_merge_policy": str(args.fpn_decoder_merge_policy).strip().lower(),
-                    "val_loss": float(final_row.get("val_loss", 0.0)),
-                    "val_mean_iou_fg": float(final_row.get("val_mean_iou_fg", 0.0)),
-                    "val_mean_dice_fg": float(final_row.get("val_mean_dice_fg", 0.0)),
-                    "test_mean_iou_fg": float(metrics.get("test", {}).get("mean_iou_fg", 0.0)),
-                    "test_mean_dice_fg": float(metrics.get("test", {}).get("mean_dice_fg", 0.0)),
-                }
+                result_row_from_metrics(
+                    slug=slug,
+                    metrics=metrics,
+                    architecture=architecture,
+                    encoder=encoder,
+                    loss_name=loss_name,
+                    optimizer_name=optimizer_name,
+                    image_size=image_size,
+                    batch_size=batch_size,
+                    learning_rate=learning_rate,
+                    weight_decay=weight_decay,
+                    scheduler_name=str(args.scheduler).strip().lower(),
+                    sampler_name=str(args.sampler).strip().lower(),
+                    augmentation_name=str(args.augmentation).strip().lower(),
+                    gradient_accumulation_steps=max(int(args.gradient_accumulation_steps), 1),
+                    tversky_alpha=float(args.tversky_alpha),
+                    tversky_beta=float(args.tversky_beta),
+                    ce_label_smoothing=max(float(args.ce_label_smoothing), 0.0),
+                    fpn_decoder_dropout=max(float(args.fpn_decoder_dropout), 0.0),
+                    fpn_decoder_merge_policy=str(args.fpn_decoder_merge_policy).strip().lower(),
+                )
             )
         except Exception as exc:
             results.append(
@@ -179,6 +255,9 @@ def main() -> int:
                     "sampler": str(args.sampler).strip().lower(),
                     "augmentation": str(args.augmentation).strip().lower(),
                     "gradient_accumulation_steps": max(int(args.gradient_accumulation_steps), 1),
+                    "tversky_alpha": float(args.tversky_alpha),
+                    "tversky_beta": float(args.tversky_beta),
+                    "ce_label_smoothing": max(float(args.ce_label_smoothing), 0.0),
                     "fpn_decoder_dropout": max(float(args.fpn_decoder_dropout), 0.0),
                     "fpn_decoder_merge_policy": str(args.fpn_decoder_merge_policy).strip().lower(),
                     "error": str(exc),
@@ -191,7 +270,7 @@ def main() -> int:
             key=lambda row: float(row.get(args.sort_metric, 0.0)),
             reverse=True,
         )
-        (output_dir / "leaderboard.json").write_text(json.dumps(leaderboard, indent=2), encoding="utf-8")
+        write_leaderboard(output_dir, leaderboard)
 
     print("top_trials:")
     for row in sorted(results, key=lambda item: float(item.get(args.sort_metric, 0.0)), reverse=True)[:5]:
