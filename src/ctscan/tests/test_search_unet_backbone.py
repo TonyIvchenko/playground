@@ -61,6 +61,19 @@ def test_write_leaderboard_writes_json_and_csv(tmp_path: Path):
     assert "b" in leaderboard_csv
 
 
+def test_sort_rows_respects_metric_direction():
+    rows = [
+        {"trial": "better_loss", "val_loss": 0.1, "val_mean_dice_fg": 0.4},
+        {"trial": "worse_loss", "val_loss": 0.2, "val_mean_dice_fg": 0.6},
+    ]
+
+    by_loss = sweep.sort_rows(rows, "val_loss")
+    by_dice = sweep.sort_rows(rows, "val_mean_dice_fg")
+
+    assert by_loss[0]["trial"] == "better_loss"
+    assert by_dice[0]["trial"] == "worse_loss"
+
+
 def test_main_reuses_existing_metrics_when_skip_existing(tmp_path: Path, monkeypatch):
     output_dir = tmp_path / "search"
     output_dir.mkdir(parents=True, exist_ok=True)

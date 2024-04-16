@@ -10,9 +10,9 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from .train_unet_backbone import TrainConfig, train
+    from .train_unet_backbone import TrainConfig, metric_direction, train
 except ImportError:  # pragma: no cover - script execution path
-    from train_unet_backbone import TrainConfig, train
+    from train_unet_backbone import TrainConfig, metric_direction, train
 
 
 CTSCAN_ROOT = Path(__file__).resolve().parents[2]
@@ -94,6 +94,14 @@ def write_leaderboard(output_dir: Path, rows: list[dict[str, Any]]) -> None:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
+
+
+def sort_rows(rows: list[dict[str, Any]], metric_name: str) -> list[dict[str, Any]]:
+    return sorted(
+        rows,
+        key=lambda row: float(row.get(metric_name, 0.0)),
+        reverse=metric_direction(metric_name) > 0,
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -265,15 +273,11 @@ def main() -> int:
             )
             print(f"  failed: {exc}")
 
-        leaderboard = sorted(
-            results,
-            key=lambda row: float(row.get(args.sort_metric, 0.0)),
-            reverse=True,
-        )
+        leaderboard = sort_rows(results, args.sort_metric)
         write_leaderboard(output_dir, leaderboard)
 
     print("top_trials:")
-    for row in sorted(results, key=lambda item: float(item.get(args.sort_metric, 0.0)), reverse=True)[:5]:
+    for row in sort_rows(results, args.sort_metric)[:5]:
         print(
             f"  {row['trial']} {args.sort_metric}={row.get(args.sort_metric, 0.0):.4f} "
             f"val_loss={row.get('val_loss', 0.0):.4f}"
