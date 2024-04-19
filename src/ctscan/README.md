@@ -288,6 +288,25 @@ Notes:
   On the current `data/jemys_compatible_png` cache, the latest 1-epoch check reached
   `val_mean_dice_fg=0.6945`, `val_mean_iou_fg=0.5321`, `val_loss=0.2900`,
   `test_mean_dice_fg=0.6730`.
+- To run short ranked sweeps and reuse finished trials:
+
+```bash
+python scripts/segmentation/search_unet_backbone.py \
+  --slice-dir data/jemys_compatible_png \
+  --output-dir model/backbone_search \
+  --architectures fpn \
+  --encoders efficientnet-b0,efficientnet-b1 \
+  --losses lovasz_ce \
+  --image-sizes 320 \
+  --batch-sizes 6 \
+  --learning-rates 0.0002 \
+  --weight-decays 0.0001 \
+  --sampler rare_fg \
+  --skip-existing
+```
+
+- Sweep outputs are written to `model/backbone_search/leaderboard.json` and
+  `model/backbone_search/leaderboard.csv`.
 
 
 ## Legacy End-To-End Runbook
