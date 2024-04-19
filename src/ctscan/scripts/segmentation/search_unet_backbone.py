@@ -32,6 +32,57 @@ def parse_float_list(value: str) -> list[float]:
     return [float(item.strip()) for item in str(value).split(",") if item.strip()]
 
 
+def build_trial_slug(
+    index: int,
+    architecture: str,
+    encoder: str,
+    loss_name: str,
+    optimizer_name: str,
+    image_size: int,
+    batch_size: int,
+    learning_rate: float,
+    weight_decay: float,
+    scheduler_name: str,
+    sampler_name: str,
+    augmentation_name: str,
+    gradient_accumulation_steps: int,
+    tversky_alpha: float,
+    tversky_beta: float,
+    ce_label_smoothing: float,
+    fpn_decoder_dropout: float,
+    fpn_decoder_merge_policy: str,
+) -> str:
+    parts = [
+        f"{index:03d}",
+        architecture,
+        encoder,
+        loss_name,
+        optimizer_name,
+        f"img{image_size}",
+        f"bs{batch_size}",
+        f"lr{learning_rate:g}",
+        f"wd{weight_decay:g}",
+    ]
+    if scheduler_name not in {"", "none"}:
+        parts.append(f"sch-{scheduler_name}")
+    if sampler_name not in {"", "none"}:
+        parts.append(f"smp-{sampler_name}")
+    if augmentation_name not in {"", "none"}:
+        parts.append(f"aug-{augmentation_name}")
+    if gradient_accumulation_steps > 1:
+        parts.append(f"acc{gradient_accumulation_steps}")
+    if loss_name == "tversky_ce":
+        parts.append(f"tv{tversky_alpha:g}-{tversky_beta:g}")
+    if ce_label_smoothing > 0.0:
+        parts.append(f"ls{ce_label_smoothing:g}")
+    if architecture == "fpn":
+        if fpn_decoder_dropout != 0.2:
+            parts.append(f"drop{fpn_decoder_dropout:g}")
+        if fpn_decoder_merge_policy != "add":
+            parts.append(f"merge-{fpn_decoder_merge_policy}")
+    return "_".join(parts).replace("/", "-")
+
+
 def result_row_from_metrics(
     slug: str,
     metrics: dict[str, Any],
@@ -176,10 +227,26 @@ def main() -> int:
     results: list[dict[str, Any]] = []
     total = len(trials)
     for index, (architecture, encoder, loss_name, optimizer_name, image_size, batch_size, learning_rate, weight_decay) in enumerate(trials, start=1):
-        slug = (
-            f"{index:03d}_{architecture}_{encoder}_{loss_name}_{optimizer_name}"
-            f"_img{image_size}_bs{batch_size}_lr{learning_rate:g}_wd{weight_decay:g}"
-        ).replace("/", "-")
+        slug = build_trial_slug(
+            index=index,
+            architecture=architecture,
+            encoder=encoder,
+            loss_name=loss_name,
+            optimizer_name=optimizer_name,
+            image_size=image_size,
+            batch_size=batch_size,
+            learning_rate=learning_rate,
+            weight_decay=weight_decay,
+            scheduler_name=str(args.scheduler).strip().lower(),
+            sampler_name=str(args.sampler).strip().lower(),
+            augmentation_name=str(args.augmentation).strip().lower(),
+            gradient_accumulation_steps=max(int(args.gradient_accumulation_steps), 1),
+            tversky_alpha=float(args.tversky_alpha),
+            tversky_beta=float(args.tversky_beta),
+            ce_label_smoothing=max(float(args.ce_label_smoothing), 0.0),
+            fpn_decoder_dropout=max(float(args.fpn_decoder_dropout), 0.0),
+            fpn_decoder_merge_policy=str(args.fpn_decoder_merge_policy).strip().lower(),
+        )
         print(f"[{index}/{total}] {slug}")
 
         config = TrainConfig(

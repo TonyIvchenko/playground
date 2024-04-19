@@ -74,6 +74,39 @@ def test_sort_rows_respects_metric_direction():
     assert by_dice[0]["trial"] == "worse_loss"
 
 
+def test_build_trial_slug_includes_non_default_knobs():
+    slug = sweep.build_trial_slug(
+        index=7,
+        architecture="fpn",
+        encoder="efficientnet-b1",
+        loss_name="tversky_ce",
+        optimizer_name="adamw",
+        image_size=320,
+        batch_size=6,
+        learning_rate=2e-4,
+        weight_decay=1e-4,
+        scheduler_name="onecycle",
+        sampler_name="rare_fg",
+        augmentation_name="light",
+        gradient_accumulation_steps=2,
+        tversky_alpha=0.2,
+        tversky_beta=0.8,
+        ce_label_smoothing=0.05,
+        fpn_decoder_dropout=0.1,
+        fpn_decoder_merge_policy="cat",
+    )
+
+    assert slug.startswith("007_fpn_efficientnet-b1_tversky_ce_adamw_img320_bs6_lr0.0002_wd0.0001")
+    assert "sch-onecycle" in slug
+    assert "smp-rare_fg" in slug
+    assert "aug-light" in slug
+    assert "acc2" in slug
+    assert "tv0.2-0.8" in slug
+    assert "ls0.05" in slug
+    assert "drop0.1" in slug
+    assert "merge-cat" in slug
+
+
 def test_main_reuses_existing_metrics_when_skip_existing(tmp_path: Path, monkeypatch):
     output_dir = tmp_path / "search"
     output_dir.mkdir(parents=True, exist_ok=True)
