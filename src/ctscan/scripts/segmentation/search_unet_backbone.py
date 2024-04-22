@@ -136,15 +136,18 @@ def result_row_from_metrics(
 def write_leaderboard(output_dir: Path, rows: list[dict[str, Any]]) -> None:
     leaderboard_json = output_dir / "leaderboard.json"
     leaderboard_csv = output_dir / "leaderboard.csv"
+    best_trial_json = output_dir / "best_trial.json"
     leaderboard_json.write_text(json.dumps(rows, indent=2), encoding="utf-8")
     if not rows:
         leaderboard_csv.write_text("", encoding="utf-8")
+        best_trial_json.write_text("{}", encoding="utf-8")
         return
     fieldnames = sorted({key for row in rows for key in row.keys()})
     with leaderboard_csv.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
+    best_trial_json.write_text(json.dumps(rows[0], indent=2), encoding="utf-8")
 
 
 def sort_rows(rows: list[dict[str, Any]], metric_name: str) -> list[dict[str, Any]]:
