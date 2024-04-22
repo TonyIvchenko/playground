@@ -285,14 +285,14 @@ Notes:
 - PNG pairs are written under `.../slice_dataset_backbone_smoke/images` and `.../slice_dataset_backbone_smoke/masks`.
 - `--preset legacy_png_best` applies the strongest measured legacy-PNG setting so far:
   `fpn + efficientnet-b1 + lovasz_ce + adamw + image_size=320 + batch_size=6 + lr=2e-4 + weight_decay=1e-4 + sampler=rare_fg`.
-  On the current `data/jemys_compatible_png` cache, the latest 1-epoch check reached
+  On the current `data/legacy_compatible_png` cache, the latest 1-epoch check reached
   `val_mean_dice_fg=0.6945`, `val_mean_iou_fg=0.5321`, `val_loss=0.2900`,
   `test_mean_dice_fg=0.6730`.
 - To run short ranked sweeps and reuse finished trials:
 
 ```bash
 python scripts/segmentation/search_unet_backbone.py \
-  --slice-dir data/jemys_compatible_png \
+  --slice-dir data/legacy_compatible_png \
   --output-dir model/backbone_search \
   --architectures fpn \
   --encoders efficientnet-b0,efficientnet-b1 \
