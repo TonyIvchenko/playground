@@ -151,10 +151,16 @@ def write_leaderboard(output_dir: Path, rows: list[dict[str, Any]]) -> None:
 
 
 def sort_rows(rows: list[dict[str, Any]], metric_name: str) -> list[dict[str, Any]]:
+    direction = metric_direction(metric_name)
+    if direction > 0:
+        return sorted(
+            rows,
+            key=lambda row: (1 if metric_name in row else 0, float(row.get(metric_name, float("-inf")))),
+            reverse=True,
+        )
     return sorted(
         rows,
-        key=lambda row: float(row.get(metric_name, 0.0)),
-        reverse=metric_direction(metric_name) > 0,
+        key=lambda row: (0 if metric_name in row else 1, float(row.get(metric_name, float("inf")))),
     )
 
 

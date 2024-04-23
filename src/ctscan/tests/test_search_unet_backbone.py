@@ -76,6 +76,20 @@ def test_sort_rows_respects_metric_direction():
     assert by_dice[0]["trial"] == "worse_loss"
 
 
+def test_sort_rows_pushes_missing_metrics_to_bottom():
+    rows = [
+        {"trial": "failed", "error": "oom"},
+        {"trial": "good_loss", "val_loss": 0.1, "val_mean_dice_fg": 0.4},
+        {"trial": "good_dice", "val_loss": 0.3, "val_mean_dice_fg": 0.7},
+    ]
+
+    by_loss = sweep.sort_rows(rows, "val_loss")
+    by_dice = sweep.sort_rows(rows, "val_mean_dice_fg")
+
+    assert by_loss[-1]["trial"] == "failed"
+    assert by_dice[-1]["trial"] == "failed"
+
+
 def test_build_trial_slug_includes_non_default_knobs():
     slug = sweep.build_trial_slug(
         index=7,
