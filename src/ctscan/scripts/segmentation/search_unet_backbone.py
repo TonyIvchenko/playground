@@ -18,6 +18,32 @@ except ImportError:  # pragma: no cover - script execution path
 CTSCAN_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_SLICE_DIR = CTSCAN_ROOT / "data" / "legacy_compatible_png"
 DEFAULT_OUTPUT_DIR = CTSCAN_ROOT / "model" / "backbone_search"
+LEADERBOARD_FIELD_ORDER = [
+    "trial",
+    "architecture",
+    "encoder",
+    "loss",
+    "optimizer",
+    "image_size",
+    "batch_size",
+    "learning_rate",
+    "weight_decay",
+    "scheduler",
+    "sampler",
+    "augmentation",
+    "gradient_accumulation_steps",
+    "tversky_alpha",
+    "tversky_beta",
+    "ce_label_smoothing",
+    "fpn_decoder_dropout",
+    "fpn_decoder_merge_policy",
+    "val_mean_dice_fg",
+    "val_mean_iou_fg",
+    "val_loss",
+    "test_mean_dice_fg",
+    "test_mean_iou_fg",
+    "error",
+]
 
 
 def parse_list(value: str) -> list[str]:
@@ -142,7 +168,9 @@ def write_leaderboard(output_dir: Path, rows: list[dict[str, Any]]) -> None:
         leaderboard_csv.write_text("", encoding="utf-8")
         best_trial_json.write_text("{}", encoding="utf-8")
         return
-    fieldnames = sorted({key for row in rows for key in row.keys()})
+    discovered = {key for row in rows for key in row.keys()}
+    fieldnames = [name for name in LEADERBOARD_FIELD_ORDER if name in discovered]
+    fieldnames.extend(sorted(discovered - set(fieldnames)))
     with leaderboard_csv.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()

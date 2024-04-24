@@ -58,7 +58,7 @@ def test_write_leaderboard_writes_json_and_csv(tmp_path: Path):
 
     assert leaderboard_json[0]["trial"] == "a"
     assert best_trial_json["trial"] == "a"
-    assert "trial,val_loss,val_mean_dice_fg" in leaderboard_csv or "trial,val_mean_dice_fg,val_loss" in leaderboard_csv
+    assert leaderboard_csv.startswith("trial,val_mean_dice_fg,val_loss")
     assert "a" in leaderboard_csv
     assert "b" in leaderboard_csv
 
