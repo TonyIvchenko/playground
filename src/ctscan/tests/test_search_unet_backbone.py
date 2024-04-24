@@ -172,3 +172,11 @@ def test_main_reuses_existing_metrics_when_skip_existing(tmp_path: Path, monkeyp
     leaderboard = json.loads((output_dir / "leaderboard.json").read_text(encoding="utf-8"))
     assert leaderboard[0]["trial"] == slug
     assert leaderboard[0]["val_mean_dice_fg"] == 0.55
+
+
+def test_parse_args_accepts_top_k(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["search_unet_backbone.py", "--top-k", "3"])
+
+    args = sweep.parse_args()
+
+    assert args.top_k == 3

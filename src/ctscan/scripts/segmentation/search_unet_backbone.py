@@ -227,6 +227,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-test-batches", type=int, default=0)
     parser.add_argument("--max-trials", type=int, default=12)
     parser.add_argument("--sort-metric", type=str, default="val_mean_dice_fg")
+    parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--skip-existing", action="store_true")
     return parser.parse_args()
 
@@ -381,7 +382,7 @@ def main() -> int:
         write_leaderboard(output_dir, leaderboard)
 
     print("top_trials:")
-    for row in sort_rows(results, args.sort_metric)[:5]:
+    for row in sort_rows(results, args.sort_metric)[: max(int(args.top_k), 0)]:
         print(
             f"  {row['trial']} {args.sort_metric}={row.get(args.sort_metric, 0.0):.4f} "
             f"val_loss={row.get('val_loss', 0.0):.4f}"
