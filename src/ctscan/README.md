@@ -302,11 +302,13 @@ python scripts/segmentation/search_unet_backbone.py \
   --learning-rates 0.0002 \
   --weight-decays 0.0001 \
   --sampler rare_fg \
+  --top-k 3 \
   --skip-existing
 ```
 
 - Sweep outputs are written to `model/backbone_search/leaderboard.json` and
   `model/backbone_search/leaderboard.csv`.
+- The current winner is also written to `model/backbone_search/best_trial.json`.
 
 
 ## Legacy End-To-End Runbook
