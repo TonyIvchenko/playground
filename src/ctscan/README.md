@@ -309,6 +309,7 @@ python scripts/segmentation/search_unet_backbone.py \
 - Sweep outputs are written to `model/backbone_search/leaderboard.json` and
   `model/backbone_search/leaderboard.csv`.
 - The current winner is also written to `model/backbone_search/best_trial.json`.
+- Add `--dry-run` to print the planned trial slugs without starting training.
 
 
 ## Legacy End-To-End Runbook

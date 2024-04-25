@@ -228,6 +228,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-trials", type=int, default=12)
     parser.add_argument("--sort-metric", type=str, default="val_mean_dice_fg")
     parser.add_argument("--top-k", type=int, default=5)
+    parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--skip-existing", action="store_true")
     return parser.parse_args()
 
@@ -261,6 +262,33 @@ def main() -> int:
     )
     if args.max_trials > 0:
         trials = trials[: args.max_trials]
+
+    if args.dry_run:
+        print("planned_trials:")
+        for index, (architecture, encoder, loss_name, optimizer_name, image_size, batch_size, learning_rate, weight_decay) in enumerate(trials, start=1):
+            print(
+                build_trial_slug(
+                    index=index,
+                    architecture=architecture,
+                    encoder=encoder,
+                    loss_name=loss_name,
+                    optimizer_name=optimizer_name,
+                    image_size=image_size,
+                    batch_size=batch_size,
+                    learning_rate=learning_rate,
+                    weight_decay=weight_decay,
+                    scheduler_name=str(args.scheduler).strip().lower(),
+                    sampler_name=str(args.sampler).strip().lower(),
+                    augmentation_name=str(args.augmentation).strip().lower(),
+                    gradient_accumulation_steps=max(int(args.gradient_accumulation_steps), 1),
+                    tversky_alpha=float(args.tversky_alpha),
+                    tversky_beta=float(args.tversky_beta),
+                    ce_label_smoothing=max(float(args.ce_label_smoothing), 0.0),
+                    fpn_decoder_dropout=max(float(args.fpn_decoder_dropout), 0.0),
+                    fpn_decoder_merge_policy=str(args.fpn_decoder_merge_policy).strip().lower(),
+                )
+            )
+        return 0
 
     results: list[dict[str, Any]] = []
     total = len(trials)

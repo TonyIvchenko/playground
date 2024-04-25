@@ -180,3 +180,41 @@ def test_parse_args_accepts_top_k(monkeypatch):
     args = sweep.parse_args()
 
     assert args.top_k == 3
+
+
+def test_main_dry_run_prints_planned_trials(tmp_path: Path, monkeypatch, capsys):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "search_unet_backbone.py",
+            "--slice-dir",
+            str(tmp_path / "slice_dataset"),
+            "--output-dir",
+            str(tmp_path / "search"),
+            "--architectures",
+            "fpn",
+            "--encoders",
+            "efficientnet-b1",
+            "--losses",
+            "lovasz_ce",
+            "--optimizers",
+            "adamw",
+            "--image-sizes",
+            "320",
+            "--batch-sizes",
+            "6",
+            "--learning-rates",
+            "0.0002",
+            "--weight-decays",
+            "0.0001",
+            "--dry-run",
+        ],
+    )
+    monkeypatch.setattr(sweep, "train", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("train should not run")))
+
+    assert sweep.main() == 0
+
+    output = capsys.readouterr().out
+    assert "planned_trials:" in output
+    assert "001_fpn_efficientnet-b1_lovasz_ce_adamw_img320_bs6_lr0.0002_wd0.0001" in output
