@@ -63,6 +63,30 @@ def test_write_leaderboard_writes_json_and_csv(tmp_path: Path):
     assert "b" in leaderboard_csv
 
 
+def test_write_run_summary_counts_success_and_failures(tmp_path: Path):
+    rows = [
+        {"trial": "winner", "val_mean_dice_fg": 0.7},
+        {"trial": "failed", "error": "oom"},
+    ]
+
+    sweep.write_run_summary(
+        tmp_path,
+        rows,
+        total_trials=3,
+        sort_metric="val_mean_dice_fg",
+        top_k=5,
+    )
+
+    payload = json.loads((tmp_path / "run_summary.json").read_text(encoding="utf-8"))
+
+    assert payload["total_trials"] == 3
+    assert payload["completed_trials"] == 1
+    assert payload["failed_trials"] == 1
+    assert payload["sort_metric"] == "val_mean_dice_fg"
+    assert payload["top_k"] == 5
+    assert payload["best_trial"] == "winner"
+
+
 def test_sort_rows_respects_metric_direction():
     rows = [
         {"trial": "better_loss", "val_loss": 0.1, "val_mean_dice_fg": 0.4},
@@ -170,8 +194,12 @@ def test_main_reuses_existing_metrics_when_skip_existing(tmp_path: Path, monkeyp
     assert sweep.main() == 0
 
     leaderboard = json.loads((output_dir / "leaderboard.json").read_text(encoding="utf-8"))
+    run_summary = json.loads((output_dir / "run_summary.json").read_text(encoding="utf-8"))
     assert leaderboard[0]["trial"] == slug
     assert leaderboard[0]["val_mean_dice_fg"] == 0.55
+    assert run_summary["completed_trials"] == 1
+    assert run_summary["failed_trials"] == 0
+    assert run_summary["best_trial"] == slug
 
 
 def test_parse_args_accepts_top_k(monkeypatch):

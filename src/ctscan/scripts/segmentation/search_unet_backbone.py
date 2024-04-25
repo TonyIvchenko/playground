@@ -178,6 +178,25 @@ def write_leaderboard(output_dir: Path, rows: list[dict[str, Any]]) -> None:
     best_trial_json.write_text(json.dumps(rows[0], indent=2), encoding="utf-8")
 
 
+def write_run_summary(
+    output_dir: Path,
+    rows: list[dict[str, Any]],
+    *,
+    total_trials: int,
+    sort_metric: str,
+    top_k: int,
+) -> None:
+    summary = {
+        "total_trials": int(total_trials),
+        "completed_trials": int(sum(1 for row in rows if "error" not in row)),
+        "failed_trials": int(sum(1 for row in rows if "error" in row)),
+        "sort_metric": str(sort_metric),
+        "top_k": int(max(top_k, 0)),
+        "best_trial": rows[0]["trial"] if rows else None,
+    }
+    (output_dir / "run_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+
+
 def sort_rows(rows: list[dict[str, Any]], metric_name: str) -> list[dict[str, Any]]:
     direction = metric_direction(metric_name)
     if direction > 0:
@@ -408,6 +427,13 @@ def main() -> int:
 
         leaderboard = sort_rows(results, args.sort_metric)
         write_leaderboard(output_dir, leaderboard)
+        write_run_summary(
+            output_dir,
+            leaderboard,
+            total_trials=total,
+            sort_metric=args.sort_metric,
+            top_k=args.top_k,
+        )
 
     print("top_trials:")
     for row in sort_rows(results, args.sort_metric)[: max(int(args.top_k), 0)]:
