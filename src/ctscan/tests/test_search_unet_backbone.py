@@ -210,6 +210,14 @@ def test_parse_args_accepts_top_k(monkeypatch):
     assert args.top_k == 3
 
 
+def test_parse_args_accepts_fail_fast(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["search_unet_backbone.py", "--fail-fast"])
+
+    args = sweep.parse_args()
+
+    assert args.fail_fast is True
+
+
 def test_main_dry_run_prints_planned_trials(tmp_path: Path, monkeypatch, capsys):
     monkeypatch.setattr(
         sys,
@@ -246,3 +254,51 @@ def test_main_dry_run_prints_planned_trials(tmp_path: Path, monkeypatch, capsys)
     output = capsys.readouterr().out
     assert "planned_trials:" in output
     assert "001_fpn_efficientnet-b1_lovasz_ce_adamw_img320_bs6_lr0.0002_wd0.0001" in output
+
+
+def test_main_fail_fast_stops_after_first_error(tmp_path: Path, monkeypatch):
+    output_dir = tmp_path / "search"
+    train_calls: list[str] = []
+
+    def fail_train(config):
+        train_calls.append(config.model_version)
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "search_unet_backbone.py",
+            "--slice-dir",
+            str(tmp_path / "slice_dataset"),
+            "--output-dir",
+            str(output_dir),
+            "--architectures",
+            "fpn,unet",
+            "--encoders",
+            "efficientnet-b1",
+            "--losses",
+            "lovasz_ce",
+            "--optimizers",
+            "adamw",
+            "--image-sizes",
+            "320",
+            "--batch-sizes",
+            "6",
+            "--learning-rates",
+            "0.0002",
+            "--weight-decays",
+            "0.0001",
+            "--fail-fast",
+        ],
+    )
+    monkeypatch.setattr(sweep, "train", fail_train)
+
+    assert sweep.main() == 1
+
+    leaderboard = json.loads((output_dir / "leaderboard.json").read_text(encoding="utf-8"))
+    run_summary = json.loads((output_dir / "run_summary.json").read_text(encoding="utf-8"))
+    assert len(train_calls) == 1
+    assert len(leaderboard) == 1
+    assert leaderboard[0]["error"] == "boom"
+    assert run_summary["failed_trials"] == 1

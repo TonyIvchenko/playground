@@ -249,6 +249,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--skip-existing", action="store_true")
+    parser.add_argument("--fail-fast", action="store_true")
     return parser.parse_args()
 
 
@@ -424,6 +425,17 @@ def main() -> int:
                 }
             )
             print(f"  failed: {exc}")
+            leaderboard = sort_rows(results, args.sort_metric)
+            write_leaderboard(output_dir, leaderboard)
+            write_run_summary(
+                output_dir,
+                leaderboard,
+                total_trials=total,
+                sort_metric=args.sort_metric,
+                top_k=args.top_k,
+            )
+            if args.fail_fast:
+                return 1
 
         leaderboard = sort_rows(results, args.sort_metric)
         write_leaderboard(output_dir, leaderboard)

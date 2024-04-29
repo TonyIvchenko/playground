@@ -311,6 +311,7 @@ python scripts/segmentation/search_unet_backbone.py \
 - The current winner is also written to `model/backbone_search/best_trial.json`.
 - Each sweep also writes `model/backbone_search/run_summary.json` with overall trial counts.
 - Add `--dry-run` to print the planned trial slugs without starting training.
+- Add `--fail-fast` to stop immediately after the first failed trial.
 
 
 ## Legacy End-To-End Runbook
