@@ -87,6 +87,36 @@ def test_write_run_summary_counts_success_and_failures(tmp_path: Path):
     assert payload["best_trial"] == "winner"
 
 
+def test_write_trial_config_persists_knobs(tmp_path: Path):
+    payload = sweep.trial_config_row(
+        slug="trial001",
+        architecture="fpn",
+        encoder="efficientnet-b1",
+        loss_name="lovasz_ce",
+        optimizer_name="adamw",
+        image_size=320,
+        batch_size=6,
+        learning_rate=2e-4,
+        weight_decay=1e-4,
+        scheduler_name="none",
+        sampler_name="rare_fg",
+        augmentation_name="none",
+        gradient_accumulation_steps=1,
+        tversky_alpha=0.3,
+        tversky_beta=0.7,
+        ce_label_smoothing=0.0,
+        fpn_decoder_dropout=0.2,
+        fpn_decoder_merge_policy="add",
+    )
+
+    sweep.write_trial_config(tmp_path, "trial001", payload)
+
+    saved = json.loads((tmp_path / "trial001.config.json").read_text(encoding="utf-8"))
+    assert saved["trial"] == "trial001"
+    assert saved["architecture"] == "fpn"
+    assert saved["sampler"] == "rare_fg"
+
+
 def test_sort_rows_respects_metric_direction():
     rows = [
         {"trial": "better_loss", "val_loss": 0.1, "val_mean_dice_fg": 0.4},
@@ -195,11 +225,14 @@ def test_main_reuses_existing_metrics_when_skip_existing(tmp_path: Path, monkeyp
 
     leaderboard = json.loads((output_dir / "leaderboard.json").read_text(encoding="utf-8"))
     run_summary = json.loads((output_dir / "run_summary.json").read_text(encoding="utf-8"))
+    trial_config = json.loads((output_dir / f"{slug}.config.json").read_text(encoding="utf-8"))
     assert leaderboard[0]["trial"] == slug
     assert leaderboard[0]["val_mean_dice_fg"] == 0.55
     assert run_summary["completed_trials"] == 1
     assert run_summary["failed_trials"] == 0
     assert run_summary["best_trial"] == slug
+    assert trial_config["trial"] == slug
+    assert trial_config["architecture"] == "fpn"
 
 
 def test_parse_args_accepts_top_k(monkeypatch):

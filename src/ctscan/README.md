@@ -310,6 +310,7 @@ python scripts/segmentation/search_unet_backbone.py \
   `model/backbone_search/leaderboard.csv`.
 - The current winner is also written to `model/backbone_search/best_trial.json`.
 - Each sweep also writes `model/backbone_search/run_summary.json` with overall trial counts.
+- Each trial also writes `model/backbone_search/<trial>.config.json` with the resolved knob values.
 - Add `--dry-run` to print the planned trial slugs without starting training.
 - Add `--fail-fast` to stop immediately after the first failed trial.
 - Use `--start-index` and `--end-index` to split a large sweep into smaller chunks.

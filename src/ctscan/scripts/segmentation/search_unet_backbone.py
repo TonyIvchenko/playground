@@ -159,6 +159,48 @@ def result_row_from_metrics(
     }
 
 
+def trial_config_row(
+    slug: str,
+    architecture: str,
+    encoder: str,
+    loss_name: str,
+    optimizer_name: str,
+    image_size: int,
+    batch_size: int,
+    learning_rate: float,
+    weight_decay: float,
+    scheduler_name: str,
+    sampler_name: str,
+    augmentation_name: str,
+    gradient_accumulation_steps: int,
+    tversky_alpha: float,
+    tversky_beta: float,
+    ce_label_smoothing: float,
+    fpn_decoder_dropout: float,
+    fpn_decoder_merge_policy: str,
+) -> dict[str, Any]:
+    return {
+        "trial": slug,
+        "architecture": architecture,
+        "encoder": encoder,
+        "loss": loss_name,
+        "optimizer": optimizer_name,
+        "image_size": image_size,
+        "batch_size": batch_size,
+        "learning_rate": learning_rate,
+        "weight_decay": weight_decay,
+        "scheduler": scheduler_name,
+        "sampler": sampler_name,
+        "augmentation": augmentation_name,
+        "gradient_accumulation_steps": gradient_accumulation_steps,
+        "tversky_alpha": tversky_alpha,
+        "tversky_beta": tversky_beta,
+        "ce_label_smoothing": ce_label_smoothing,
+        "fpn_decoder_dropout": fpn_decoder_dropout,
+        "fpn_decoder_merge_policy": fpn_decoder_merge_policy,
+    }
+
+
 def write_leaderboard(output_dir: Path, rows: list[dict[str, Any]]) -> None:
     leaderboard_json = output_dir / "leaderboard.json"
     leaderboard_csv = output_dir / "leaderboard.csv"
@@ -195,6 +237,10 @@ def write_run_summary(
         "best_trial": rows[0]["trial"] if rows else None,
     }
     (output_dir / "run_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+
+
+def write_trial_config(output_dir: Path, slug: str, payload: dict[str, Any]) -> None:
+    (output_dir / f"{slug}.config.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
 def sort_rows(rows: list[dict[str, Any]], metric_name: str) -> list[dict[str, Any]]:
@@ -342,6 +388,27 @@ def main() -> int:
             fpn_decoder_merge_policy=str(args.fpn_decoder_merge_policy).strip().lower(),
         )
         print(f"[{index}/{total}] {slug}")
+        trial_config = trial_config_row(
+            slug=slug,
+            architecture=architecture,
+            encoder=encoder,
+            loss_name=loss_name,
+            optimizer_name=optimizer_name,
+            image_size=image_size,
+            batch_size=batch_size,
+            learning_rate=learning_rate,
+            weight_decay=weight_decay,
+            scheduler_name=str(args.scheduler).strip().lower(),
+            sampler_name=str(args.sampler).strip().lower(),
+            augmentation_name=str(args.augmentation).strip().lower(),
+            gradient_accumulation_steps=max(int(args.gradient_accumulation_steps), 1),
+            tversky_alpha=float(args.tversky_alpha),
+            tversky_beta=float(args.tversky_beta),
+            ce_label_smoothing=max(float(args.ce_label_smoothing), 0.0),
+            fpn_decoder_dropout=max(float(args.fpn_decoder_dropout), 0.0),
+            fpn_decoder_merge_policy=str(args.fpn_decoder_merge_policy).strip().lower(),
+        )
+        write_trial_config(output_dir, slug, trial_config)
 
         config = TrainConfig(
             slice_dir=args.slice_dir.resolve(),
