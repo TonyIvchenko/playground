@@ -244,6 +244,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-train-batches", type=int, default=0)
     parser.add_argument("--max-val-batches", type=int, default=0)
     parser.add_argument("--max-test-batches", type=int, default=0)
+    parser.add_argument("--start-index", type=int, default=1)
+    parser.add_argument("--end-index", type=int, default=0)
     parser.add_argument("--max-trials", type=int, default=12)
     parser.add_argument("--sort-metric", type=str, default="val_mean_dice_fg")
     parser.add_argument("--top-k", type=int, default=5)
@@ -280,6 +282,12 @@ def main() -> int:
             weight_decays,
         )
     )
+    start_index = max(int(args.start_index), 1)
+    end_index = int(args.end_index)
+    if end_index > 0:
+        trials = trials[start_index - 1 : end_index]
+    else:
+        trials = trials[start_index - 1 :]
     if args.max_trials > 0:
         trials = trials[: args.max_trials]
 

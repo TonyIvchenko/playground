@@ -312,6 +312,7 @@ python scripts/segmentation/search_unet_backbone.py \
 - Each sweep also writes `model/backbone_search/run_summary.json` with overall trial counts.
 - Add `--dry-run` to print the planned trial slugs without starting training.
 - Add `--fail-fast` to stop immediately after the first failed trial.
+- Use `--start-index` and `--end-index` to split a large sweep into smaller chunks.
 
 
 ## Legacy End-To-End Runbook
