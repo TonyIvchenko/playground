@@ -204,10 +204,12 @@ def trial_config_row(
 def write_leaderboard(output_dir: Path, rows: list[dict[str, Any]]) -> None:
     leaderboard_json = output_dir / "leaderboard.json"
     leaderboard_csv = output_dir / "leaderboard.csv"
+    leaderboard_md = output_dir / "leaderboard.md"
     best_trial_json = output_dir / "best_trial.json"
     leaderboard_json.write_text(json.dumps(rows, indent=2), encoding="utf-8")
     if not rows:
         leaderboard_csv.write_text("", encoding="utf-8")
+        leaderboard_md.write_text("", encoding="utf-8")
         best_trial_json.write_text("{}", encoding="utf-8")
         return
     discovered = {key for row in rows for key in row.keys()}
@@ -217,6 +219,26 @@ def write_leaderboard(output_dir: Path, rows: list[dict[str, Any]]) -> None:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
+    markdown_lines = [
+        "| trial | val_mean_dice_fg | val_mean_iou_fg | val_loss | test_mean_dice_fg | error |",
+        "| --- | ---: | ---: | ---: | ---: | --- |",
+    ]
+    for row in rows:
+        markdown_lines.append(
+            "| "
+            + " | ".join(
+                [
+                    str(row.get("trial", "")),
+                    f"{float(row.get('val_mean_dice_fg', 0.0)):.4f}" if "val_mean_dice_fg" in row else "",
+                    f"{float(row.get('val_mean_iou_fg', 0.0)):.4f}" if "val_mean_iou_fg" in row else "",
+                    f"{float(row.get('val_loss', 0.0)):.4f}" if "val_loss" in row else "",
+                    f"{float(row.get('test_mean_dice_fg', 0.0)):.4f}" if "test_mean_dice_fg" in row else "",
+                    str(row.get("error", "")),
+                ]
+            )
+            + " |"
+        )
+    leaderboard_md.write_text("\n".join(markdown_lines) + "\n", encoding="utf-8")
     best_trial_json.write_text(json.dumps(rows[0], indent=2), encoding="utf-8")
 
 

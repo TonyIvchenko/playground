@@ -54,11 +54,14 @@ def test_write_leaderboard_writes_json_and_csv(tmp_path: Path):
 
     leaderboard_json = json.loads((tmp_path / "leaderboard.json").read_text(encoding="utf-8"))
     leaderboard_csv = (tmp_path / "leaderboard.csv").read_text(encoding="utf-8")
+    leaderboard_md = (tmp_path / "leaderboard.md").read_text(encoding="utf-8")
     best_trial_json = json.loads((tmp_path / "best_trial.json").read_text(encoding="utf-8"))
 
     assert leaderboard_json[0]["trial"] == "a"
     assert best_trial_json["trial"] == "a"
     assert leaderboard_csv.startswith("trial,val_mean_dice_fg,val_loss")
+    assert leaderboard_md.startswith("| trial | val_mean_dice_fg |")
+    assert "| a | 0.5000 |" in leaderboard_md
     assert "a" in leaderboard_csv
     assert "b" in leaderboard_csv
 
