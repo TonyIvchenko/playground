@@ -12,6 +12,7 @@ from torch import nn
 from src.ctscan.scripts.segmentation.train_unet_backbone import (
     build_model,
     build_scheduler,
+    config_to_dict,
     compute_class_weights,
     compute_sample_weights,
     LovaszCELoss,
@@ -22,6 +23,7 @@ from src.ctscan.scripts.segmentation.train_unet_backbone import (
     TrainConfig,
     load_split_rows,
     metric_direction,
+    main,
     parse_args,
     train,
 )
@@ -213,6 +215,80 @@ def test_legacy_png_best_preset_sets_measured_winner(monkeypatch):
     assert config.ce_label_smoothing == PRESET_DEFAULTS["legacy_png_best"]["ce_label_smoothing"]
     assert config.fpn_decoder_dropout == PRESET_DEFAULTS["legacy_png_best"]["fpn_decoder_dropout"]
     assert config.fpn_decoder_merge_policy == PRESET_DEFAULTS["legacy_png_best"]["fpn_decoder_merge_policy"]
+
+
+def test_parse_args_accepts_dry_run(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--dry-run"])
+
+    config = parse_args()
+
+    assert config.dry_run is True
+
+
+def test_config_to_dict_stringifies_paths():
+    config = TrainConfig(
+        slice_dir=Path("slice_data"),
+        output_path=Path("model.pt"),
+        metrics_path=Path("metrics.json"),
+        model_version="test",
+        architecture="fpn",
+        encoder_name="efficientnet-b1",
+        encoder_weights="imagenet",
+        classes=4,
+        in_channels=1,
+        image_size=320,
+        batch_size=6,
+        epochs=1,
+        learning_rate=2e-4,
+        weight_decay=1e-4,
+        optimizer_name="adamw",
+        loss_name="lovasz_ce",
+        class_weight_mode="none",
+        scheduler_name="none",
+        sampler_name="rare_fg",
+        augmentation_name="none",
+        gradient_accumulation_steps=1,
+        tversky_alpha=0.3,
+        tversky_beta=0.7,
+        ce_label_smoothing=0.0,
+        fpn_decoder_dropout=0.2,
+        fpn_decoder_merge_policy="add",
+        selection_metric="val_mean_dice_fg",
+        num_workers=0,
+        seed=17,
+        device="cpu",
+        max_train_batches=0,
+        max_val_batches=0,
+        max_test_batches=0,
+        dry_run=True,
+    )
+
+    payload = config_to_dict(config)
+
+    assert payload["slice_dir"] == "slice_data"
+    assert payload["output_path"] == "model.pt"
+    assert payload["metrics_path"] == "metrics.json"
+    assert payload["dry_run"] is True
+
+
+def test_main_dry_run_prints_resolved_config(monkeypatch, capsys):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "train_unet_backbone.py",
+            "--preset",
+            "legacy_png_best",
+            "--dry-run",
+        ],
+    )
+
+    assert main() == 0
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["architecture"] == PRESET_DEFAULTS["legacy_png_best"]["architecture"]
+    assert payload["encoder_name"] == PRESET_DEFAULTS["legacy_png_best"]["encoder_name"]
+    assert payload["dry_run"] is True
 
 
 def test_build_model_passes_fpn_decoder_settings(monkeypatch):

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 import csv
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 import json
 from pathlib import Path
 from typing import Any
@@ -89,6 +89,7 @@ class TrainConfig:
     max_train_batches: int
     max_val_batches: int
     max_test_batches: int
+    dry_run: bool = False
 
 
 class SlicePairDataset(Dataset):
@@ -178,6 +179,7 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--max-train-batches", type=int, default=0)
     parser.add_argument("--max-val-batches", type=int, default=0)
     parser.add_argument("--max-test-batches", type=int, default=0)
+    parser.add_argument("--dry-run", action="store_true")
     parser.set_defaults(**PRESET_DEFAULTS[preset_args.preset])
     args = parser.parse_args()
 
@@ -216,7 +218,16 @@ def parse_args() -> TrainConfig:
         max_train_batches=max(int(args.max_train_batches), 0),
         max_val_batches=max(int(args.max_val_batches), 0),
         max_test_batches=max(int(args.max_test_batches), 0),
+        dry_run=bool(args.dry_run),
     )
+
+
+def config_to_dict(config: TrainConfig) -> dict[str, Any]:
+    payload = asdict(config)
+    for key, value in list(payload.items()):
+        if isinstance(value, Path):
+            payload[key] = str(value)
+    return payload
 
 
 def resolve_device(name: str) -> torch.device:
@@ -808,10 +819,14 @@ def train(config: TrainConfig) -> dict[str, Any]:
     return metrics
 
 
-def main() -> None:
+def main() -> int:
     config = parse_args()
+    if config.dry_run:
+        print(json.dumps(config_to_dict(config), indent=2))
+        return 0
     train(config)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

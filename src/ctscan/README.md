@@ -280,6 +280,7 @@ python scripts/segmentation/train_unet_backbone.py \
 ```
 
 Notes:
+- Add `--dry-run` to print the fully resolved trainer config without starting training.
 - This is a smoke baseline only; run with larger `--max-cases`, more epochs, and remove `--max-*-batches` for real training.
 - Split files are written to `.../slice_dataset_backbone_smoke/splits/*.csv`.
 - PNG pairs are written under `.../slice_dataset_backbone_smoke/images` and `.../slice_dataset_backbone_smoke/masks`.
