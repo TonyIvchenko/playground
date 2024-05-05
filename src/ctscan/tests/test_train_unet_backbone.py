@@ -12,6 +12,7 @@ from torch import nn
 from src.ctscan.scripts.segmentation.train_unet_backbone import (
     build_model,
     build_scheduler,
+    config_output_path,
     config_to_dict,
     compute_class_weights,
     compute_sample_weights,
@@ -26,6 +27,7 @@ from src.ctscan.scripts.segmentation.train_unet_backbone import (
     main,
     parse_args,
     train,
+    write_config_snapshot,
 )
 
 
@@ -271,6 +273,51 @@ def test_config_to_dict_stringifies_paths():
     assert payload["dry_run"] is True
 
 
+def test_write_config_snapshot_uses_metrics_stem(tmp_path: Path):
+    config = TrainConfig(
+        slice_dir=tmp_path / "slice_data",
+        output_path=tmp_path / "model.pt",
+        metrics_path=tmp_path / "model.metrics.json",
+        model_version="test",
+        architecture="fpn",
+        encoder_name="efficientnet-b1",
+        encoder_weights="imagenet",
+        classes=4,
+        in_channels=1,
+        image_size=320,
+        batch_size=6,
+        epochs=1,
+        learning_rate=2e-4,
+        weight_decay=1e-4,
+        optimizer_name="adamw",
+        loss_name="lovasz_ce",
+        class_weight_mode="none",
+        scheduler_name="none",
+        sampler_name="rare_fg",
+        augmentation_name="none",
+        gradient_accumulation_steps=1,
+        tversky_alpha=0.3,
+        tversky_beta=0.7,
+        ce_label_smoothing=0.0,
+        fpn_decoder_dropout=0.2,
+        fpn_decoder_merge_policy="add",
+        selection_metric="val_mean_dice_fg",
+        num_workers=0,
+        seed=17,
+        device="cpu",
+        max_train_batches=0,
+        max_val_batches=0,
+        max_test_batches=0,
+        dry_run=False,
+    )
+
+    path = write_config_snapshot(config)
+
+    assert path == config_output_path(config)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    assert payload["metrics_path"].endswith("model.metrics.json")
+
+
 def test_main_dry_run_prints_resolved_config(monkeypatch, capsys):
     monkeypatch.setattr(
         sys,
@@ -424,3 +471,7 @@ def test_train_evaluates_test_metrics_with_best_checkpoint_state(tmp_path: Path,
     metrics = train(config)
 
     assert metrics["best_epoch"] == 1
+    saved_config = config_output_path(config)
+    assert saved_config.exists()
+    saved_payload = json.loads(saved_config.read_text(encoding="utf-8"))
+    assert saved_payload["model_version"] == "test"

@@ -230,6 +230,17 @@ def config_to_dict(config: TrainConfig) -> dict[str, Any]:
     return payload
 
 
+def config_output_path(config: TrainConfig) -> Path:
+    return config.metrics_path.with_suffix(".config.json")
+
+
+def write_config_snapshot(config: TrainConfig) -> Path:
+    path = config_output_path(config)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(config_to_dict(config), indent=2), encoding="utf-8")
+    return path
+
+
 def resolve_device(name: str) -> torch.device:
     if name != "auto":
         return torch.device(name)
@@ -611,6 +622,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
     seed_everything(config.seed)
     device = resolve_device(config.device)
     print(f"device={device}")
+    config_path = write_config_snapshot(config)
 
     train_rows = load_split_rows(config.slice_dir, "train")
     val_rows = load_split_rows(config.slice_dir, "val")
@@ -814,6 +826,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
     }
     config.metrics_path.parent.mkdir(parents=True, exist_ok=True)
     config.metrics_path.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
+    print(f"saved_config={config_path}")
     print(f"saved_checkpoint={config.output_path}")
     print(f"saved_metrics={config.metrics_path}")
     return metrics
