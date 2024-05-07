@@ -280,6 +280,7 @@ python scripts/segmentation/train_unet_backbone.py \
 ```
 
 Notes:
+- Add `--list-presets` to print the available trainer presets.
 - Add `--dry-run` to print the fully resolved trainer config without starting training.
 - Each training run writes a resolved config snapshot next to the metrics file as `*.config.json`.
 - This is a smoke baseline only; run with larger `--max-cases`, more epochs, and remove `--max-*-batches` for real training.

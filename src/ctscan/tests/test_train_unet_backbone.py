@@ -227,6 +227,14 @@ def test_parse_args_accepts_dry_run(monkeypatch):
     assert config.dry_run is True
 
 
+def test_parse_args_accepts_list_presets(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--list-presets"])
+
+    config = parse_args()
+
+    assert config.list_presets is True
+
+
 def test_config_to_dict_stringifies_paths():
     config = TrainConfig(
         slice_dir=Path("slice_data"),
@@ -336,6 +344,16 @@ def test_main_dry_run_prints_resolved_config(monkeypatch, capsys):
     assert payload["architecture"] == PRESET_DEFAULTS["legacy_png_best"]["architecture"]
     assert payload["encoder_name"] == PRESET_DEFAULTS["legacy_png_best"]["encoder_name"]
     assert payload["dry_run"] is True
+
+
+def test_main_list_presets_prints_available_names(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--list-presets"])
+
+    assert main() == 0
+
+    output = capsys.readouterr().out.splitlines()
+    assert "default" in output
+    assert "legacy_png_best" in output
 
 
 def test_build_model_passes_fpn_decoder_settings(monkeypatch):

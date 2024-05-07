@@ -90,6 +90,7 @@ class TrainConfig:
     max_val_batches: int
     max_test_batches: int
     dry_run: bool = False
+    list_presets: bool = False
 
 
 class SlicePairDataset(Dataset):
@@ -180,6 +181,7 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--max-val-batches", type=int, default=0)
     parser.add_argument("--max-test-batches", type=int, default=0)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--list-presets", action="store_true")
     parser.set_defaults(**PRESET_DEFAULTS[preset_args.preset])
     args = parser.parse_args()
 
@@ -219,6 +221,7 @@ def parse_args() -> TrainConfig:
         max_val_batches=max(int(args.max_val_batches), 0),
         max_test_batches=max(int(args.max_test_batches), 0),
         dry_run=bool(args.dry_run),
+        list_presets=bool(args.list_presets),
     )
 
 
@@ -834,6 +837,10 @@ def train(config: TrainConfig) -> dict[str, Any]:
 
 def main() -> int:
     config = parse_args()
+    if config.list_presets:
+        for preset_name in sorted(PRESET_DEFAULTS):
+            print(preset_name)
+        return 0
     if config.dry_run:
         print(json.dumps(config_to_dict(config), indent=2))
         return 0
