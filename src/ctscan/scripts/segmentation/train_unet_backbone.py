@@ -244,6 +244,35 @@ def write_config_snapshot(config: TrainConfig) -> Path:
     return path
 
 
+def metrics_summary_path(config: TrainConfig) -> Path:
+    return config.metrics_path.with_suffix(".md")
+
+
+def write_metrics_summary(config: TrainConfig, metrics: dict[str, Any]) -> Path:
+    path = metrics_summary_path(config)
+    test_metrics = metrics.get("test", {})
+    lines = [
+        f"# {config.model_version}",
+        "",
+        f"- architecture: `{config.architecture}`",
+        f"- encoder: `{config.encoder_name}`",
+        f"- loss: `{config.loss_name}`",
+        f"- optimizer: `{config.optimizer_name}`",
+        f"- selection metric: `{config.selection_metric}`",
+        f"- best epoch: `{metrics.get('best_epoch', 0)}`",
+        f"- best score: `{float(metrics.get('best_score', 0.0)):.4f}`",
+        f"- val dice fg: `{float(metrics.get('history', [{}])[-1].get('val_mean_dice_fg', 0.0)):.4f}`",
+        f"- val iou fg: `{float(metrics.get('history', [{}])[-1].get('val_mean_iou_fg', 0.0)):.4f}`",
+        f"- val loss: `{float(metrics.get('history', [{}])[-1].get('val_loss', 0.0)):.4f}`",
+        f"- test dice fg: `{float(test_metrics.get('mean_dice_fg', 0.0)):.4f}`",
+        f"- test iou fg: `{float(test_metrics.get('mean_iou_fg', 0.0)):.4f}`",
+        f"- checkpoint: `{config.output_path}`",
+        f"- metrics: `{config.metrics_path}`",
+    ]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
+
+
 def resolve_device(name: str) -> torch.device:
     if name != "auto":
         return torch.device(name)
@@ -829,9 +858,11 @@ def train(config: TrainConfig) -> dict[str, Any]:
     }
     config.metrics_path.parent.mkdir(parents=True, exist_ok=True)
     config.metrics_path.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
+    summary_path = write_metrics_summary(config, metrics)
     print(f"saved_config={config_path}")
     print(f"saved_checkpoint={config.output_path}")
     print(f"saved_metrics={config.metrics_path}")
+    print(f"saved_summary={summary_path}")
     return metrics
 
 

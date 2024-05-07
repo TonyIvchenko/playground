@@ -283,6 +283,7 @@ Notes:
 - Add `--list-presets` to print the available trainer presets.
 - Add `--dry-run` to print the fully resolved trainer config without starting training.
 - Each training run writes a resolved config snapshot next to the metrics file as `*.config.json`.
+- Each training run also writes a short Markdown report next to the metrics file as `*.md`.
 - This is a smoke baseline only; run with larger `--max-cases`, more epochs, and remove `--max-*-batches` for real training.
 - Split files are written to `.../slice_dataset_backbone_smoke/splits/*.csv`.
 - PNG pairs are written under `.../slice_dataset_backbone_smoke/images` and `.../slice_dataset_backbone_smoke/masks`.

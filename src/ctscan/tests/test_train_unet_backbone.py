@@ -25,9 +25,11 @@ from src.ctscan.scripts.segmentation.train_unet_backbone import (
     load_split_rows,
     metric_direction,
     main,
+    metrics_summary_path,
     parse_args,
     train,
     write_config_snapshot,
+    write_metrics_summary,
 )
 
 
@@ -326,6 +328,58 @@ def test_write_config_snapshot_uses_metrics_stem(tmp_path: Path):
     assert payload["metrics_path"].endswith("model.metrics.json")
 
 
+def test_write_metrics_summary_creates_markdown_report(tmp_path: Path):
+    config = TrainConfig(
+        slice_dir=tmp_path / "slice_data",
+        output_path=tmp_path / "model.pt",
+        metrics_path=tmp_path / "model.metrics.json",
+        model_version="test-model",
+        architecture="fpn",
+        encoder_name="efficientnet-b1",
+        encoder_weights="imagenet",
+        classes=4,
+        in_channels=1,
+        image_size=320,
+        batch_size=6,
+        epochs=1,
+        learning_rate=2e-4,
+        weight_decay=1e-4,
+        optimizer_name="adamw",
+        loss_name="lovasz_ce",
+        class_weight_mode="none",
+        scheduler_name="none",
+        sampler_name="rare_fg",
+        augmentation_name="none",
+        gradient_accumulation_steps=1,
+        tversky_alpha=0.3,
+        tversky_beta=0.7,
+        ce_label_smoothing=0.0,
+        fpn_decoder_dropout=0.2,
+        fpn_decoder_merge_policy="add",
+        selection_metric="val_mean_dice_fg",
+        num_workers=0,
+        seed=17,
+        device="cpu",
+        max_train_batches=0,
+        max_val_batches=0,
+        max_test_batches=0,
+    )
+    metrics = {
+        "best_epoch": 2,
+        "best_score": 0.7,
+        "history": [{"val_mean_dice_fg": 0.6, "val_mean_iou_fg": 0.5, "val_loss": 0.2}],
+        "test": {"mean_dice_fg": 0.65, "mean_iou_fg": 0.55},
+    }
+
+    path = write_metrics_summary(config, metrics)
+
+    assert path == metrics_summary_path(config)
+    content = path.read_text(encoding="utf-8")
+    assert content.startswith("# test-model")
+    assert "- architecture: `fpn`" in content
+    assert "- test dice fg: `0.6500`" in content
+
+
 def test_main_dry_run_prints_resolved_config(monkeypatch, capsys):
     monkeypatch.setattr(
         sys,
@@ -490,6 +544,9 @@ def test_train_evaluates_test_metrics_with_best_checkpoint_state(tmp_path: Path,
 
     assert metrics["best_epoch"] == 1
     saved_config = config_output_path(config)
+    saved_summary = metrics_summary_path(config)
     assert saved_config.exists()
+    assert saved_summary.exists()
     saved_payload = json.loads(saved_config.read_text(encoding="utf-8"))
     assert saved_payload["model_version"] == "test"
+    assert "# test" in saved_summary.read_text(encoding="utf-8")
