@@ -251,6 +251,7 @@ def metrics_summary_path(config: TrainConfig) -> Path:
 def write_metrics_summary(config: TrainConfig, metrics: dict[str, Any]) -> Path:
     path = metrics_summary_path(config)
     test_metrics = metrics.get("test", {})
+    best_row = metrics.get("best_row", {})
     lines = [
         f"# {config.model_version}",
         "",
@@ -261,9 +262,9 @@ def write_metrics_summary(config: TrainConfig, metrics: dict[str, Any]) -> Path:
         f"- selection metric: `{config.selection_metric}`",
         f"- best epoch: `{metrics.get('best_epoch', 0)}`",
         f"- best score: `{float(metrics.get('best_score', 0.0)):.4f}`",
-        f"- val dice fg: `{float(metrics.get('history', [{}])[-1].get('val_mean_dice_fg', 0.0)):.4f}`",
-        f"- val iou fg: `{float(metrics.get('history', [{}])[-1].get('val_mean_iou_fg', 0.0)):.4f}`",
-        f"- val loss: `{float(metrics.get('history', [{}])[-1].get('val_loss', 0.0)):.4f}`",
+        f"- best val dice fg: `{float(best_row.get('val_mean_dice_fg', 0.0)):.4f}`",
+        f"- best val iou fg: `{float(best_row.get('val_mean_iou_fg', 0.0)):.4f}`",
+        f"- best val loss: `{float(best_row.get('val_loss', 0.0)):.4f}`",
         f"- test dice fg: `{float(test_metrics.get('mean_dice_fg', 0.0)):.4f}`",
         f"- test iou fg: `{float(test_metrics.get('mean_iou_fg', 0.0)):.4f}`",
         f"- checkpoint: `{config.output_path}`",
@@ -495,6 +496,15 @@ def metric_direction(name: str) -> int:
 
 def metric_value(row: dict[str, float], name: str) -> float:
     return float(row.get(name, 0.0))
+
+
+def best_history_row(history: list[dict[str, float]], metric_name: str) -> dict[str, float]:
+    if not history:
+        return {}
+    direction = metric_direction(metric_name)
+    if direction > 0:
+        return max(history, key=lambda row: metric_value(row, metric_name))
+    return min(history, key=lambda row: metric_value(row, metric_name))
 
 
 def class_metrics(
@@ -800,6 +810,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
         "image_size": config.image_size,
         "best_epoch": best_epoch,
         "best_score": best_score,
+        "best_row": best_history_row(history, config.selection_metric),
         "history": history,
         "state_dict": best_state,
     }
@@ -853,6 +864,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
         "test_rows": len(test_ds),
         "best_epoch": best_epoch,
         "best_score": best_score,
+        "best_row": best_history_row(history, config.selection_metric),
         "history": history,
         "test": test_m,
     }

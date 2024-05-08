@@ -10,6 +10,7 @@ import torch
 from torch import nn
 
 from src.ctscan.scripts.segmentation.train_unet_backbone import (
+    best_history_row,
     build_model,
     build_scheduler,
     config_output_path,
@@ -98,6 +99,17 @@ def test_slice_pair_dataset_light_augmentation_preserves_shape(tmp_path: Path):
 def test_metric_direction_prefers_higher_for_dice_and_lower_for_loss():
     assert metric_direction("val_mean_dice_fg") == 1
     assert metric_direction("val_loss") == -1
+
+
+def test_best_history_row_uses_metric_direction():
+    history = [
+        {"epoch": 1.0, "val_mean_dice_fg": 0.4, "val_loss": 0.3},
+        {"epoch": 2.0, "val_mean_dice_fg": 0.7, "val_loss": 0.5},
+        {"epoch": 3.0, "val_mean_dice_fg": 0.6, "val_loss": 0.2},
+    ]
+
+    assert best_history_row(history, "val_mean_dice_fg")["epoch"] == 2.0
+    assert best_history_row(history, "val_loss")["epoch"] == 3.0
 
 
 def test_multiclass_focal_loss_runs_on_logits_and_integer_targets():
@@ -367,6 +379,7 @@ def test_write_metrics_summary_creates_markdown_report(tmp_path: Path):
     metrics = {
         "best_epoch": 2,
         "best_score": 0.7,
+        "best_row": {"val_mean_dice_fg": 0.7, "val_mean_iou_fg": 0.6, "val_loss": 0.15},
         "history": [{"val_mean_dice_fg": 0.6, "val_mean_iou_fg": 0.5, "val_loss": 0.2}],
         "test": {"mean_dice_fg": 0.65, "mean_iou_fg": 0.55},
     }
@@ -377,6 +390,7 @@ def test_write_metrics_summary_creates_markdown_report(tmp_path: Path):
     content = path.read_text(encoding="utf-8")
     assert content.startswith("# test-model")
     assert "- architecture: `fpn`" in content
+    assert "- best val dice fg: `0.7000`" in content
     assert "- test dice fg: `0.6500`" in content
 
 
@@ -550,3 +564,4 @@ def test_train_evaluates_test_metrics_with_best_checkpoint_state(tmp_path: Path,
     saved_payload = json.loads(saved_config.read_text(encoding="utf-8"))
     assert saved_payload["model_version"] == "test"
     assert "# test" in saved_summary.read_text(encoding="utf-8")
+    assert metrics["best_row"]["epoch"] == 1.0
