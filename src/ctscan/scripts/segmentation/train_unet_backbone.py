@@ -91,6 +91,7 @@ class TrainConfig:
     max_test_batches: int
     dry_run: bool = False
     list_presets: bool = False
+    inspect_splits: bool = False
 
 
 class SlicePairDataset(Dataset):
@@ -182,6 +183,7 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--max-test-batches", type=int, default=0)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--list-presets", action="store_true")
+    parser.add_argument("--inspect-splits", action="store_true")
     parser.set_defaults(**PRESET_DEFAULTS[preset_args.preset])
     args = parser.parse_args()
 
@@ -222,6 +224,7 @@ def parse_args() -> TrainConfig:
         max_test_batches=max(int(args.max_test_batches), 0),
         dry_run=bool(args.dry_run),
         list_presets=bool(args.list_presets),
+        inspect_splits=bool(args.inspect_splits),
     )
 
 
@@ -326,6 +329,19 @@ def load_split_rows(root: Path, split_name: str) -> list[dict[str, str]]:
     if rows:
         return rows
     return _rows_from_legacy_split_json(root, split_name)
+
+
+def split_summary(root: Path) -> dict[str, Any]:
+    train_rows = load_split_rows(root, "train")
+    val_rows = load_split_rows(root, "val")
+    test_rows = load_split_rows(root, "test")
+    return {
+        "slice_dir": str(root),
+        "train_rows": len(train_rows),
+        "val_rows": len(val_rows),
+        "test_rows": len(test_rows),
+        "total_rows": len(train_rows) + len(val_rows) + len(test_rows),
+    }
 
 
 def build_model(config: TrainConfig) -> nn.Module:
@@ -883,6 +899,9 @@ def main() -> int:
     if config.list_presets:
         for preset_name in sorted(PRESET_DEFAULTS):
             print(preset_name)
+        return 0
+    if config.inspect_splits:
+        print(json.dumps(split_summary(config.slice_dir), indent=2))
         return 0
     if config.dry_run:
         print(json.dumps(config_to_dict(config), indent=2))

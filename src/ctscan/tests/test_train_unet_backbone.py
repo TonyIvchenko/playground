@@ -28,6 +28,7 @@ from src.ctscan.scripts.segmentation.train_unet_backbone import (
     main,
     metrics_summary_path,
     parse_args,
+    split_summary,
     train,
     write_config_snapshot,
     write_metrics_summary,
@@ -249,6 +250,14 @@ def test_parse_args_accepts_list_presets(monkeypatch):
     assert config.list_presets is True
 
 
+def test_parse_args_accepts_inspect_splits(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--inspect-splits"])
+
+    config = parse_args()
+
+    assert config.inspect_splits is True
+
+
 def test_config_to_dict_stringifies_paths():
     config = TrainConfig(
         slice_dir=Path("slice_data"),
@@ -293,6 +302,28 @@ def test_config_to_dict_stringifies_paths():
     assert payload["output_path"] == "model.pt"
     assert payload["metrics_path"] == "metrics.json"
     assert payload["dry_run"] is True
+
+
+def test_split_summary_counts_rows_from_legacy_split_json(tmp_path: Path):
+    root = tmp_path / "legacy_png"
+    images_dir = root / "images"
+    masks_dir = root / "masks"
+    images_dir.mkdir(parents=True, exist_ok=True)
+    masks_dir.mkdir(parents=True, exist_ok=True)
+    _write_pair(images_dir, masks_dir, "case001")
+    _write_pair(images_dir, masks_dir, "case002")
+    _write_pair(images_dir, masks_dir, "case003")
+    (root / "splits.json").write_text(
+        json.dumps({"train": ["case001"], "val": ["case002"], "test": ["case003"]}),
+        encoding="utf-8",
+    )
+
+    summary = split_summary(root)
+
+    assert summary["train_rows"] == 1
+    assert summary["val_rows"] == 1
+    assert summary["test_rows"] == 1
+    assert summary["total_rows"] == 3
 
 
 def test_write_config_snapshot_uses_metrics_stem(tmp_path: Path):
@@ -422,6 +453,36 @@ def test_main_list_presets_prints_available_names(monkeypatch, capsys):
     output = capsys.readouterr().out.splitlines()
     assert "default" in output
     assert "legacy_png_best" in output
+
+
+def test_main_inspect_splits_prints_dataset_counts(tmp_path: Path, monkeypatch, capsys):
+    root = tmp_path / "legacy_png"
+    images_dir = root / "images"
+    masks_dir = root / "masks"
+    images_dir.mkdir(parents=True, exist_ok=True)
+    masks_dir.mkdir(parents=True, exist_ok=True)
+    _write_pair(images_dir, masks_dir, "case001")
+    (root / "splits.json").write_text(
+        json.dumps({"train": ["case001"], "val": [], "test": []}),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "train_unet_backbone.py",
+            "--slice-dir",
+            str(root),
+            "--inspect-splits",
+        ],
+    )
+
+    assert main() == 0
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["train_rows"] == 1
+    assert payload["total_rows"] == 1
 
 
 def test_build_model_passes_fpn_decoder_settings(monkeypatch):
