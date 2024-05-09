@@ -206,11 +206,13 @@ def write_leaderboard(output_dir: Path, rows: list[dict[str, Any]]) -> None:
     leaderboard_csv = output_dir / "leaderboard.csv"
     leaderboard_md = output_dir / "leaderboard.md"
     best_trial_json = output_dir / "best_trial.json"
+    best_trial_md = output_dir / "best_trial.md"
     leaderboard_json.write_text(json.dumps(rows, indent=2), encoding="utf-8")
     if not rows:
         leaderboard_csv.write_text("", encoding="utf-8")
         leaderboard_md.write_text("", encoding="utf-8")
         best_trial_json.write_text("{}", encoding="utf-8")
+        best_trial_md.write_text("", encoding="utf-8")
         return
     discovered = {key for row in rows for key in row.keys()}
     fieldnames = [name for name in LEADERBOARD_FIELD_ORDER if name in discovered]
@@ -240,6 +242,25 @@ def write_leaderboard(output_dir: Path, rows: list[dict[str, Any]]) -> None:
         )
     leaderboard_md.write_text("\n".join(markdown_lines) + "\n", encoding="utf-8")
     best_trial_json.write_text(json.dumps(rows[0], indent=2), encoding="utf-8")
+    best = rows[0]
+    best_trial_md.write_text(
+        "\n".join(
+            [
+                f"# {best.get('trial', '')}",
+                "",
+                f"- architecture: `{best.get('architecture', '')}`",
+                f"- encoder: `{best.get('encoder', '')}`",
+                f"- loss: `{best.get('loss', '')}`",
+                f"- optimizer: `{best.get('optimizer', '')}`",
+                f"- val dice fg: `{float(best.get('val_mean_dice_fg', 0.0)):.4f}`" if "val_mean_dice_fg" in best else "- val dice fg: ``",
+                f"- val iou fg: `{float(best.get('val_mean_iou_fg', 0.0)):.4f}`" if "val_mean_iou_fg" in best else "- val iou fg: ``",
+                f"- val loss: `{float(best.get('val_loss', 0.0)):.4f}`" if "val_loss" in best else "- val loss: ``",
+                f"- test dice fg: `{float(best.get('test_mean_dice_fg', 0.0)):.4f}`" if "test_mean_dice_fg" in best else "- test dice fg: ``",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
 
 def write_run_summary(

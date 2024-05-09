@@ -314,6 +314,7 @@ python scripts/segmentation/search_unet_backbone.py \
   `model/backbone_search/leaderboard.csv`.
 - A Markdown summary is also written to `model/backbone_search/leaderboard.md`.
 - The current winner is also written to `model/backbone_search/best_trial.json`.
+- A human-readable winner card is also written to `model/backbone_search/best_trial.md`.
 - Each sweep also writes `model/backbone_search/run_summary.json` with overall trial counts.
 - Each trial also writes `model/backbone_search/<trial>.config.json` with the resolved knob values.
 - Add `--dry-run` to print the planned trial slugs without starting training.
