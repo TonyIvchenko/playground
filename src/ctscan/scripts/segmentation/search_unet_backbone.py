@@ -288,6 +288,30 @@ def write_trial_config(output_dir: Path, slug: str, payload: dict[str, Any]) -> 
 
 def write_trial_plan(output_dir: Path, trials: list[dict[str, Any]]) -> None:
     (output_dir / "trial_plan.json").write_text(json.dumps(trials, indent=2), encoding="utf-8")
+    if not trials:
+        (output_dir / "trial_plan.md").write_text("", encoding="utf-8")
+        return
+    lines = [
+        "| trial | architecture | encoder | loss | optimizer | image_size | batch_size |",
+        "| --- | --- | --- | --- | --- | ---: | ---: |",
+    ]
+    for row in trials:
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    str(row.get("trial", "")),
+                    str(row.get("architecture", "")),
+                    str(row.get("encoder", "")),
+                    str(row.get("loss", "")),
+                    str(row.get("optimizer", "")),
+                    str(row.get("image_size", "")),
+                    str(row.get("batch_size", "")),
+                ]
+            )
+            + " |"
+        )
+    (output_dir / "trial_plan.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def sort_rows(rows: list[dict[str, Any]], metric_name: str) -> list[dict[str, Any]]:

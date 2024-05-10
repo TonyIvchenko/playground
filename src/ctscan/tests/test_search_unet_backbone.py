@@ -129,7 +129,9 @@ def test_write_trial_plan_persists_trial_list(tmp_path: Path):
     sweep.write_trial_plan(tmp_path, trials)
 
     saved = json.loads((tmp_path / "trial_plan.json").read_text(encoding="utf-8"))
+    saved_md = (tmp_path / "trial_plan.md").read_text(encoding="utf-8")
     assert saved == trials
+    assert saved_md.startswith("| trial | architecture |")
 
 
 def test_sort_rows_respects_metric_direction():
@@ -310,9 +312,11 @@ def test_main_dry_run_prints_planned_trials(tmp_path: Path, monkeypatch, capsys)
 
     output = capsys.readouterr().out
     plan = json.loads((tmp_path / "search" / "trial_plan.json").read_text(encoding="utf-8"))
+    plan_md = (tmp_path / "search" / "trial_plan.md").read_text(encoding="utf-8")
     assert "planned_trials:" in output
     assert "001_fpn_efficientnet-b1_lovasz_ce_adamw_img320_bs6_lr0.0002_wd0.0001" in output
     assert plan[0]["trial"] == "001_fpn_efficientnet-b1_lovasz_ce_adamw_img320_bs6_lr0.0002_wd0.0001"
+    assert "001_fpn_efficientnet-b1_lovasz_ce_adamw_img320_bs6_lr0.0002_wd0.0001" in plan_md
 
 
 def test_main_dry_run_respects_trial_window(tmp_path: Path, monkeypatch, capsys):
