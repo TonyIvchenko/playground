@@ -123,6 +123,15 @@ def test_write_trial_config_persists_knobs(tmp_path: Path):
     assert saved["sampler"] == "rare_fg"
 
 
+def test_write_trial_plan_persists_trial_list(tmp_path: Path):
+    trials = [{"trial": "trial001"}, {"trial": "trial002"}]
+
+    sweep.write_trial_plan(tmp_path, trials)
+
+    saved = json.loads((tmp_path / "trial_plan.json").read_text(encoding="utf-8"))
+    assert saved == trials
+
+
 def test_sort_rows_respects_metric_direction():
     rows = [
         {"trial": "better_loss", "val_loss": 0.1, "val_mean_dice_fg": 0.4},
@@ -300,8 +309,10 @@ def test_main_dry_run_prints_planned_trials(tmp_path: Path, monkeypatch, capsys)
     assert sweep.main() == 0
 
     output = capsys.readouterr().out
+    plan = json.loads((tmp_path / "search" / "trial_plan.json").read_text(encoding="utf-8"))
     assert "planned_trials:" in output
     assert "001_fpn_efficientnet-b1_lovasz_ce_adamw_img320_bs6_lr0.0002_wd0.0001" in output
+    assert plan[0]["trial"] == "001_fpn_efficientnet-b1_lovasz_ce_adamw_img320_bs6_lr0.0002_wd0.0001"
 
 
 def test_main_dry_run_respects_trial_window(tmp_path: Path, monkeypatch, capsys):

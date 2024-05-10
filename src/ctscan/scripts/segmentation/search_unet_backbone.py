@@ -286,6 +286,10 @@ def write_trial_config(output_dir: Path, slug: str, payload: dict[str, Any]) -> 
     (output_dir / f"{slug}.config.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
+def write_trial_plan(output_dir: Path, trials: list[dict[str, Any]]) -> None:
+    (output_dir / "trial_plan.json").write_text(json.dumps(trials, indent=2), encoding="utf-8")
+
+
 def sort_rows(rows: list[dict[str, Any]], metric_name: str) -> list[dict[str, Any]]:
     direction = metric_direction(metric_name)
     if direction > 0:
@@ -380,31 +384,54 @@ def main() -> int:
     if args.max_trials > 0:
         trials = trials[: args.max_trials]
 
+    planned_trials = [
+        trial_config_row(
+            slug=build_trial_slug(
+                index=index,
+                architecture=architecture,
+                encoder=encoder,
+                loss_name=loss_name,
+                optimizer_name=optimizer_name,
+                image_size=image_size,
+                batch_size=batch_size,
+                learning_rate=learning_rate,
+                weight_decay=weight_decay,
+                scheduler_name=str(args.scheduler).strip().lower(),
+                sampler_name=str(args.sampler).strip().lower(),
+                augmentation_name=str(args.augmentation).strip().lower(),
+                gradient_accumulation_steps=max(int(args.gradient_accumulation_steps), 1),
+                tversky_alpha=float(args.tversky_alpha),
+                tversky_beta=float(args.tversky_beta),
+                ce_label_smoothing=max(float(args.ce_label_smoothing), 0.0),
+                fpn_decoder_dropout=max(float(args.fpn_decoder_dropout), 0.0),
+                fpn_decoder_merge_policy=str(args.fpn_decoder_merge_policy).strip().lower(),
+            ),
+            architecture=architecture,
+            encoder=encoder,
+            loss_name=loss_name,
+            optimizer_name=optimizer_name,
+            image_size=image_size,
+            batch_size=batch_size,
+            learning_rate=learning_rate,
+            weight_decay=weight_decay,
+            scheduler_name=str(args.scheduler).strip().lower(),
+            sampler_name=str(args.sampler).strip().lower(),
+            augmentation_name=str(args.augmentation).strip().lower(),
+            gradient_accumulation_steps=max(int(args.gradient_accumulation_steps), 1),
+            tversky_alpha=float(args.tversky_alpha),
+            tversky_beta=float(args.tversky_beta),
+            ce_label_smoothing=max(float(args.ce_label_smoothing), 0.0),
+            fpn_decoder_dropout=max(float(args.fpn_decoder_dropout), 0.0),
+            fpn_decoder_merge_policy=str(args.fpn_decoder_merge_policy).strip().lower(),
+        )
+        for index, (architecture, encoder, loss_name, optimizer_name, image_size, batch_size, learning_rate, weight_decay) in enumerate(trials, start=1)
+    ]
+    write_trial_plan(output_dir, planned_trials)
+
     if args.dry_run:
         print("planned_trials:")
-        for index, (architecture, encoder, loss_name, optimizer_name, image_size, batch_size, learning_rate, weight_decay) in enumerate(trials, start=1):
-            print(
-                build_trial_slug(
-                    index=index,
-                    architecture=architecture,
-                    encoder=encoder,
-                    loss_name=loss_name,
-                    optimizer_name=optimizer_name,
-                    image_size=image_size,
-                    batch_size=batch_size,
-                    learning_rate=learning_rate,
-                    weight_decay=weight_decay,
-                    scheduler_name=str(args.scheduler).strip().lower(),
-                    sampler_name=str(args.sampler).strip().lower(),
-                    augmentation_name=str(args.augmentation).strip().lower(),
-                    gradient_accumulation_steps=max(int(args.gradient_accumulation_steps), 1),
-                    tversky_alpha=float(args.tversky_alpha),
-                    tversky_beta=float(args.tversky_beta),
-                    ce_label_smoothing=max(float(args.ce_label_smoothing), 0.0),
-                    fpn_decoder_dropout=max(float(args.fpn_decoder_dropout), 0.0),
-                    fpn_decoder_merge_policy=str(args.fpn_decoder_merge_policy).strip().lower(),
-                )
-            )
+        for row in planned_trials:
+            print(row["trial"])
         return 0
 
     results: list[dict[str, Any]] = []
