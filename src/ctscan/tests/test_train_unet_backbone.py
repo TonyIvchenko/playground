@@ -27,6 +27,7 @@ from src.ctscan.scripts.segmentation.train_unet_backbone import (
     metric_direction,
     main,
     metrics_summary_path,
+    output_paths_summary,
     parse_args,
     split_summary,
     train,
@@ -258,6 +259,14 @@ def test_parse_args_accepts_inspect_splits(monkeypatch):
     assert config.inspect_splits is True
 
 
+def test_parse_args_accepts_show_output_paths(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--show-output-paths"])
+
+    config = parse_args()
+
+    assert config.show_output_paths is True
+
+
 def test_config_to_dict_stringifies_paths():
     config = TrainConfig(
         slice_dir=Path("slice_data"),
@@ -369,6 +378,51 @@ def test_write_config_snapshot_uses_metrics_stem(tmp_path: Path):
     assert path == config_output_path(config)
     payload = json.loads(path.read_text(encoding="utf-8"))
     assert payload["metrics_path"].endswith("model.metrics.json")
+
+
+def test_output_paths_summary_includes_all_artifacts(tmp_path: Path):
+    config = TrainConfig(
+        slice_dir=tmp_path / "slice_data",
+        output_path=tmp_path / "model.pt",
+        metrics_path=tmp_path / "model.metrics.json",
+        model_version="test",
+        architecture="fpn",
+        encoder_name="efficientnet-b1",
+        encoder_weights="imagenet",
+        classes=4,
+        in_channels=1,
+        image_size=320,
+        batch_size=6,
+        epochs=1,
+        learning_rate=2e-4,
+        weight_decay=1e-4,
+        optimizer_name="adamw",
+        loss_name="lovasz_ce",
+        class_weight_mode="none",
+        scheduler_name="none",
+        sampler_name="rare_fg",
+        augmentation_name="none",
+        gradient_accumulation_steps=1,
+        tversky_alpha=0.3,
+        tversky_beta=0.7,
+        ce_label_smoothing=0.0,
+        fpn_decoder_dropout=0.2,
+        fpn_decoder_merge_policy="add",
+        selection_metric="val_mean_dice_fg",
+        num_workers=0,
+        seed=17,
+        device="cpu",
+        max_train_batches=0,
+        max_val_batches=0,
+        max_test_batches=0,
+    )
+
+    payload = output_paths_summary(config)
+
+    assert payload["checkpoint_path"].endswith("model.pt")
+    assert payload["metrics_path"].endswith("model.metrics.json")
+    assert payload["config_path"].endswith("model.metrics.config.json")
+    assert payload["summary_path"].endswith("model.metrics.md")
 
 
 def test_write_metrics_summary_creates_markdown_report(tmp_path: Path):
@@ -483,6 +537,27 @@ def test_main_inspect_splits_prints_dataset_counts(tmp_path: Path, monkeypatch, 
     payload = json.loads(capsys.readouterr().out)
     assert payload["train_rows"] == 1
     assert payload["total_rows"] == 1
+
+
+def test_main_show_output_paths_prints_artifact_locations(monkeypatch, capsys):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "train_unet_backbone.py",
+            "--metrics-path",
+            "model/example.metrics.json",
+            "--output-path",
+            "model/example.pt",
+            "--show-output-paths",
+        ],
+    )
+
+    assert main() == 0
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["checkpoint_path"].endswith("model/example.pt")
+    assert payload["config_path"].endswith("model/example.metrics.config.json")
 
 
 def test_build_model_passes_fpn_decoder_settings(monkeypatch):

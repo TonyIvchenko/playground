@@ -92,6 +92,7 @@ class TrainConfig:
     dry_run: bool = False
     list_presets: bool = False
     inspect_splits: bool = False
+    show_output_paths: bool = False
 
 
 class SlicePairDataset(Dataset):
@@ -184,6 +185,7 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--list-presets", action="store_true")
     parser.add_argument("--inspect-splits", action="store_true")
+    parser.add_argument("--show-output-paths", action="store_true")
     parser.set_defaults(**PRESET_DEFAULTS[preset_args.preset])
     args = parser.parse_args()
 
@@ -225,6 +227,7 @@ def parse_args() -> TrainConfig:
         dry_run=bool(args.dry_run),
         list_presets=bool(args.list_presets),
         inspect_splits=bool(args.inspect_splits),
+        show_output_paths=bool(args.show_output_paths),
     )
 
 
@@ -249,6 +252,15 @@ def write_config_snapshot(config: TrainConfig) -> Path:
 
 def metrics_summary_path(config: TrainConfig) -> Path:
     return config.metrics_path.with_suffix(".md")
+
+
+def output_paths_summary(config: TrainConfig) -> dict[str, str]:
+    return {
+        "checkpoint_path": str(config.output_path),
+        "metrics_path": str(config.metrics_path),
+        "config_path": str(config_output_path(config)),
+        "summary_path": str(metrics_summary_path(config)),
+    }
 
 
 def write_metrics_summary(config: TrainConfig, metrics: dict[str, Any]) -> Path:
@@ -899,6 +911,9 @@ def main() -> int:
     if config.list_presets:
         for preset_name in sorted(PRESET_DEFAULTS):
             print(preset_name)
+        return 0
+    if config.show_output_paths:
+        print(json.dumps(output_paths_summary(config), indent=2))
         return 0
     if config.inspect_splits:
         print(json.dumps(split_summary(config.slice_dir), indent=2))
