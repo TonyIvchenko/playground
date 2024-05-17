@@ -313,8 +313,16 @@ def _rows_from_csv(split_csv: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
+def _split_csv_path(root: Path, split_name: str) -> Path:
+    return root / "splits" / f"{split_name}.csv"
+
+
+def _split_json_path(root: Path) -> Path:
+    return root / "splits.json"
+
+
 def _rows_from_legacy_split_json(root: Path, split_name: str) -> list[dict[str, str]]:
-    split_json = root / "splits.json"
+    split_json = _split_json_path(root)
     if not split_json.exists():
         return []
     payload = json.loads(split_json.read_text(encoding="utf-8"))
@@ -336,23 +344,39 @@ def _rows_from_legacy_split_json(root: Path, split_name: str) -> list[dict[str, 
 
 
 def load_split_rows(root: Path, split_name: str) -> list[dict[str, str]]:
-    split_csv = root / "splits" / f"{split_name}.csv"
+    split_csv = _split_csv_path(root, split_name)
     rows = _rows_from_csv(split_csv)
     if rows:
         return rows
     return _rows_from_legacy_split_json(root, split_name)
 
 
+def split_source(root: Path, split_name: str) -> dict[str, str]:
+    split_csv = _split_csv_path(root, split_name)
+    if split_csv.exists():
+        return {"kind": "csv", "path": str(split_csv)}
+    split_json = _split_json_path(root)
+    if split_json.exists():
+        return {"kind": "json", "path": str(split_json)}
+    return {"kind": "missing", "path": ""}
+
+
 def split_summary(root: Path) -> dict[str, Any]:
     train_rows = load_split_rows(root, "train")
     val_rows = load_split_rows(root, "val")
     test_rows = load_split_rows(root, "test")
+    train_source = split_source(root, "train")
+    val_source = split_source(root, "val")
+    test_source = split_source(root, "test")
     return {
         "slice_dir": str(root),
         "train_rows": len(train_rows),
         "val_rows": len(val_rows),
         "test_rows": len(test_rows),
         "total_rows": len(train_rows) + len(val_rows) + len(test_rows),
+        "train_source": train_source["kind"],
+        "val_source": val_source["kind"],
+        "test_source": test_source["kind"],
     }
 
 

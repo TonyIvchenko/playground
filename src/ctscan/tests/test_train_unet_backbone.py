@@ -29,6 +29,7 @@ from src.ctscan.scripts.segmentation.train_unet_backbone import (
     metrics_summary_path,
     output_paths_summary,
     parse_args,
+    split_source,
     split_summary,
     train,
     write_config_snapshot,
@@ -60,6 +61,23 @@ def test_load_split_rows_falls_back_to_legacy_split_json(tmp_path: Path):
 
     assert train_rows == [{"image": "images/case001.png", "mask": "masks/case001.png"}]
     assert val_rows == [{"image": "images/case002.png", "mask": "masks/case002.png"}]
+
+
+def test_split_source_reports_csv_json_and_missing(tmp_path: Path):
+    root = tmp_path / "legacy_png"
+    (root / "splits").mkdir(parents=True, exist_ok=True)
+    (root / "splits" / "train.csv").write_text("image,mask\n", encoding="utf-8")
+    (root / "splits.json").write_text(json.dumps({"val": []}), encoding="utf-8")
+
+    train_source = split_source(root, "train")
+    val_source = split_source(root, "val")
+    test_source = split_source(root, "test")
+
+    assert train_source["kind"] == "csv"
+    assert train_source["path"].endswith("train.csv")
+    assert val_source["kind"] == "json"
+    assert val_source["path"].endswith("splits.json")
+    assert test_source["kind"] == "json"
 
 
 def test_slice_pair_dataset_reads_legacy_rows(tmp_path: Path):
@@ -333,6 +351,9 @@ def test_split_summary_counts_rows_from_legacy_split_json(tmp_path: Path):
     assert summary["val_rows"] == 1
     assert summary["test_rows"] == 1
     assert summary["total_rows"] == 3
+    assert summary["train_source"] == "json"
+    assert summary["val_source"] == "json"
+    assert summary["test_source"] == "json"
 
 
 def test_write_config_snapshot_uses_metrics_stem(tmp_path: Path):
