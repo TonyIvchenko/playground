@@ -314,6 +314,19 @@ def write_trial_plan(output_dir: Path, trials: list[dict[str, Any]]) -> None:
     (output_dir / "trial_plan.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def output_paths_summary(output_dir: Path) -> dict[str, str]:
+    return {
+        "leaderboard_json": str(output_dir / "leaderboard.json"),
+        "leaderboard_csv": str(output_dir / "leaderboard.csv"),
+        "leaderboard_md": str(output_dir / "leaderboard.md"),
+        "best_trial_json": str(output_dir / "best_trial.json"),
+        "best_trial_md": str(output_dir / "best_trial.md"),
+        "run_summary_json": str(output_dir / "run_summary.json"),
+        "trial_plan_json": str(output_dir / "trial_plan.json"),
+        "trial_plan_md": str(output_dir / "trial_plan.md"),
+    }
+
+
 def sort_rows(rows: list[dict[str, Any]], metric_name: str) -> list[dict[str, Any]]:
     direction = metric_direction(metric_name)
     if direction > 0:
@@ -367,6 +380,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--sort-metric", type=str, default="val_mean_dice_fg")
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--show-output-paths", action="store_true")
     parser.add_argument("--skip-existing", action="store_true")
     parser.add_argument("--fail-fast", action="store_true")
     return parser.parse_args()
@@ -376,6 +390,9 @@ def main() -> int:
     args = parse_args()
     output_dir = args.output_dir.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
+    if args.show_output_paths:
+        print(json.dumps(output_paths_summary(output_dir), indent=2))
+        return 0
 
     architectures = parse_list(args.architectures)
     encoders = parse_list(args.encoders)

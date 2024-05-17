@@ -320,6 +320,7 @@ python scripts/segmentation/search_unet_backbone.py \
 - Each sweep also writes `model/backbone_search/run_summary.json` with overall trial counts.
 - Each sweep also writes `model/backbone_search/trial_plan.json` with the resolved planned trials.
 - A Markdown version of the plan is also written to `model/backbone_search/trial_plan.md`.
+- Add `--show-output-paths` to print all sweep artifact paths before running anything.
 - Each trial also writes `model/backbone_search/<trial>.config.json` with the resolved knob values.
 - Add `--dry-run` to print the planned trial slugs without starting training.
 - Add `--fail-fast` to stop immediately after the first failed trial.

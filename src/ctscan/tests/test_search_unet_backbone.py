@@ -134,6 +134,14 @@ def test_write_trial_plan_persists_trial_list(tmp_path: Path):
     assert saved_md.startswith("| trial | architecture |")
 
 
+def test_output_paths_summary_lists_sweep_artifacts(tmp_path: Path):
+    payload = sweep.output_paths_summary(tmp_path)
+
+    assert payload["leaderboard_json"].endswith("leaderboard.json")
+    assert payload["best_trial_md"].endswith("best_trial.md")
+    assert payload["trial_plan_md"].endswith("trial_plan.md")
+
+
 def test_sort_rows_respects_metric_direction():
     rows = [
         {"trial": "better_loss", "val_loss": 0.1, "val_mean_dice_fg": 0.4},
@@ -277,6 +285,14 @@ def test_parse_args_accepts_trial_window(monkeypatch):
     assert args.end_index == 7
 
 
+def test_parse_args_accepts_show_output_paths(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["search_unet_backbone.py", "--show-output-paths"])
+
+    args = sweep.parse_args()
+
+    assert args.show_output_paths is True
+
+
 def test_main_dry_run_prints_planned_trials(tmp_path: Path, monkeypatch, capsys):
     monkeypatch.setattr(
         sys,
@@ -317,6 +333,25 @@ def test_main_dry_run_prints_planned_trials(tmp_path: Path, monkeypatch, capsys)
     assert "001_fpn_efficientnet-b1_lovasz_ce_adamw_img320_bs6_lr0.0002_wd0.0001" in output
     assert plan[0]["trial"] == "001_fpn_efficientnet-b1_lovasz_ce_adamw_img320_bs6_lr0.0002_wd0.0001"
     assert "001_fpn_efficientnet-b1_lovasz_ce_adamw_img320_bs6_lr0.0002_wd0.0001" in plan_md
+
+
+def test_main_show_output_paths_prints_artifact_locations(tmp_path: Path, monkeypatch, capsys):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "search_unet_backbone.py",
+            "--output-dir",
+            str(tmp_path / "search"),
+            "--show-output-paths",
+        ],
+    )
+
+    assert sweep.main() == 0
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["leaderboard_json"].endswith("leaderboard.json")
+    assert payload["trial_plan_md"].endswith("trial_plan.md")
 
 
 def test_main_dry_run_respects_trial_window(tmp_path: Path, monkeypatch, capsys):
