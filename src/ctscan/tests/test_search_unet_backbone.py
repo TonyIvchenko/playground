@@ -84,6 +84,7 @@ def test_write_run_summary_counts_success_and_failures(tmp_path: Path):
     )
 
     payload = json.loads((tmp_path / "run_summary.json").read_text(encoding="utf-8"))
+    summary_md = (tmp_path / "run_summary.md").read_text(encoding="utf-8")
 
     assert payload["total_trials"] == 3
     assert payload["completed_trials"] == 1
@@ -91,6 +92,8 @@ def test_write_run_summary_counts_success_and_failures(tmp_path: Path):
     assert payload["sort_metric"] == "val_mean_dice_fg"
     assert payload["top_k"] == 5
     assert payload["best_trial"] == "winner"
+    assert summary_md.startswith("# Sweep Summary")
+    assert "- best trial: `winner`" in summary_md
 
 
 def test_write_trial_config_persists_knobs(tmp_path: Path):
@@ -250,12 +253,14 @@ def test_main_reuses_existing_metrics_when_skip_existing(tmp_path: Path, monkeyp
 
     leaderboard = json.loads((output_dir / "leaderboard.json").read_text(encoding="utf-8"))
     run_summary = json.loads((output_dir / "run_summary.json").read_text(encoding="utf-8"))
+    run_summary_md = (output_dir / "run_summary.md").read_text(encoding="utf-8")
     trial_config = json.loads((output_dir / f"{slug}.config.json").read_text(encoding="utf-8"))
     assert leaderboard[0]["trial"] == slug
     assert leaderboard[0]["val_mean_dice_fg"] == 0.55
     assert run_summary["completed_trials"] == 1
     assert run_summary["failed_trials"] == 0
     assert run_summary["best_trial"] == slug
+    assert slug in run_summary_md
     assert trial_config["trial"] == slug
     assert trial_config["architecture"] == "fpn"
 

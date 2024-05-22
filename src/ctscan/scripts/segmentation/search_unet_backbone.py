@@ -280,6 +280,22 @@ def write_run_summary(
         "best_trial": rows[0]["trial"] if rows else None,
     }
     (output_dir / "run_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    (output_dir / "run_summary.md").write_text(
+        "\n".join(
+            [
+                "# Sweep Summary",
+                "",
+                f"- total trials: `{summary['total_trials']}`",
+                f"- completed trials: `{summary['completed_trials']}`",
+                f"- failed trials: `{summary['failed_trials']}`",
+                f"- sort metric: `{summary['sort_metric']}`",
+                f"- top k: `{summary['top_k']}`",
+                f"- best trial: `{summary['best_trial'] or ''}`",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
 
 def write_trial_config(output_dir: Path, slug: str, payload: dict[str, Any]) -> None:
