@@ -44,6 +44,13 @@ LEADERBOARD_FIELD_ORDER = [
     "test_mean_iou_fg",
     "error",
 ]
+SUPPORTED_SWEEP_METRICS = [
+    "val_mean_dice_fg",
+    "val_mean_iou_fg",
+    "val_loss",
+    "test_mean_dice_fg",
+    "test_mean_iou_fg",
+]
 
 
 def parse_list(value: str) -> list[str]:
@@ -397,6 +404,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--show-output-paths", action="store_true")
+    parser.add_argument("--list-metrics", action="store_true")
     parser.add_argument("--skip-existing", action="store_true")
     parser.add_argument("--fail-fast", action="store_true")
     return parser.parse_args()
@@ -406,6 +414,10 @@ def main() -> int:
     args = parse_args()
     output_dir = args.output_dir.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
+    if args.list_metrics:
+        for metric_name in SUPPORTED_SWEEP_METRICS:
+            print(metric_name)
+        return 0
     if args.show_output_paths:
         print(json.dumps(output_paths_summary(output_dir), indent=2))
         return 0
