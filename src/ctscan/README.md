@@ -281,6 +281,7 @@ python scripts/segmentation/train_unet_backbone.py \
 
 Notes:
 - Add `--list-presets` to print the available trainer presets.
+- Add `--list-metrics` to print the supported trainer metrics.
 - Add `--inspect-splits` to print train/val/test row counts before starting a run.
 - Split inspection also reports whether rows came from `splits/*.csv` or `splits.json`.
 - Add `--show-output-paths` to print checkpoint/metrics/config/report locations before starting a run.

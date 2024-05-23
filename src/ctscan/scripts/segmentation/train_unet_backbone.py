@@ -52,6 +52,11 @@ PRESET_DEFAULTS: dict[str, dict[str, Any]] = {
         "selection_metric": "val_mean_dice_fg",
     },
 }
+SUPPORTED_TRAINER_METRICS = [
+    "val_mean_dice_fg",
+    "val_mean_iou_fg",
+    "val_loss",
+]
 
 
 @dataclass
@@ -93,6 +98,7 @@ class TrainConfig:
     list_presets: bool = False
     inspect_splits: bool = False
     show_output_paths: bool = False
+    list_metrics: bool = False
 
 
 class SlicePairDataset(Dataset):
@@ -184,6 +190,7 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--max-test-batches", type=int, default=0)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--list-presets", action="store_true")
+    parser.add_argument("--list-metrics", action="store_true")
     parser.add_argument("--inspect-splits", action="store_true")
     parser.add_argument("--show-output-paths", action="store_true")
     parser.set_defaults(**PRESET_DEFAULTS[preset_args.preset])
@@ -226,6 +233,7 @@ def parse_args() -> TrainConfig:
         max_test_batches=max(int(args.max_test_batches), 0),
         dry_run=bool(args.dry_run),
         list_presets=bool(args.list_presets),
+        list_metrics=bool(args.list_metrics),
         inspect_splits=bool(args.inspect_splits),
         show_output_paths=bool(args.show_output_paths),
     )
@@ -935,6 +943,10 @@ def main() -> int:
     if config.list_presets:
         for preset_name in sorted(PRESET_DEFAULTS):
             print(preset_name)
+        return 0
+    if config.list_metrics:
+        for metric_name in SUPPORTED_TRAINER_METRICS:
+            print(metric_name)
         return 0
     if config.show_output_paths:
         print(json.dumps(output_paths_summary(config), indent=2))

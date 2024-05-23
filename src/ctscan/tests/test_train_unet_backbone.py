@@ -269,6 +269,14 @@ def test_parse_args_accepts_list_presets(monkeypatch):
     assert config.list_presets is True
 
 
+def test_parse_args_accepts_list_metrics(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--list-metrics"])
+
+    config = parse_args()
+
+    assert config.list_metrics is True
+
+
 def test_parse_args_accepts_inspect_splits(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--inspect-splits"])
 
@@ -528,6 +536,16 @@ def test_main_list_presets_prints_available_names(monkeypatch, capsys):
     output = capsys.readouterr().out.splitlines()
     assert "default" in output
     assert "legacy_png_best" in output
+
+
+def test_main_list_metrics_prints_supported_names(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--list-metrics"])
+
+    assert main() == 0
+
+    output = capsys.readouterr().out.splitlines()
+    assert "val_mean_dice_fg" in output
+    assert "val_loss" in output
 
 
 def test_main_inspect_splits_prints_dataset_counts(tmp_path: Path, monkeypatch, capsys):
