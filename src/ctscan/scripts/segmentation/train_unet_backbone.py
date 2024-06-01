@@ -383,8 +383,11 @@ def split_summary(root: Path) -> dict[str, Any]:
         "test_rows": len(test_rows),
         "total_rows": len(train_rows) + len(val_rows) + len(test_rows),
         "train_source": train_source["kind"],
+        "train_source_path": train_source["path"],
         "val_source": val_source["kind"],
+        "val_source_path": val_source["path"],
         "test_source": test_source["kind"],
+        "test_source_path": test_source["path"],
     }
 
 
@@ -552,6 +555,14 @@ def metric_direction(name: str) -> int:
     if metric_name.endswith("loss"):
         return -1
     return 1
+
+
+def validate_metric_name(name: str, supported_metrics: list[str], argument_name: str) -> str:
+    metric_name = str(name).strip().lower()
+    if metric_name in supported_metrics:
+        return metric_name
+    supported_text = ", ".join(supported_metrics)
+    raise ValueError(f"unsupported {argument_name}: {name}. expected one of: {supported_text}")
 
 
 def metric_value(row: dict[str, float], name: str) -> float:
@@ -948,6 +959,11 @@ def main() -> int:
         for metric_name in SUPPORTED_TRAINER_METRICS:
             print(metric_name)
         return 0
+    config.selection_metric = validate_metric_name(
+        config.selection_metric,
+        SUPPORTED_TRAINER_METRICS,
+        "--selection-metric",
+    )
     if config.show_output_paths:
         print(json.dumps(output_paths_summary(config), indent=2))
         return 0

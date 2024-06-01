@@ -282,8 +282,9 @@ python scripts/segmentation/train_unet_backbone.py \
 Notes:
 - Add `--list-presets` to print the available trainer presets.
 - Add `--list-metrics` to print the supported trainer metrics.
+- Metric names are validated up front, so a typo in `--selection-metric` fails fast with the supported names.
 - Add `--inspect-splits` to print train/val/test row counts before starting a run.
-- Split inspection also reports whether rows came from `splits/*.csv` or `splits.json`.
+- Split inspection also reports whether rows came from `splits/*.csv` or `splits.json`, plus the exact source path for each split.
 - Add `--show-output-paths` to print checkpoint/metrics/config/report locations before starting a run.
 - Add `--dry-run` to print the fully resolved trainer config without starting training.
 - Each training run writes a resolved config snapshot next to the metrics file as `*.config.json`.
@@ -325,6 +326,7 @@ python scripts/segmentation/search_unet_backbone.py \
 - A Markdown version of the plan is also written to `model/backbone_search/trial_plan.md`.
 - Add `--show-output-paths` to print all sweep artifact paths before running anything.
 - Add `--list-metrics` to print the supported sweep metrics.
+- Sweep metric names are validated up front, so typos in `--sort-metric` or `--selection-metric` fail fast.
 - Each trial also writes `model/backbone_search/<trial>.config.json` with the resolved knob values.
 - Add `--dry-run` to print the planned trial slugs without starting training.
 - Add `--fail-fast` to stop immediately after the first failed trial.

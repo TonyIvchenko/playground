@@ -362,6 +362,9 @@ def test_split_summary_counts_rows_from_legacy_split_json(tmp_path: Path):
     assert summary["train_source"] == "json"
     assert summary["val_source"] == "json"
     assert summary["test_source"] == "json"
+    assert summary["train_source_path"].endswith("splits.json")
+    assert summary["val_source_path"].endswith("splits.json")
+    assert summary["test_source_path"].endswith("splits.json")
 
 
 def test_write_config_snapshot_uses_metrics_stem(tmp_path: Path):
@@ -546,6 +549,26 @@ def test_main_list_metrics_prints_supported_names(monkeypatch, capsys):
     output = capsys.readouterr().out.splitlines()
     assert "val_mean_dice_fg" in output
     assert "val_loss" in output
+
+
+def test_main_rejects_unknown_selection_metric(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "train_unet_backbone.py",
+            "--selection-metric",
+            "bogus_metric",
+        ],
+    )
+
+    try:
+        main()
+    except ValueError as exc:
+        assert "unsupported --selection-metric" in str(exc)
+        assert "val_mean_dice_fg" in str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("expected invalid selection metric to fail")
 
 
 def test_main_inspect_splits_prints_dataset_counts(tmp_path: Path, monkeypatch, capsys):

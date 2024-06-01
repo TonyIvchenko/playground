@@ -10,9 +10,9 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from .train_unet_backbone import TrainConfig, metric_direction, train
+    from .train_unet_backbone import SUPPORTED_TRAINER_METRICS, TrainConfig, metric_direction, train, validate_metric_name
 except ImportError:  # pragma: no cover - script execution path
-    from train_unet_backbone import TrainConfig, metric_direction, train
+    from train_unet_backbone import SUPPORTED_TRAINER_METRICS, TrainConfig, metric_direction, train, validate_metric_name
 
 
 CTSCAN_ROOT = Path(__file__).resolve().parents[2]
@@ -421,6 +421,12 @@ def main() -> int:
     if args.show_output_paths:
         print(json.dumps(output_paths_summary(output_dir), indent=2))
         return 0
+    args.sort_metric = validate_metric_name(args.sort_metric, SUPPORTED_SWEEP_METRICS, "--sort-metric")
+    args.selection_metric = validate_metric_name(
+        args.selection_metric,
+        SUPPORTED_TRAINER_METRICS,
+        "--selection-metric",
+    )
 
     architectures = parse_list(args.architectures)
     encoders = parse_list(args.encoders)

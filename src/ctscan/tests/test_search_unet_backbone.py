@@ -377,6 +377,56 @@ def test_main_list_metrics_prints_supported_names(monkeypatch, capsys):
     assert "val_loss" in output
 
 
+def test_main_rejects_unknown_sort_metric(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "search_unet_backbone.py",
+            "--slice-dir",
+            str(tmp_path / "slice_dataset"),
+            "--output-dir",
+            str(tmp_path / "search"),
+            "--sort-metric",
+            "bogus_metric",
+            "--dry-run",
+        ],
+    )
+
+    try:
+        sweep.main()
+    except ValueError as exc:
+        assert "unsupported --sort-metric" in str(exc)
+        assert "val_mean_dice_fg" in str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("expected invalid sort metric to fail")
+
+
+def test_main_rejects_unknown_selection_metric(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "search_unet_backbone.py",
+            "--slice-dir",
+            str(tmp_path / "slice_dataset"),
+            "--output-dir",
+            str(tmp_path / "search"),
+            "--selection-metric",
+            "bogus_metric",
+            "--dry-run",
+        ],
+    )
+
+    try:
+        sweep.main()
+    except ValueError as exc:
+        assert "unsupported --selection-metric" in str(exc)
+        assert "val_mean_dice_fg" in str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("expected invalid selection metric to fail")
+
+
 def test_main_dry_run_respects_trial_window(tmp_path: Path, monkeypatch, capsys):
     monkeypatch.setattr(
         sys,
