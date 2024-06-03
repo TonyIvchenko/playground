@@ -80,6 +80,7 @@ def test_write_run_summary_counts_success_and_failures(tmp_path: Path):
         rows,
         total_trials=3,
         sort_metric="val_mean_dice_fg",
+        selection_metric="val_mean_dice_fg",
         top_k=5,
     )
 
@@ -90,9 +91,11 @@ def test_write_run_summary_counts_success_and_failures(tmp_path: Path):
     assert payload["completed_trials"] == 1
     assert payload["failed_trials"] == 1
     assert payload["sort_metric"] == "val_mean_dice_fg"
+    assert payload["selection_metric"] == "val_mean_dice_fg"
     assert payload["top_k"] == 5
     assert payload["best_trial"] == "winner"
     assert summary_md.startswith("# Sweep Summary")
+    assert "- selection metric: `val_mean_dice_fg`" in summary_md
     assert "- best trial: `winner`" in summary_md
 
 
@@ -260,6 +263,7 @@ def test_main_reuses_existing_metrics_when_skip_existing(tmp_path: Path, monkeyp
     assert run_summary["completed_trials"] == 1
     assert run_summary["failed_trials"] == 0
     assert run_summary["best_trial"] == slug
+    assert run_summary["selection_metric"] == "val_mean_dice_fg"
     assert slug in run_summary_md
     assert trial_config["trial"] == slug
     assert trial_config["architecture"] == "fpn"

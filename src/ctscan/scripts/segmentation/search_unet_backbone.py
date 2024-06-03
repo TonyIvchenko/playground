@@ -276,6 +276,7 @@ def write_run_summary(
     *,
     total_trials: int,
     sort_metric: str,
+    selection_metric: str,
     top_k: int,
 ) -> None:
     summary = {
@@ -283,6 +284,7 @@ def write_run_summary(
         "completed_trials": int(sum(1 for row in rows if "error" not in row)),
         "failed_trials": int(sum(1 for row in rows if "error" in row)),
         "sort_metric": str(sort_metric),
+        "selection_metric": str(selection_metric),
         "top_k": int(max(top_k, 0)),
         "best_trial": rows[0]["trial"] if rows else None,
     }
@@ -296,6 +298,7 @@ def write_run_summary(
                 f"- completed trials: `{summary['completed_trials']}`",
                 f"- failed trials: `{summary['failed_trials']}`",
                 f"- sort metric: `{summary['sort_metric']}`",
+                f"- selection metric: `{summary['selection_metric']}`",
                 f"- top k: `{summary['top_k']}`",
                 f"- best trial: `{summary['best_trial'] or ''}`",
             ]
@@ -652,6 +655,7 @@ def main() -> int:
                 leaderboard,
                 total_trials=total,
                 sort_metric=args.sort_metric,
+                selection_metric=args.selection_metric,
                 top_k=args.top_k,
             )
             if args.fail_fast:
@@ -664,6 +668,7 @@ def main() -> int:
             leaderboard,
             total_trials=total,
             sort_metric=args.sort_metric,
+            selection_metric=args.selection_metric,
             top_k=args.top_k,
         )
 
