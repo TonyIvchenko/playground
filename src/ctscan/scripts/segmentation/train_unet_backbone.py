@@ -52,6 +52,9 @@ PRESET_DEFAULTS: dict[str, dict[str, Any]] = {
         "selection_metric": "val_mean_dice_fg",
     },
 }
+SUPPORTED_ARCHITECTURES = ["unet", "unetplusplus", "fpn", "deeplabv3plus", "manet"]
+SUPPORTED_OPTIMIZERS = ["adam", "adamw"]
+SUPPORTED_LOSSES = ["ce", "dice_ce", "tversky_ce", "lovasz_ce", "focal"]
 SUPPORTED_TRAINER_METRICS = [
     "val_mean_dice_fg",
     "val_mean_iou_fg",
@@ -565,6 +568,14 @@ def validate_metric_name(name: str, supported_metrics: list[str], argument_name:
     raise ValueError(f"unsupported {argument_name}: {name}. expected one of: {supported_text}")
 
 
+def validate_choice(name: str, supported_values: list[str], argument_name: str) -> str:
+    value = str(name).strip().lower()
+    if value in supported_values:
+        return value
+    supported_text = ", ".join(supported_values)
+    raise ValueError(f"unsupported {argument_name}: {name}. expected one of: {supported_text}")
+
+
 def metric_value(row: dict[str, float], name: str) -> float:
     return float(row.get(name, 0.0))
 
@@ -964,6 +975,9 @@ def main() -> int:
         SUPPORTED_TRAINER_METRICS,
         "--selection-metric",
     )
+    config.architecture = validate_choice(config.architecture, SUPPORTED_ARCHITECTURES, "--architecture")
+    config.optimizer_name = validate_choice(config.optimizer_name, SUPPORTED_OPTIMIZERS, "--optimizer")
+    config.loss_name = validate_choice(config.loss_name, SUPPORTED_LOSSES, "--loss")
     if config.show_output_paths:
         print(json.dumps(output_paths_summary(config), indent=2))
         return 0

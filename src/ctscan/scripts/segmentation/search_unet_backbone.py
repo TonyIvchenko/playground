@@ -10,9 +10,29 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from .train_unet_backbone import SUPPORTED_TRAINER_METRICS, TrainConfig, metric_direction, train, validate_metric_name
+    from .train_unet_backbone import (
+        SUPPORTED_ARCHITECTURES,
+        SUPPORTED_LOSSES,
+        SUPPORTED_OPTIMIZERS,
+        SUPPORTED_TRAINER_METRICS,
+        TrainConfig,
+        metric_direction,
+        train,
+        validate_choice,
+        validate_metric_name,
+    )
 except ImportError:  # pragma: no cover - script execution path
-    from train_unet_backbone import SUPPORTED_TRAINER_METRICS, TrainConfig, metric_direction, train, validate_metric_name
+    from train_unet_backbone import (
+        SUPPORTED_ARCHITECTURES,
+        SUPPORTED_LOSSES,
+        SUPPORTED_OPTIMIZERS,
+        SUPPORTED_TRAINER_METRICS,
+        TrainConfig,
+        metric_direction,
+        train,
+        validate_choice,
+        validate_metric_name,
+    )
 
 
 CTSCAN_ROOT = Path(__file__).resolve().parents[2]
@@ -435,6 +455,9 @@ def main() -> int:
     encoders = parse_list(args.encoders)
     losses = parse_list(args.losses)
     optimizers = parse_list(args.optimizers)
+    architectures = [validate_choice(name, SUPPORTED_ARCHITECTURES, "--architectures") for name in architectures]
+    losses = [validate_choice(name, SUPPORTED_LOSSES, "--losses") for name in losses]
+    optimizers = [validate_choice(name, SUPPORTED_OPTIMIZERS, "--optimizers") for name in optimizers]
     image_sizes = parse_int_list(args.image_sizes)
     batch_sizes = parse_int_list(args.batch_sizes)
     learning_rates = parse_float_list(args.learning_rates)

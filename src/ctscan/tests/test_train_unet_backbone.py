@@ -571,6 +571,27 @@ def test_main_rejects_unknown_selection_metric(monkeypatch):
         raise AssertionError("expected invalid selection metric to fail")
 
 
+def test_main_rejects_unknown_architecture(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "train_unet_backbone.py",
+            "--architecture",
+            "bogus_net",
+            "--dry-run",
+        ],
+    )
+
+    try:
+        main()
+    except ValueError as exc:
+        assert "unsupported --architecture" in str(exc)
+        assert "fpn" in str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("expected invalid architecture to fail")
+
+
 def test_main_inspect_splits_prints_dataset_counts(tmp_path: Path, monkeypatch, capsys):
     root = tmp_path / "legacy_png"
     images_dir = root / "images"
