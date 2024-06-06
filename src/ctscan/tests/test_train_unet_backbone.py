@@ -592,6 +592,27 @@ def test_main_rejects_unknown_architecture(monkeypatch):
         raise AssertionError("expected invalid architecture to fail")
 
 
+def test_main_rejects_unknown_scheduler(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "train_unet_backbone.py",
+            "--scheduler",
+            "bogus_scheduler",
+            "--dry-run",
+        ],
+    )
+
+    try:
+        main()
+    except ValueError as exc:
+        assert "unsupported --scheduler" in str(exc)
+        assert "onecycle" in str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("expected invalid scheduler to fail")
+
+
 def test_main_inspect_splits_prints_dataset_counts(tmp_path: Path, monkeypatch, capsys):
     root = tmp_path / "legacy_png"
     images_dir = root / "images"

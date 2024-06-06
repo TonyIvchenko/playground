@@ -456,6 +456,31 @@ def test_main_rejects_unknown_architecture_family(tmp_path: Path, monkeypatch):
         raise AssertionError("expected invalid architecture family to fail")
 
 
+def test_main_rejects_unknown_sampler(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "search_unet_backbone.py",
+            "--slice-dir",
+            str(tmp_path / "slice_dataset"),
+            "--output-dir",
+            str(tmp_path / "search"),
+            "--sampler",
+            "bogus_sampler",
+            "--dry-run",
+        ],
+    )
+
+    try:
+        sweep.main()
+    except ValueError as exc:
+        assert "unsupported --sampler" in str(exc)
+        assert "rare_fg" in str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("expected invalid sampler to fail")
+
+
 def test_main_dry_run_respects_trial_window(tmp_path: Path, monkeypatch, capsys):
     monkeypatch.setattr(
         sys,

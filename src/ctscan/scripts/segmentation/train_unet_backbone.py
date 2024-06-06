@@ -55,6 +55,9 @@ PRESET_DEFAULTS: dict[str, dict[str, Any]] = {
 SUPPORTED_ARCHITECTURES = ["unet", "unetplusplus", "fpn", "deeplabv3plus", "manet"]
 SUPPORTED_OPTIMIZERS = ["adam", "adamw"]
 SUPPORTED_LOSSES = ["ce", "dice_ce", "tversky_ce", "lovasz_ce", "focal"]
+SUPPORTED_SCHEDULERS = ["none", "onecycle"]
+SUPPORTED_SAMPLERS = ["none", "rare_fg"]
+SUPPORTED_AUGMENTATIONS = ["none", "light"]
 SUPPORTED_TRAINER_METRICS = [
     "val_mean_dice_fg",
     "val_mean_iou_fg",
@@ -978,6 +981,9 @@ def main() -> int:
     config.architecture = validate_choice(config.architecture, SUPPORTED_ARCHITECTURES, "--architecture")
     config.optimizer_name = validate_choice(config.optimizer_name, SUPPORTED_OPTIMIZERS, "--optimizer")
     config.loss_name = validate_choice(config.loss_name, SUPPORTED_LOSSES, "--loss")
+    config.scheduler_name = validate_choice(config.scheduler_name, SUPPORTED_SCHEDULERS, "--scheduler")
+    config.sampler_name = validate_choice(config.sampler_name, SUPPORTED_SAMPLERS, "--sampler")
+    config.augmentation_name = validate_choice(config.augmentation_name, SUPPORTED_AUGMENTATIONS, "--augmentation")
     if config.show_output_paths:
         print(json.dumps(output_paths_summary(config), indent=2))
         return 0

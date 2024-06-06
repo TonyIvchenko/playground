@@ -12,8 +12,11 @@ from typing import Any
 try:
     from .train_unet_backbone import (
         SUPPORTED_ARCHITECTURES,
+        SUPPORTED_AUGMENTATIONS,
         SUPPORTED_LOSSES,
         SUPPORTED_OPTIMIZERS,
+        SUPPORTED_SAMPLERS,
+        SUPPORTED_SCHEDULERS,
         SUPPORTED_TRAINER_METRICS,
         TrainConfig,
         metric_direction,
@@ -24,8 +27,11 @@ try:
 except ImportError:  # pragma: no cover - script execution path
     from train_unet_backbone import (
         SUPPORTED_ARCHITECTURES,
+        SUPPORTED_AUGMENTATIONS,
         SUPPORTED_LOSSES,
         SUPPORTED_OPTIMIZERS,
+        SUPPORTED_SAMPLERS,
+        SUPPORTED_SCHEDULERS,
         SUPPORTED_TRAINER_METRICS,
         TrainConfig,
         metric_direction,
@@ -450,6 +456,9 @@ def main() -> int:
         SUPPORTED_TRAINER_METRICS,
         "--selection-metric",
     )
+    args.scheduler = validate_choice(args.scheduler, SUPPORTED_SCHEDULERS, "--scheduler")
+    args.sampler = validate_choice(args.sampler, SUPPORTED_SAMPLERS, "--sampler")
+    args.augmentation = validate_choice(args.augmentation, SUPPORTED_AUGMENTATIONS, "--augmentation")
 
     architectures = parse_list(args.architectures)
     encoders = parse_list(args.encoders)

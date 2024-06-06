@@ -284,6 +284,7 @@ Notes:
 - Add `--list-metrics` to print the supported trainer metrics.
 - Metric names are validated up front, so a typo in `--selection-metric` fails fast with the supported names.
 - Core trainer choices like `--architecture`, `--loss`, and `--optimizer` are also validated up front.
+- Scheduler, sampler, and augmentation names are also validated before the trainer starts.
 - Add `--inspect-splits` to print train/val/test row counts before starting a run.
 - Split inspection also reports whether rows came from `splits/*.csv` or `splits.json`, plus the exact source path for each split.
 - Add `--show-output-paths` to print checkpoint/metrics/config/report locations before starting a run.
@@ -330,6 +331,7 @@ python scripts/segmentation/search_unet_backbone.py \
 - Add `--list-metrics` to print the supported sweep metrics.
 - Sweep metric names are validated up front, so typos in `--sort-metric` or `--selection-metric` fail fast.
 - Sweep architecture, loss, and optimizer families are also validated up front before trial planning starts.
+- Sweep scheduler, sampler, and augmentation names are also validated before trial planning starts.
 - Each trial also writes `model/backbone_search/<trial>.config.json` with the resolved knob values.
 - Add `--dry-run` to print the planned trial slugs without starting training.
 - Add `--fail-fast` to stop immediately after the first failed trial.
