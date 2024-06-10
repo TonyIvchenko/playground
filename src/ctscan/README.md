@@ -281,6 +281,7 @@ python scripts/segmentation/train_unet_backbone.py \
 
 Notes:
 - Add `--list-presets` to print the available trainer presets.
+- Add `--list-architectures` to print the supported trainer architectures.
 - Add `--list-metrics` to print the supported trainer metrics.
 - Metric names are validated up front, so a typo in `--selection-metric` fails fast with the supported names.
 - Core trainer choices like `--architecture`, `--loss`, and `--optimizer` are also validated up front.

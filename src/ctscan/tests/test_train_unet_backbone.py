@@ -269,6 +269,14 @@ def test_parse_args_accepts_list_presets(monkeypatch):
     assert config.list_presets is True
 
 
+def test_parse_args_accepts_list_architectures(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--list-architectures"])
+
+    config = parse_args()
+
+    assert config.list_architectures is True
+
+
 def test_parse_args_accepts_list_metrics(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--list-metrics"])
 
@@ -539,6 +547,16 @@ def test_main_list_presets_prints_available_names(monkeypatch, capsys):
     output = capsys.readouterr().out.splitlines()
     assert "default" in output
     assert "legacy_png_best" in output
+
+
+def test_main_list_architectures_prints_supported_names(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--list-architectures"])
+
+    assert main() == 0
+
+    output = capsys.readouterr().out.splitlines()
+    assert "fpn" in output
+    assert "unet" in output
 
 
 def test_main_list_metrics_prints_supported_names(monkeypatch, capsys):

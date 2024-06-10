@@ -102,6 +102,7 @@ class TrainConfig:
     max_test_batches: int
     dry_run: bool = False
     list_presets: bool = False
+    list_architectures: bool = False
     inspect_splits: bool = False
     show_output_paths: bool = False
     list_metrics: bool = False
@@ -196,6 +197,7 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--max-test-batches", type=int, default=0)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--list-presets", action="store_true")
+    parser.add_argument("--list-architectures", action="store_true")
     parser.add_argument("--list-metrics", action="store_true")
     parser.add_argument("--inspect-splits", action="store_true")
     parser.add_argument("--show-output-paths", action="store_true")
@@ -239,6 +241,7 @@ def parse_args() -> TrainConfig:
         max_test_batches=max(int(args.max_test_batches), 0),
         dry_run=bool(args.dry_run),
         list_presets=bool(args.list_presets),
+        list_architectures=bool(args.list_architectures),
         list_metrics=bool(args.list_metrics),
         inspect_splits=bool(args.inspect_splits),
         show_output_paths=bool(args.show_output_paths),
@@ -968,6 +971,10 @@ def main() -> int:
     if config.list_presets:
         for preset_name in sorted(PRESET_DEFAULTS):
             print(preset_name)
+        return 0
+    if config.list_architectures:
+        for architecture_name in SUPPORTED_ARCHITECTURES:
+            print(architecture_name)
         return 0
     if config.list_metrics:
         for metric_name in SUPPORTED_TRAINER_METRICS:
