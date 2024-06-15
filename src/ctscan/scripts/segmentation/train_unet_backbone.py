@@ -104,6 +104,7 @@ class TrainConfig:
     list_presets: bool = False
     list_architectures: bool = False
     list_losses: bool = False
+    list_optimizers: bool = False
     inspect_splits: bool = False
     show_output_paths: bool = False
     list_metrics: bool = False
@@ -200,6 +201,7 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--list-presets", action="store_true")
     parser.add_argument("--list-architectures", action="store_true")
     parser.add_argument("--list-losses", action="store_true")
+    parser.add_argument("--list-optimizers", action="store_true")
     parser.add_argument("--list-metrics", action="store_true")
     parser.add_argument("--inspect-splits", action="store_true")
     parser.add_argument("--show-output-paths", action="store_true")
@@ -245,6 +247,7 @@ def parse_args() -> TrainConfig:
         list_presets=bool(args.list_presets),
         list_architectures=bool(args.list_architectures),
         list_losses=bool(args.list_losses),
+        list_optimizers=bool(args.list_optimizers),
         list_metrics=bool(args.list_metrics),
         inspect_splits=bool(args.inspect_splits),
         show_output_paths=bool(args.show_output_paths),
@@ -982,6 +985,10 @@ def main() -> int:
     if config.list_losses:
         for loss_name in SUPPORTED_LOSSES:
             print(loss_name)
+        return 0
+    if config.list_optimizers:
+        for optimizer_name in SUPPORTED_OPTIMIZERS:
+            print(optimizer_name)
         return 0
     if config.list_metrics:
         for metric_name in SUPPORTED_TRAINER_METRICS:
