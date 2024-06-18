@@ -309,6 +309,14 @@ def test_parse_args_accepts_list_samplers(monkeypatch):
     assert config.list_samplers is True
 
 
+def test_parse_args_accepts_list_augmentations(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--list-augmentations"])
+
+    config = parse_args()
+
+    assert config.list_augmentations is True
+
+
 def test_parse_args_accepts_list_metrics(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--list-metrics"])
 
@@ -629,6 +637,16 @@ def test_main_list_samplers_prints_supported_names(monkeypatch, capsys):
     output = capsys.readouterr().out.splitlines()
     assert "none" in output
     assert "rare_fg" in output
+
+
+def test_main_list_augmentations_prints_supported_names(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--list-augmentations"])
+
+    assert main() == 0
+
+    output = capsys.readouterr().out.splitlines()
+    assert "none" in output
+    assert "light" in output
 
 
 def test_main_list_metrics_prints_supported_names(monkeypatch, capsys):

@@ -286,6 +286,7 @@ Notes:
 - Add `--list-optimizers` to print the supported trainer optimizers.
 - Add `--list-schedulers` to print the supported trainer schedulers.
 - Add `--list-samplers` to print the supported trainer samplers.
+- Add `--list-augmentations` to print the supported trainer augmentations.
 - Add `--list-metrics` to print the supported trainer metrics.
 - Metric names are validated up front, so a typo in `--selection-metric` fails fast with the supported names.
 - Core trainer choices like `--architecture`, `--loss`, and `--optimizer` are also validated up front.
