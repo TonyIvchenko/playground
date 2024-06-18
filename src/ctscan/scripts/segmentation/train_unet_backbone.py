@@ -106,6 +106,7 @@ class TrainConfig:
     list_losses: bool = False
     list_optimizers: bool = False
     list_schedulers: bool = False
+    list_samplers: bool = False
     inspect_splits: bool = False
     show_output_paths: bool = False
     list_metrics: bool = False
@@ -204,6 +205,7 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--list-losses", action="store_true")
     parser.add_argument("--list-optimizers", action="store_true")
     parser.add_argument("--list-schedulers", action="store_true")
+    parser.add_argument("--list-samplers", action="store_true")
     parser.add_argument("--list-metrics", action="store_true")
     parser.add_argument("--inspect-splits", action="store_true")
     parser.add_argument("--show-output-paths", action="store_true")
@@ -251,6 +253,7 @@ def parse_args() -> TrainConfig:
         list_losses=bool(args.list_losses),
         list_optimizers=bool(args.list_optimizers),
         list_schedulers=bool(args.list_schedulers),
+        list_samplers=bool(args.list_samplers),
         list_metrics=bool(args.list_metrics),
         inspect_splits=bool(args.inspect_splits),
         show_output_paths=bool(args.show_output_paths),
@@ -996,6 +999,10 @@ def main() -> int:
     if config.list_schedulers:
         for scheduler_name in SUPPORTED_SCHEDULERS:
             print(scheduler_name)
+        return 0
+    if config.list_samplers:
+        for sampler_name in SUPPORTED_SAMPLERS:
+            print(sampler_name)
         return 0
     if config.list_metrics:
         for metric_name in SUPPORTED_TRAINER_METRICS:
