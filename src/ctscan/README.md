@@ -334,6 +334,8 @@ python scripts/segmentation/search_unet_backbone.py \
 - Each sweep also writes `model/backbone_search/trial_plan.json` with the resolved planned trials.
 - A Markdown version of the plan is also written to `model/backbone_search/trial_plan.md`.
 - Add `--show-output-paths` to print all sweep artifact paths before running anything.
+- Add `--list-architectures` to print the supported sweep architectures.
+- Add `--list-losses` to print the supported sweep losses.
 - Add `--list-metrics` to print the supported sweep metrics.
 - Sweep metric names are validated up front, so typos in `--sort-metric` or `--selection-metric` fail fast.
 - Sweep architecture, loss, and optimizer families are also validated up front before trial planning starts.

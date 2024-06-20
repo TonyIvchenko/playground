@@ -302,6 +302,22 @@ def test_parse_args_accepts_show_output_paths(monkeypatch):
     assert args.show_output_paths is True
 
 
+def test_parse_args_accepts_list_architectures(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["search_unet_backbone.py", "--list-architectures"])
+
+    args = sweep.parse_args()
+
+    assert args.list_architectures is True
+
+
+def test_parse_args_accepts_list_losses(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["search_unet_backbone.py", "--list-losses"])
+
+    args = sweep.parse_args()
+
+    assert args.list_losses is True
+
+
 def test_parse_args_accepts_list_metrics(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["search_unet_backbone.py", "--list-metrics"])
 
@@ -369,6 +385,26 @@ def test_main_show_output_paths_prints_artifact_locations(tmp_path: Path, monkey
     payload = json.loads(capsys.readouterr().out)
     assert payload["leaderboard_json"].endswith("leaderboard.json")
     assert payload["trial_plan_md"].endswith("trial_plan.md")
+
+
+def test_main_list_architectures_prints_supported_names(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["search_unet_backbone.py", "--list-architectures"])
+
+    assert sweep.main() == 0
+
+    output = capsys.readouterr().out.splitlines()
+    assert "fpn" in output
+    assert "unet" in output
+
+
+def test_main_list_losses_prints_supported_names(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["search_unet_backbone.py", "--list-losses"])
+
+    assert sweep.main() == 0
+
+    output = capsys.readouterr().out.splitlines()
+    assert "dice_ce" in output
+    assert "lovasz_ce" in output
 
 
 def test_main_list_metrics_prints_supported_names(monkeypatch, capsys):

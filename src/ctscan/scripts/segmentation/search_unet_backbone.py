@@ -432,6 +432,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--sort-metric", type=str, default="val_mean_dice_fg")
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--list-architectures", action="store_true")
+    parser.add_argument("--list-losses", action="store_true")
     parser.add_argument("--show-output-paths", action="store_true")
     parser.add_argument("--list-metrics", action="store_true")
     parser.add_argument("--skip-existing", action="store_true")
@@ -446,6 +448,14 @@ def main() -> int:
     if args.list_metrics:
         for metric_name in SUPPORTED_SWEEP_METRICS:
             print(metric_name)
+        return 0
+    if args.list_architectures:
+        for architecture_name in SUPPORTED_ARCHITECTURES:
+            print(architecture_name)
+        return 0
+    if args.list_losses:
+        for loss_name in SUPPORTED_LOSSES:
+            print(loss_name)
         return 0
     if args.show_output_paths:
         print(json.dumps(output_paths_summary(output_dir), indent=2))
