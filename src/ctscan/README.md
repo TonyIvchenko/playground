@@ -336,6 +336,7 @@ python scripts/segmentation/search_unet_backbone.py \
 - Add `--show-output-paths` to print all sweep artifact paths before running anything.
 - Add `--list-architectures` to print the supported sweep architectures.
 - Add `--list-losses` to print the supported sweep losses.
+- Add `--list-optimizers` to print the supported sweep optimizers.
 - Add `--list-metrics` to print the supported sweep metrics.
 - Sweep metric names are validated up front, so typos in `--sort-metric` or `--selection-metric` fail fast.
 - Sweep architecture, loss, and optimizer families are also validated up front before trial planning starts.
