@@ -326,6 +326,14 @@ def test_parse_args_accepts_list_optimizers(monkeypatch):
     assert args.list_optimizers is True
 
 
+def test_parse_args_accepts_list_schedulers(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["search_unet_backbone.py", "--list-schedulers"])
+
+    args = sweep.parse_args()
+
+    assert args.list_schedulers is True
+
+
 def test_parse_args_accepts_list_metrics(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["search_unet_backbone.py", "--list-metrics"])
 
@@ -423,6 +431,16 @@ def test_main_list_optimizers_prints_supported_names(monkeypatch, capsys):
     output = capsys.readouterr().out.splitlines()
     assert "adam" in output
     assert "adamw" in output
+
+
+def test_main_list_schedulers_prints_supported_names(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["search_unet_backbone.py", "--list-schedulers"])
+
+    assert sweep.main() == 0
+
+    output = capsys.readouterr().out.splitlines()
+    assert "none" in output
+    assert "onecycle" in output
 
 
 def test_main_list_metrics_prints_supported_names(monkeypatch, capsys):

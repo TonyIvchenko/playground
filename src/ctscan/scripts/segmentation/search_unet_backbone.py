@@ -435,6 +435,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--list-architectures", action="store_true")
     parser.add_argument("--list-losses", action="store_true")
     parser.add_argument("--list-optimizers", action="store_true")
+    parser.add_argument("--list-schedulers", action="store_true")
     parser.add_argument("--show-output-paths", action="store_true")
     parser.add_argument("--list-metrics", action="store_true")
     parser.add_argument("--skip-existing", action="store_true")
@@ -461,6 +462,10 @@ def main() -> int:
     if args.list_optimizers:
         for optimizer_name in SUPPORTED_OPTIMIZERS:
             print(optimizer_name)
+        return 0
+    if args.list_schedulers:
+        for scheduler_name in SUPPORTED_SCHEDULERS:
+            print(scheduler_name)
         return 0
     if args.show_output_paths:
         print(json.dumps(output_paths_summary(output_dir), indent=2))
