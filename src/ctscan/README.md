@@ -346,6 +346,7 @@ python scripts/segmentation/search_unet_backbone.py \
 - Sweep scheduler, sampler, and augmentation names are also validated before trial planning starts.
 - Each trial also writes `model/backbone_search/<trial>.config.json` with the resolved knob values.
 - Add `--dry-run` to print the planned trial slugs without starting training.
+- Repeated values in comma-separated sweep knobs are deduplicated in order before planning trials.
 - Add `--fail-fast` to stop immediately after the first failed trial.
 - Use `--start-index` and `--end-index` to split a large sweep into smaller chunks.
 

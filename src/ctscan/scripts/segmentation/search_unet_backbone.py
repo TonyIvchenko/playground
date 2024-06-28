@@ -80,15 +80,18 @@ SUPPORTED_SWEEP_METRICS = [
 
 
 def parse_list(value: str) -> list[str]:
-    return [item.strip() for item in str(value).split(",") if item.strip()]
+    items = [item.strip() for item in str(value).split(",") if item.strip()]
+    return list(dict.fromkeys(items))
 
 
 def parse_int_list(value: str) -> list[int]:
-    return [int(item.strip()) for item in str(value).split(",") if item.strip()]
+    items = [int(item.strip()) for item in str(value).split(",") if item.strip()]
+    return list(dict.fromkeys(items))
 
 
 def parse_float_list(value: str) -> list[float]:
-    return [float(item.strip()) for item in str(value).split(",") if item.strip()]
+    items = [float(item.strip()) for item in str(value).split(",") if item.strip()]
+    return list(dict.fromkeys(items))
 
 
 def build_trial_slug(

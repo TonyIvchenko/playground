@@ -44,6 +44,12 @@ def test_result_row_from_metrics_extracts_final_metrics():
     assert row["test_mean_dice_fg"] == 0.7
 
 
+def test_parse_list_helpers_dedupe_values_preserving_order():
+    assert sweep.parse_list("fpn,unet,fpn") == ["fpn", "unet"]
+    assert sweep.parse_int_list("320,256,320") == [320, 256]
+    assert sweep.parse_float_list("0.0002,0.001,0.0002") == [0.0002, 0.001]
+
+
 def test_write_leaderboard_writes_json_and_csv(tmp_path: Path):
     rows = [
         {"trial": "a", "val_mean_dice_fg": 0.5, "val_loss": 0.2},
