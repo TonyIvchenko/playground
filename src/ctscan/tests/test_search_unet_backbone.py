@@ -50,6 +50,15 @@ def test_parse_list_helpers_dedupe_values_preserving_order():
     assert sweep.parse_float_list("0.0002,0.001,0.0002") == [0.0002, 0.001]
 
 
+def test_require_nonempty_rejects_empty_lists():
+    try:
+        sweep.require_nonempty([], "--architectures")
+    except ValueError as exc:
+        assert "--architectures must include at least one value" == str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("expected empty list to fail")
+
+
 def test_write_leaderboard_writes_json_and_csv(tmp_path: Path):
     rows = [
         {"trial": "a", "val_mean_dice_fg": 0.5, "val_loss": 0.2},
@@ -568,6 +577,30 @@ def test_main_rejects_unknown_architecture_family(tmp_path: Path, monkeypatch):
         assert "fpn" in str(exc)
     else:  # pragma: no cover - defensive
         raise AssertionError("expected invalid architecture family to fail")
+
+
+def test_main_rejects_empty_architecture_list(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "search_unet_backbone.py",
+            "--slice-dir",
+            str(tmp_path / "slice_dataset"),
+            "--output-dir",
+            str(tmp_path / "search"),
+            "--architectures",
+            ", ,",
+            "--dry-run",
+        ],
+    )
+
+    try:
+        sweep.main()
+    except ValueError as exc:
+        assert "--architectures must include at least one value" == str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("expected empty architecture list to fail")
 
 
 def test_main_rejects_unknown_sampler(tmp_path: Path, monkeypatch):

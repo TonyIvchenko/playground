@@ -94,6 +94,12 @@ def parse_float_list(value: str) -> list[float]:
     return list(dict.fromkeys(items))
 
 
+def require_nonempty(values: list[Any], argument_name: str) -> list[Any]:
+    if values:
+        return values
+    raise ValueError(f"{argument_name} must include at least one value")
+
+
 def build_trial_slug(
     index: int,
     architecture: str,
@@ -493,17 +499,17 @@ def main() -> int:
     args.sampler = validate_choice(args.sampler, SUPPORTED_SAMPLERS, "--sampler")
     args.augmentation = validate_choice(args.augmentation, SUPPORTED_AUGMENTATIONS, "--augmentation")
 
-    architectures = parse_list(args.architectures)
-    encoders = parse_list(args.encoders)
-    losses = parse_list(args.losses)
-    optimizers = parse_list(args.optimizers)
+    architectures = require_nonempty(parse_list(args.architectures), "--architectures")
+    encoders = require_nonempty(parse_list(args.encoders), "--encoders")
+    losses = require_nonempty(parse_list(args.losses), "--losses")
+    optimizers = require_nonempty(parse_list(args.optimizers), "--optimizers")
     architectures = [validate_choice(name, SUPPORTED_ARCHITECTURES, "--architectures") for name in architectures]
     losses = [validate_choice(name, SUPPORTED_LOSSES, "--losses") for name in losses]
     optimizers = [validate_choice(name, SUPPORTED_OPTIMIZERS, "--optimizers") for name in optimizers]
-    image_sizes = parse_int_list(args.image_sizes)
-    batch_sizes = parse_int_list(args.batch_sizes)
-    learning_rates = parse_float_list(args.learning_rates)
-    weight_decays = parse_float_list(args.weight_decays)
+    image_sizes = require_nonempty(parse_int_list(args.image_sizes), "--image-sizes")
+    batch_sizes = require_nonempty(parse_int_list(args.batch_sizes), "--batch-sizes")
+    learning_rates = require_nonempty(parse_float_list(args.learning_rates), "--learning-rates")
+    weight_decays = require_nonempty(parse_float_list(args.weight_decays), "--weight-decays")
     encoder_weights = None if str(args.encoder_weights).strip().lower() in {"", "none"} else str(args.encoder_weights)
 
     trials = list(
