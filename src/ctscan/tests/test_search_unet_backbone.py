@@ -160,6 +160,7 @@ def test_output_paths_summary_lists_sweep_artifacts(tmp_path: Path):
 
     assert payload["leaderboard_json"].endswith("leaderboard.json")
     assert payload["best_trial_md"].endswith("best_trial.md")
+    assert payload["run_summary_md"].endswith("run_summary.md")
     assert payload["trial_plan_md"].endswith("trial_plan.md")
 
 
@@ -439,6 +440,7 @@ def test_main_show_output_paths_prints_artifact_locations(tmp_path: Path, monkey
 
     payload = json.loads(capsys.readouterr().out)
     assert payload["leaderboard_json"].endswith("leaderboard.json")
+    assert payload["run_summary_md"].endswith("run_summary.md")
     assert payload["trial_plan_md"].endswith("trial_plan.md")
 
 

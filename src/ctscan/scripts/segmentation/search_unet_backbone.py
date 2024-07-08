@@ -385,6 +385,7 @@ def output_paths_summary(output_dir: Path) -> dict[str, str]:
         "best_trial_json": str(output_dir / "best_trial.json"),
         "best_trial_md": str(output_dir / "best_trial.md"),
         "run_summary_json": str(output_dir / "run_summary.json"),
+        "run_summary_md": str(output_dir / "run_summary.md"),
         "trial_plan_json": str(output_dir / "trial_plan.json"),
         "trial_plan_md": str(output_dir / "trial_plan.md"),
     }
