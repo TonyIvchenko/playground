@@ -282,6 +282,7 @@ python scripts/segmentation/train_unet_backbone.py \
 Notes:
 - Add `--list-presets` to print the available trainer presets.
 - Add `--list-architectures` to print the supported trainer architectures.
+- Add `--list-encoders` to print the available SMP encoder backbones for the trainer.
 - Add `--list-losses` to print the supported trainer losses.
 - Add `--list-optimizers` to print the supported trainer optimizers.
 - Add `--list-schedulers` to print the supported trainer schedulers.

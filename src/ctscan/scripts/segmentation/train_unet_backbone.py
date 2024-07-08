@@ -103,6 +103,7 @@ class TrainConfig:
     dry_run: bool = False
     list_presets: bool = False
     list_architectures: bool = False
+    list_encoders: bool = False
     list_losses: bool = False
     list_optimizers: bool = False
     list_schedulers: bool = False
@@ -203,6 +204,7 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--list-presets", action="store_true")
     parser.add_argument("--list-architectures", action="store_true")
+    parser.add_argument("--list-encoders", action="store_true")
     parser.add_argument("--list-losses", action="store_true")
     parser.add_argument("--list-optimizers", action="store_true")
     parser.add_argument("--list-schedulers", action="store_true")
@@ -252,6 +254,7 @@ def parse_args() -> TrainConfig:
         dry_run=bool(args.dry_run),
         list_presets=bool(args.list_presets),
         list_architectures=bool(args.list_architectures),
+        list_encoders=bool(args.list_encoders),
         list_losses=bool(args.list_losses),
         list_optimizers=bool(args.list_optimizers),
         list_schedulers=bool(args.list_schedulers),
@@ -319,6 +322,10 @@ def write_metrics_summary(config: TrainConfig, metrics: dict[str, Any]) -> Path:
     ]
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path
+
+
+def available_encoder_names() -> list[str]:
+    return list(smp.encoders.get_encoder_names())
 
 
 def resolve_device(name: str) -> torch.device:
@@ -990,6 +997,10 @@ def main() -> int:
     if config.list_architectures:
         for architecture_name in SUPPORTED_ARCHITECTURES:
             print(architecture_name)
+        return 0
+    if config.list_encoders:
+        for encoder_name in available_encoder_names():
+            print(encoder_name)
         return 0
     if config.list_losses:
         for loss_name in SUPPORTED_LOSSES:

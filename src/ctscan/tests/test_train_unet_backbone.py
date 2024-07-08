@@ -10,6 +10,7 @@ import torch
 from torch import nn
 
 from src.ctscan.scripts.segmentation.train_unet_backbone import (
+    available_encoder_names,
     best_history_row,
     build_model,
     build_scheduler,
@@ -275,6 +276,14 @@ def test_parse_args_accepts_list_architectures(monkeypatch):
     config = parse_args()
 
     assert config.list_architectures is True
+
+
+def test_parse_args_accepts_list_encoders(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--list-encoders"])
+
+    config = parse_args()
+
+    assert config.list_encoders is True
 
 
 def test_parse_args_accepts_list_losses(monkeypatch):
@@ -597,6 +606,23 @@ def test_main_list_architectures_prints_supported_names(monkeypatch, capsys):
     output = capsys.readouterr().out.splitlines()
     assert "fpn" in output
     assert "unet" in output
+
+
+def test_available_encoder_names_contains_common_backbones():
+    names = available_encoder_names()
+
+    assert "resnet18" in names
+    assert "efficientnet-b1" in names
+
+
+def test_main_list_encoders_prints_supported_names(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--list-encoders"])
+
+    assert main() == 0
+
+    output = capsys.readouterr().out.splitlines()
+    assert "resnet18" in output
+    assert "efficientnet-b1" in output
 
 
 def test_main_list_losses_prints_supported_names(monkeypatch, capsys):
