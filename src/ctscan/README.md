@@ -336,6 +336,7 @@ python scripts/segmentation/search_unet_backbone.py \
 - A Markdown version of the plan is also written to `model/backbone_search/trial_plan.md`.
 - Add `--show-output-paths` to print all sweep artifact paths before running anything.
 - Add `--list-architectures` to print the supported sweep architectures.
+- Add `--list-encoders` to print the available SMP encoder backbones for the sweep runner.
 - Add `--list-losses` to print the supported sweep losses.
 - Add `--list-optimizers` to print the supported sweep optimizers.
 - Add `--list-schedulers` to print the supported sweep schedulers.

@@ -19,6 +19,7 @@ try:
         SUPPORTED_SCHEDULERS,
         SUPPORTED_TRAINER_METRICS,
         TrainConfig,
+        available_encoder_names,
         metric_direction,
         train,
         validate_choice,
@@ -34,6 +35,7 @@ except ImportError:  # pragma: no cover - script execution path
         SUPPORTED_SCHEDULERS,
         SUPPORTED_TRAINER_METRICS,
         TrainConfig,
+        available_encoder_names,
         metric_direction,
         train,
         validate_choice,
@@ -442,6 +444,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--list-architectures", action="store_true")
+    parser.add_argument("--list-encoders", action="store_true")
     parser.add_argument("--list-losses", action="store_true")
     parser.add_argument("--list-optimizers", action="store_true")
     parser.add_argument("--list-schedulers", action="store_true")
@@ -465,6 +468,10 @@ def main() -> int:
     if args.list_architectures:
         for architecture_name in SUPPORTED_ARCHITECTURES:
             print(architecture_name)
+        return 0
+    if args.list_encoders:
+        for encoder_name in available_encoder_names():
+            print(encoder_name)
         return 0
     if args.list_losses:
         for loss_name in SUPPORTED_LOSSES:

@@ -325,6 +325,14 @@ def test_parse_args_accepts_list_architectures(monkeypatch):
     assert args.list_architectures is True
 
 
+def test_parse_args_accepts_list_encoders(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["search_unet_backbone.py", "--list-encoders"])
+
+    args = sweep.parse_args()
+
+    assert args.list_encoders is True
+
+
 def test_parse_args_accepts_list_losses(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["search_unet_backbone.py", "--list-losses"])
 
@@ -442,6 +450,16 @@ def test_main_list_architectures_prints_supported_names(monkeypatch, capsys):
     output = capsys.readouterr().out.splitlines()
     assert "fpn" in output
     assert "unet" in output
+
+
+def test_main_list_encoders_prints_supported_names(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["search_unet_backbone.py", "--list-encoders"])
+
+    assert sweep.main() == 0
+
+    output = capsys.readouterr().out.splitlines()
+    assert "resnet18" in output
+    assert "efficientnet-b1" in output
 
 
 def test_main_list_losses_prints_supported_names(monkeypatch, capsys):
