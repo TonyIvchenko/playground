@@ -302,6 +302,14 @@ def test_parse_args_accepts_list_optimizers(monkeypatch):
     assert config.list_optimizers is True
 
 
+def test_parse_args_accepts_list_class_weight_modes(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--list-class-weight-modes"])
+
+    config = parse_args()
+
+    assert config.list_class_weight_modes is True
+
+
 def test_parse_args_accepts_list_schedulers(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--list-schedulers"])
 
@@ -645,6 +653,16 @@ def test_main_list_optimizers_prints_supported_names(monkeypatch, capsys):
     assert "adamw" in output
 
 
+def test_main_list_class_weight_modes_prints_supported_names(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--list-class-weight-modes"])
+
+    assert main() == 0
+
+    output = capsys.readouterr().out.splitlines()
+    assert "none" in output
+    assert "inverse_sqrt" in output
+
+
 def test_main_list_schedulers_prints_supported_names(monkeypatch, capsys):
     monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--list-schedulers"])
 
@@ -745,6 +763,27 @@ def test_main_rejects_unknown_scheduler(monkeypatch):
         assert "onecycle" in str(exc)
     else:  # pragma: no cover - defensive
         raise AssertionError("expected invalid scheduler to fail")
+
+
+def test_main_rejects_unknown_class_weight_mode(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "train_unet_backbone.py",
+            "--class-weight-mode",
+            "bogus_mode",
+            "--dry-run",
+        ],
+    )
+
+    try:
+        main()
+    except ValueError as exc:
+        assert "unsupported --class-weight-mode" in str(exc)
+        assert "inverse_sqrt" in str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("expected invalid class weight mode to fail")
 
 
 def test_main_inspect_splits_prints_dataset_counts(tmp_path: Path, monkeypatch, capsys):

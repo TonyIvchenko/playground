@@ -55,6 +55,7 @@ PRESET_DEFAULTS: dict[str, dict[str, Any]] = {
 SUPPORTED_ARCHITECTURES = ["unet", "unetplusplus", "fpn", "deeplabv3plus", "manet"]
 SUPPORTED_OPTIMIZERS = ["adam", "adamw"]
 SUPPORTED_LOSSES = ["ce", "dice_ce", "tversky_ce", "lovasz_ce", "focal"]
+SUPPORTED_CLASS_WEIGHT_MODES = ["none", "inverse", "inverse_sqrt"]
 SUPPORTED_SCHEDULERS = ["none", "onecycle"]
 SUPPORTED_SAMPLERS = ["none", "rare_fg"]
 SUPPORTED_AUGMENTATIONS = ["none", "light"]
@@ -106,6 +107,7 @@ class TrainConfig:
     list_encoders: bool = False
     list_losses: bool = False
     list_optimizers: bool = False
+    list_class_weight_modes: bool = False
     list_schedulers: bool = False
     list_samplers: bool = False
     list_augmentations: bool = False
@@ -207,6 +209,7 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--list-encoders", action="store_true")
     parser.add_argument("--list-losses", action="store_true")
     parser.add_argument("--list-optimizers", action="store_true")
+    parser.add_argument("--list-class-weight-modes", action="store_true")
     parser.add_argument("--list-schedulers", action="store_true")
     parser.add_argument("--list-samplers", action="store_true")
     parser.add_argument("--list-augmentations", action="store_true")
@@ -257,6 +260,7 @@ def parse_args() -> TrainConfig:
         list_encoders=bool(args.list_encoders),
         list_losses=bool(args.list_losses),
         list_optimizers=bool(args.list_optimizers),
+        list_class_weight_modes=bool(args.list_class_weight_modes),
         list_schedulers=bool(args.list_schedulers),
         list_samplers=bool(args.list_samplers),
         list_augmentations=bool(args.list_augmentations),
@@ -1010,6 +1014,10 @@ def main() -> int:
         for optimizer_name in SUPPORTED_OPTIMIZERS:
             print(optimizer_name)
         return 0
+    if config.list_class_weight_modes:
+        for weight_mode in SUPPORTED_CLASS_WEIGHT_MODES:
+            print(weight_mode)
+        return 0
     if config.list_schedulers:
         for scheduler_name in SUPPORTED_SCHEDULERS:
             print(scheduler_name)
@@ -1034,6 +1042,11 @@ def main() -> int:
     config.architecture = validate_choice(config.architecture, SUPPORTED_ARCHITECTURES, "--architecture")
     config.optimizer_name = validate_choice(config.optimizer_name, SUPPORTED_OPTIMIZERS, "--optimizer")
     config.loss_name = validate_choice(config.loss_name, SUPPORTED_LOSSES, "--loss")
+    config.class_weight_mode = validate_choice(
+        config.class_weight_mode,
+        SUPPORTED_CLASS_WEIGHT_MODES,
+        "--class-weight-mode",
+    )
     config.scheduler_name = validate_choice(config.scheduler_name, SUPPORTED_SCHEDULERS, "--scheduler")
     config.sampler_name = validate_choice(config.sampler_name, SUPPORTED_SAMPLERS, "--sampler")
     config.augmentation_name = validate_choice(config.augmentation_name, SUPPORTED_AUGMENTATIONS, "--augmentation")
