@@ -117,6 +117,7 @@ def test_write_run_summary_counts_success_and_failures(tmp_path: Path):
 def test_write_trial_config_persists_knobs(tmp_path: Path):
     payload = sweep.trial_config_row(
         slug="trial001",
+        index=7,
         architecture="fpn",
         encoder="efficientnet-b1",
         loss_name="lovasz_ce",
@@ -140,19 +141,20 @@ def test_write_trial_config_persists_knobs(tmp_path: Path):
 
     saved = json.loads((tmp_path / "trial001.config.json").read_text(encoding="utf-8"))
     assert saved["trial"] == "trial001"
+    assert saved["index"] == 7
     assert saved["architecture"] == "fpn"
     assert saved["sampler"] == "rare_fg"
 
 
 def test_write_trial_plan_persists_trial_list(tmp_path: Path):
-    trials = [{"trial": "trial001"}, {"trial": "trial002"}]
+    trials = [{"index": 1, "trial": "trial001"}, {"index": 2, "trial": "trial002"}]
 
     sweep.write_trial_plan(tmp_path, trials)
 
     saved = json.loads((tmp_path / "trial_plan.json").read_text(encoding="utf-8"))
     saved_md = (tmp_path / "trial_plan.md").read_text(encoding="utf-8")
     assert saved == trials
-    assert saved_md.startswith("| trial | architecture |")
+    assert saved_md.startswith("| index | trial |")
 
 
 def test_output_paths_summary_lists_sweep_artifacts(tmp_path: Path):
@@ -282,6 +284,7 @@ def test_main_reuses_existing_metrics_when_skip_existing(tmp_path: Path, monkeyp
     assert run_summary["selection_metric"] == "val_mean_dice_fg"
     assert slug in run_summary_md
     assert trial_config["trial"] == slug
+    assert trial_config["index"] == 1
     assert trial_config["architecture"] == "fpn"
 
 

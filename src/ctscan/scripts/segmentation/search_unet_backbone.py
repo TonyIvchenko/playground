@@ -205,6 +205,7 @@ def result_row_from_metrics(
 
 def trial_config_row(
     slug: str,
+    index: int,
     architecture: str,
     encoder: str,
     loss_name: str,
@@ -225,6 +226,7 @@ def trial_config_row(
 ) -> dict[str, Any]:
     return {
         "trial": slug,
+        "index": int(index),
         "architecture": architecture,
         "encoder": encoder,
         "loss": loss_name,
@@ -355,14 +357,15 @@ def write_trial_plan(output_dir: Path, trials: list[dict[str, Any]]) -> None:
         (output_dir / "trial_plan.md").write_text("", encoding="utf-8")
         return
     lines = [
-        "| trial | architecture | encoder | loss | optimizer | image_size | batch_size |",
-        "| --- | --- | --- | --- | --- | ---: | ---: |",
+        "| index | trial | architecture | encoder | loss | optimizer | image_size | batch_size |",
+        "| ---: | --- | --- | --- | --- | --- | ---: | ---: |",
     ]
     for row in trials:
         lines.append(
             "| "
             + " | ".join(
                 [
+                    str(row.get("index", "")),
                     str(row.get("trial", "")),
                     str(row.get("architecture", "")),
                     str(row.get("encoder", "")),
@@ -563,6 +566,7 @@ def main() -> int:
                 fpn_decoder_dropout=max(float(args.fpn_decoder_dropout), 0.0),
                 fpn_decoder_merge_policy=str(args.fpn_decoder_merge_policy).strip().lower(),
             ),
+            index=index,
             architecture=architecture,
             encoder=encoder,
             loss_name=loss_name,
@@ -617,6 +621,7 @@ def main() -> int:
         print(f"[{index}/{total}] {slug}")
         trial_config = trial_config_row(
             slug=slug,
+            index=index,
             architecture=architecture,
             encoder=encoder,
             loss_name=loss_name,
