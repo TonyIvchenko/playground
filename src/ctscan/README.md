@@ -343,12 +343,14 @@ python scripts/segmentation/search_unet_backbone.py \
 - Add `--list-encoders` to print the available SMP encoder backbones for the sweep runner.
 - Add `--list-losses` to print the supported sweep losses.
 - Add `--list-optimizers` to print the supported sweep optimizers.
+- Add `--list-class-weight-modes` to print the supported sweep class-weight modes.
 - Add `--list-schedulers` to print the supported sweep schedulers.
 - Add `--list-samplers` to print the supported sweep samplers.
 - Add `--list-augmentations` to print the supported sweep augmentations.
 - Add `--list-metrics` to print the supported sweep metrics.
 - Sweep metric names are validated up front, so typos in `--sort-metric` or `--selection-metric` fail fast.
 - Sweep architecture, loss, and optimizer families are also validated up front before trial planning starts.
+- Sweep class-weight modes are also validated up front.
 - Sweep scheduler, sampler, and augmentation names are also validated before trial planning starts.
 - Each trial also writes `model/backbone_search/<trial>.config.json` with the resolved knob values.
 - Add `--dry-run` to print the planned trial slugs without starting training.
