@@ -310,6 +310,14 @@ def test_parse_args_accepts_list_class_weight_modes(monkeypatch):
     assert config.list_class_weight_modes is True
 
 
+def test_parse_args_accepts_list_devices(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--list-devices"])
+
+    config = parse_args()
+
+    assert config.list_devices is True
+
+
 def test_parse_args_accepts_list_schedulers(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--list-schedulers"])
 
@@ -663,6 +671,16 @@ def test_main_list_class_weight_modes_prints_supported_names(monkeypatch, capsys
     assert "inverse_sqrt" in output
 
 
+def test_main_list_devices_prints_supported_names(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--list-devices"])
+
+    assert main() == 0
+
+    output = capsys.readouterr().out.splitlines()
+    assert "auto" in output
+    assert "mps" in output
+
+
 def test_main_list_schedulers_prints_supported_names(monkeypatch, capsys):
     monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--list-schedulers"])
 
@@ -784,6 +802,27 @@ def test_main_rejects_unknown_class_weight_mode(monkeypatch):
         assert "inverse_sqrt" in str(exc)
     else:  # pragma: no cover - defensive
         raise AssertionError("expected invalid class weight mode to fail")
+
+
+def test_main_rejects_unknown_device(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "train_unet_backbone.py",
+            "--device",
+            "bogus_device",
+            "--dry-run",
+        ],
+    )
+
+    try:
+        main()
+    except ValueError as exc:
+        assert "unsupported --device" in str(exc)
+        assert "mps" in str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("expected invalid device to fail")
 
 
 def test_main_inspect_splits_prints_dataset_counts(tmp_path: Path, monkeypatch, capsys):

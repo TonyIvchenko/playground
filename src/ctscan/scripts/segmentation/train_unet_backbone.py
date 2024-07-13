@@ -56,6 +56,7 @@ SUPPORTED_ARCHITECTURES = ["unet", "unetplusplus", "fpn", "deeplabv3plus", "mane
 SUPPORTED_OPTIMIZERS = ["adam", "adamw"]
 SUPPORTED_LOSSES = ["ce", "dice_ce", "tversky_ce", "lovasz_ce", "focal"]
 SUPPORTED_CLASS_WEIGHT_MODES = ["none", "inverse", "inverse_sqrt"]
+SUPPORTED_DEVICE_CHOICES = ["auto", "cpu", "cuda", "mps"]
 SUPPORTED_SCHEDULERS = ["none", "onecycle"]
 SUPPORTED_SAMPLERS = ["none", "rare_fg"]
 SUPPORTED_AUGMENTATIONS = ["none", "light"]
@@ -108,6 +109,7 @@ class TrainConfig:
     list_losses: bool = False
     list_optimizers: bool = False
     list_class_weight_modes: bool = False
+    list_devices: bool = False
     list_schedulers: bool = False
     list_samplers: bool = False
     list_augmentations: bool = False
@@ -210,6 +212,7 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--list-losses", action="store_true")
     parser.add_argument("--list-optimizers", action="store_true")
     parser.add_argument("--list-class-weight-modes", action="store_true")
+    parser.add_argument("--list-devices", action="store_true")
     parser.add_argument("--list-schedulers", action="store_true")
     parser.add_argument("--list-samplers", action="store_true")
     parser.add_argument("--list-augmentations", action="store_true")
@@ -261,6 +264,7 @@ def parse_args() -> TrainConfig:
         list_losses=bool(args.list_losses),
         list_optimizers=bool(args.list_optimizers),
         list_class_weight_modes=bool(args.list_class_weight_modes),
+        list_devices=bool(args.list_devices),
         list_schedulers=bool(args.list_schedulers),
         list_samplers=bool(args.list_samplers),
         list_augmentations=bool(args.list_augmentations),
@@ -1018,6 +1022,10 @@ def main() -> int:
         for weight_mode in SUPPORTED_CLASS_WEIGHT_MODES:
             print(weight_mode)
         return 0
+    if config.list_devices:
+        for device_name in SUPPORTED_DEVICE_CHOICES:
+            print(device_name)
+        return 0
     if config.list_schedulers:
         for scheduler_name in SUPPORTED_SCHEDULERS:
             print(scheduler_name)
@@ -1047,6 +1055,7 @@ def main() -> int:
         SUPPORTED_CLASS_WEIGHT_MODES,
         "--class-weight-mode",
     )
+    config.device = validate_choice(config.device, SUPPORTED_DEVICE_CHOICES, "--device")
     config.scheduler_name = validate_choice(config.scheduler_name, SUPPORTED_SCHEDULERS, "--scheduler")
     config.sampler_name = validate_choice(config.sampler_name, SUPPORTED_SAMPLERS, "--sampler")
     config.augmentation_name = validate_choice(config.augmentation_name, SUPPORTED_AUGMENTATIONS, "--augmentation")
