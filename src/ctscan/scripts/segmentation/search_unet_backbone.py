@@ -14,6 +14,7 @@ try:
         SUPPORTED_ARCHITECTURES,
         SUPPORTED_AUGMENTATIONS,
         SUPPORTED_CLASS_WEIGHT_MODES,
+        SUPPORTED_DEVICE_CHOICES,
         SUPPORTED_LOSSES,
         SUPPORTED_OPTIMIZERS,
         SUPPORTED_SAMPLERS,
@@ -31,6 +32,7 @@ except ImportError:  # pragma: no cover - script execution path
         SUPPORTED_ARCHITECTURES,
         SUPPORTED_AUGMENTATIONS,
         SUPPORTED_CLASS_WEIGHT_MODES,
+        SUPPORTED_DEVICE_CHOICES,
         SUPPORTED_LOSSES,
         SUPPORTED_OPTIMIZERS,
         SUPPORTED_SAMPLERS,
@@ -454,6 +456,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--list-losses", action="store_true")
     parser.add_argument("--list-optimizers", action="store_true")
     parser.add_argument("--list-class-weight-modes", action="store_true")
+    parser.add_argument("--list-devices", action="store_true")
     parser.add_argument("--list-schedulers", action="store_true")
     parser.add_argument("--list-samplers", action="store_true")
     parser.add_argument("--list-augmentations", action="store_true")
@@ -492,6 +495,10 @@ def main() -> int:
         for weight_mode in SUPPORTED_CLASS_WEIGHT_MODES:
             print(weight_mode)
         return 0
+    if args.list_devices:
+        for device_name in SUPPORTED_DEVICE_CHOICES:
+            print(device_name)
+        return 0
     if args.list_schedulers:
         for scheduler_name in SUPPORTED_SCHEDULERS:
             print(scheduler_name)
@@ -519,6 +526,7 @@ def main() -> int:
         SUPPORTED_CLASS_WEIGHT_MODES,
         "--class-weight-mode",
     )
+    args.device = validate_choice(args.device, SUPPORTED_DEVICE_CHOICES, "--device")
     args.sampler = validate_choice(args.sampler, SUPPORTED_SAMPLERS, "--sampler")
     args.augmentation = validate_choice(args.augmentation, SUPPORTED_AUGMENTATIONS, "--augmentation")
 

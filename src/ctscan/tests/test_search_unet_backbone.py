@@ -361,6 +361,14 @@ def test_parse_args_accepts_list_class_weight_modes(monkeypatch):
     assert args.list_class_weight_modes is True
 
 
+def test_parse_args_accepts_list_devices(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["search_unet_backbone.py", "--list-devices"])
+
+    args = sweep.parse_args()
+
+    assert args.list_devices is True
+
+
 def test_parse_args_accepts_list_schedulers(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["search_unet_backbone.py", "--list-schedulers"])
 
@@ -503,6 +511,16 @@ def test_main_list_class_weight_modes_prints_supported_names(monkeypatch, capsys
     output = capsys.readouterr().out.splitlines()
     assert "none" in output
     assert "inverse_sqrt" in output
+
+
+def test_main_list_devices_prints_supported_names(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["search_unet_backbone.py", "--list-devices"])
+
+    assert sweep.main() == 0
+
+    output = capsys.readouterr().out.splitlines()
+    assert "auto" in output
+    assert "mps" in output
 
 
 def test_main_list_schedulers_prints_supported_names(monkeypatch, capsys):
@@ -692,6 +710,31 @@ def test_main_rejects_unknown_class_weight_mode(tmp_path: Path, monkeypatch):
         assert "inverse_sqrt" in str(exc)
     else:  # pragma: no cover - defensive
         raise AssertionError("expected invalid class weight mode to fail")
+
+
+def test_main_rejects_unknown_device(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "search_unet_backbone.py",
+            "--slice-dir",
+            str(tmp_path / "slice_dataset"),
+            "--output-dir",
+            str(tmp_path / "search"),
+            "--device",
+            "bogus_device",
+            "--dry-run",
+        ],
+    )
+
+    try:
+        sweep.main()
+    except ValueError as exc:
+        assert "unsupported --device" in str(exc)
+        assert "mps" in str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("expected invalid device to fail")
 
 
 def test_main_dry_run_respects_trial_window(tmp_path: Path, monkeypatch, capsys):
