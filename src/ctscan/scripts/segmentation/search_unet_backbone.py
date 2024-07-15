@@ -15,6 +15,7 @@ try:
         SUPPORTED_AUGMENTATIONS,
         SUPPORTED_CLASS_WEIGHT_MODES,
         SUPPORTED_DEVICE_CHOICES,
+        SUPPORTED_ENCODER_WEIGHTS,
         SUPPORTED_LOSSES,
         SUPPORTED_OPTIMIZERS,
         SUPPORTED_SAMPLERS,
@@ -33,6 +34,7 @@ except ImportError:  # pragma: no cover - script execution path
         SUPPORTED_AUGMENTATIONS,
         SUPPORTED_CLASS_WEIGHT_MODES,
         SUPPORTED_DEVICE_CHOICES,
+        SUPPORTED_ENCODER_WEIGHTS,
         SUPPORTED_LOSSES,
         SUPPORTED_OPTIMIZERS,
         SUPPORTED_SAMPLERS,
@@ -453,6 +455,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--list-architectures", action="store_true")
     parser.add_argument("--list-encoders", action="store_true")
+    parser.add_argument("--list-encoder-weights", action="store_true")
     parser.add_argument("--list-losses", action="store_true")
     parser.add_argument("--list-optimizers", action="store_true")
     parser.add_argument("--list-class-weight-modes", action="store_true")
@@ -482,6 +485,10 @@ def main() -> int:
     if args.list_encoders:
         for encoder_name in available_encoder_names():
             print(encoder_name)
+        return 0
+    if args.list_encoder_weights:
+        for encoder_weight in SUPPORTED_ENCODER_WEIGHTS:
+            print(encoder_weight)
         return 0
     if args.list_losses:
         for loss_name in SUPPORTED_LOSSES:
@@ -541,7 +548,9 @@ def main() -> int:
     batch_sizes = require_nonempty(parse_int_list(args.batch_sizes), "--batch-sizes")
     learning_rates = require_nonempty(parse_float_list(args.learning_rates), "--learning-rates")
     weight_decays = require_nonempty(parse_float_list(args.weight_decays), "--weight-decays")
-    encoder_weights = None if str(args.encoder_weights).strip().lower() in {"", "none"} else str(args.encoder_weights)
+    encoder_weight_name = "none" if str(args.encoder_weights).strip().lower() in {"", "none"} else str(args.encoder_weights).strip().lower()
+    encoder_weight_name = validate_choice(encoder_weight_name, SUPPORTED_ENCODER_WEIGHTS, "--encoder-weights")
+    encoder_weights = None if encoder_weight_name == "none" else encoder_weight_name
 
     trials = list(
         itertools.product(

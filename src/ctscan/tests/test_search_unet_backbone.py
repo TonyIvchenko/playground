@@ -337,6 +337,14 @@ def test_parse_args_accepts_list_encoders(monkeypatch):
     assert args.list_encoders is True
 
 
+def test_parse_args_accepts_list_encoder_weights(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["search_unet_backbone.py", "--list-encoder-weights"])
+
+    args = sweep.parse_args()
+
+    assert args.list_encoder_weights is True
+
+
 def test_parse_args_accepts_list_losses(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["search_unet_backbone.py", "--list-losses"])
 
@@ -481,6 +489,16 @@ def test_main_list_encoders_prints_supported_names(monkeypatch, capsys):
     output = capsys.readouterr().out.splitlines()
     assert "resnet18" in output
     assert "efficientnet-b1" in output
+
+
+def test_main_list_encoder_weights_prints_supported_names(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["search_unet_backbone.py", "--list-encoder-weights"])
+
+    assert sweep.main() == 0
+
+    output = capsys.readouterr().out.splitlines()
+    assert "imagenet" in output
+    assert "none" in output
 
 
 def test_main_list_losses_prints_supported_names(monkeypatch, capsys):
@@ -735,6 +753,31 @@ def test_main_rejects_unknown_device(tmp_path: Path, monkeypatch):
         assert "mps" in str(exc)
     else:  # pragma: no cover - defensive
         raise AssertionError("expected invalid device to fail")
+
+
+def test_main_rejects_unknown_encoder_weights(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "search_unet_backbone.py",
+            "--slice-dir",
+            str(tmp_path / "slice_dataset"),
+            "--output-dir",
+            str(tmp_path / "search"),
+            "--encoder-weights",
+            "bogus_weights",
+            "--dry-run",
+        ],
+    )
+
+    try:
+        sweep.main()
+    except ValueError as exc:
+        assert "unsupported --encoder-weights" in str(exc)
+        assert "imagenet" in str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("expected invalid encoder weights to fail")
 
 
 def test_main_dry_run_respects_trial_window(tmp_path: Path, monkeypatch, capsys):
