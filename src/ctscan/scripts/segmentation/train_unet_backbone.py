@@ -53,6 +53,7 @@ PRESET_DEFAULTS: dict[str, dict[str, Any]] = {
     },
 }
 SUPPORTED_ARCHITECTURES = ["unet", "unetplusplus", "fpn", "deeplabv3plus", "manet"]
+SUPPORTED_ENCODER_WEIGHTS = ["imagenet", "none"]
 SUPPORTED_OPTIMIZERS = ["adam", "adamw"]
 SUPPORTED_LOSSES = ["ce", "dice_ce", "tversky_ce", "lovasz_ce", "focal"]
 SUPPORTED_CLASS_WEIGHT_MODES = ["none", "inverse", "inverse_sqrt"]
@@ -106,6 +107,7 @@ class TrainConfig:
     list_presets: bool = False
     list_architectures: bool = False
     list_encoders: bool = False
+    list_encoder_weights: bool = False
     list_losses: bool = False
     list_optimizers: bool = False
     list_class_weight_modes: bool = False
@@ -209,6 +211,7 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--list-presets", action="store_true")
     parser.add_argument("--list-architectures", action="store_true")
     parser.add_argument("--list-encoders", action="store_true")
+    parser.add_argument("--list-encoder-weights", action="store_true")
     parser.add_argument("--list-losses", action="store_true")
     parser.add_argument("--list-optimizers", action="store_true")
     parser.add_argument("--list-class-weight-modes", action="store_true")
@@ -261,6 +264,7 @@ def parse_args() -> TrainConfig:
         list_presets=bool(args.list_presets),
         list_architectures=bool(args.list_architectures),
         list_encoders=bool(args.list_encoders),
+        list_encoder_weights=bool(args.list_encoder_weights),
         list_losses=bool(args.list_losses),
         list_optimizers=bool(args.list_optimizers),
         list_class_weight_modes=bool(args.list_class_weight_modes),
@@ -1010,6 +1014,10 @@ def main() -> int:
         for encoder_name in available_encoder_names():
             print(encoder_name)
         return 0
+    if config.list_encoder_weights:
+        for encoder_weight in SUPPORTED_ENCODER_WEIGHTS:
+            print(encoder_weight)
+        return 0
     if config.list_losses:
         for loss_name in SUPPORTED_LOSSES:
             print(loss_name)
@@ -1048,6 +1056,9 @@ def main() -> int:
         "--selection-metric",
     )
     config.architecture = validate_choice(config.architecture, SUPPORTED_ARCHITECTURES, "--architecture")
+    encoder_weight_name = "none" if config.encoder_weights is None else str(config.encoder_weights).strip().lower()
+    encoder_weight_name = validate_choice(encoder_weight_name, SUPPORTED_ENCODER_WEIGHTS, "--encoder-weights")
+    config.encoder_weights = None if encoder_weight_name == "none" else encoder_weight_name
     config.optimizer_name = validate_choice(config.optimizer_name, SUPPORTED_OPTIMIZERS, "--optimizer")
     config.loss_name = validate_choice(config.loss_name, SUPPORTED_LOSSES, "--loss")
     config.class_weight_mode = validate_choice(

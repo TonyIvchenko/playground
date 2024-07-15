@@ -286,6 +286,14 @@ def test_parse_args_accepts_list_encoders(monkeypatch):
     assert config.list_encoders is True
 
 
+def test_parse_args_accepts_list_encoder_weights(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--list-encoder-weights"])
+
+    config = parse_args()
+
+    assert config.list_encoder_weights is True
+
+
 def test_parse_args_accepts_list_losses(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--list-losses"])
 
@@ -641,6 +649,16 @@ def test_main_list_encoders_prints_supported_names(monkeypatch, capsys):
     assert "efficientnet-b1" in output
 
 
+def test_main_list_encoder_weights_prints_supported_names(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--list-encoder-weights"])
+
+    assert main() == 0
+
+    output = capsys.readouterr().out.splitlines()
+    assert "imagenet" in output
+    assert "none" in output
+
+
 def test_main_list_losses_prints_supported_names(monkeypatch, capsys):
     monkeypatch.setattr(sys, "argv", ["train_unet_backbone.py", "--list-losses"])
 
@@ -823,6 +841,27 @@ def test_main_rejects_unknown_device(monkeypatch):
         assert "mps" in str(exc)
     else:  # pragma: no cover - defensive
         raise AssertionError("expected invalid device to fail")
+
+
+def test_main_rejects_unknown_encoder_weights(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "train_unet_backbone.py",
+            "--encoder-weights",
+            "bogus_weights",
+            "--dry-run",
+        ],
+    )
+
+    try:
+        main()
+    except ValueError as exc:
+        assert "unsupported --encoder-weights" in str(exc)
+        assert "imagenet" in str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("expected invalid encoder weights to fail")
 
 
 def test_main_inspect_splits_prints_dataset_counts(tmp_path: Path, monkeypatch, capsys):

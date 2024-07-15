@@ -283,6 +283,7 @@ Notes:
 - Add `--list-presets` to print the available trainer presets.
 - Add `--list-architectures` to print the supported trainer architectures.
 - Add `--list-encoders` to print the available SMP encoder backbones for the trainer.
+- Add `--list-encoder-weights` to print the supported trainer encoder-weight selectors.
 - Add `--list-losses` to print the supported trainer losses.
 - Add `--list-optimizers` to print the supported trainer optimizers.
 - Add `--list-class-weight-modes` to print the supported trainer class-weight modes.
@@ -295,6 +296,7 @@ Notes:
 - Core trainer choices like `--architecture`, `--loss`, and `--optimizer` are also validated up front.
 - Trainer class-weight modes are also validated up front.
 - Trainer device selectors are also validated up front.
+- Trainer encoder-weight selectors are also validated up front.
 - Scheduler, sampler, and augmentation names are also validated before the trainer starts.
 - Add `--inspect-splits` to print train/val/test row counts before starting a run.
 - Split inspection also reports whether rows came from `splits/*.csv` or `splits.json`, plus the exact source path for each split.
