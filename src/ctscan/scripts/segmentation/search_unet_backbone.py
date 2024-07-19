@@ -214,6 +214,7 @@ def trial_config_row(
     index: int,
     architecture: str,
     encoder: str,
+    encoder_weights: str | None,
     loss_name: str,
     optimizer_name: str,
     image_size: int,
@@ -235,6 +236,7 @@ def trial_config_row(
         "index": int(index),
         "architecture": architecture,
         "encoder": encoder,
+        "encoder_weights": encoder_weights,
         "loss": loss_name,
         "optimizer": optimizer_name,
         "image_size": image_size,
@@ -363,8 +365,8 @@ def write_trial_plan(output_dir: Path, trials: list[dict[str, Any]]) -> None:
         (output_dir / "trial_plan.md").write_text("", encoding="utf-8")
         return
     lines = [
-        "| index | trial | architecture | encoder | loss | optimizer | image_size | batch_size |",
-        "| ---: | --- | --- | --- | --- | --- | ---: | ---: |",
+        "| index | trial | architecture | encoder | encoder_weights | loss | optimizer | image_size | batch_size |",
+        "| ---: | --- | --- | --- | --- | --- | --- | ---: | ---: |",
     ]
     for row in trials:
         lines.append(
@@ -375,6 +377,7 @@ def write_trial_plan(output_dir: Path, trials: list[dict[str, Any]]) -> None:
                     str(row.get("trial", "")),
                     str(row.get("architecture", "")),
                     str(row.get("encoder", "")),
+                    str(row.get("encoder_weights", "")),
                     str(row.get("loss", "")),
                     str(row.get("optimizer", "")),
                     str(row.get("image_size", "")),
@@ -598,6 +601,7 @@ def main() -> int:
             index=index,
             architecture=architecture,
             encoder=encoder,
+            encoder_weights=encoder_weights,
             loss_name=loss_name,
             optimizer_name=optimizer_name,
             image_size=image_size,
@@ -653,6 +657,7 @@ def main() -> int:
             index=index,
             architecture=architecture,
             encoder=encoder,
+            encoder_weights=encoder_weights,
             loss_name=loss_name,
             optimizer_name=optimizer_name,
             image_size=image_size,

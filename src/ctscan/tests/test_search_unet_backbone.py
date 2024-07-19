@@ -120,6 +120,7 @@ def test_write_trial_config_persists_knobs(tmp_path: Path):
         index=7,
         architecture="fpn",
         encoder="efficientnet-b1",
+        encoder_weights="imagenet",
         loss_name="lovasz_ce",
         optimizer_name="adamw",
         image_size=320,
@@ -143,18 +144,33 @@ def test_write_trial_config_persists_knobs(tmp_path: Path):
     assert saved["trial"] == "trial001"
     assert saved["index"] == 7
     assert saved["architecture"] == "fpn"
+    assert saved["encoder_weights"] == "imagenet"
     assert saved["sampler"] == "rare_fg"
 
 
 def test_write_trial_plan_persists_trial_list(tmp_path: Path):
-    trials = [{"index": 1, "trial": "trial001"}, {"index": 2, "trial": "trial002"}]
+    trials = [
+        {
+            "index": 1,
+            "trial": "trial001",
+            "architecture": "fpn",
+            "encoder": "efficientnet-b1",
+            "encoder_weights": "imagenet",
+            "loss": "lovasz_ce",
+            "optimizer": "adamw",
+            "image_size": 320,
+            "batch_size": 6,
+        },
+        {"index": 2, "trial": "trial002", "encoder_weights": None},
+    ]
 
     sweep.write_trial_plan(tmp_path, trials)
 
     saved = json.loads((tmp_path / "trial_plan.json").read_text(encoding="utf-8"))
     saved_md = (tmp_path / "trial_plan.md").read_text(encoding="utf-8")
     assert saved == trials
-    assert saved_md.startswith("| index | trial |")
+    assert saved_md.startswith("| index | trial | architecture | encoder | encoder_weights |")
+    assert "| 1 | trial001 | fpn | efficientnet-b1 | imagenet | lovasz_ce | adamw | 320 | 6 |" in saved_md
 
 
 def test_output_paths_summary_lists_sweep_artifacts(tmp_path: Path):
@@ -286,6 +302,7 @@ def test_main_reuses_existing_metrics_when_skip_existing(tmp_path: Path, monkeyp
     assert trial_config["trial"] == slug
     assert trial_config["index"] == 1
     assert trial_config["architecture"] == "fpn"
+    assert trial_config["encoder_weights"] == "imagenet"
 
 
 def test_parse_args_accepts_top_k(monkeypatch):
