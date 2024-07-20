@@ -561,18 +561,22 @@ def main() -> int:
     encoder_weight_name = validate_choice(encoder_weight_name, SUPPORTED_ENCODER_WEIGHTS, "--encoder-weights")
     encoder_weights = None if encoder_weight_name == "none" else encoder_weight_name
 
-    trials = list(
-        itertools.product(
-            architectures,
-            encoders,
-            losses,
-            optimizers,
-            image_sizes,
-            batch_sizes,
-            learning_rates,
-            weight_decays,
+    all_trials = list(
+        enumerate(
+            itertools.product(
+                architectures,
+                encoders,
+                losses,
+                optimizers,
+                image_sizes,
+                batch_sizes,
+                learning_rates,
+                weight_decays,
+            ),
+            start=1,
         )
     )
+    trials = list(all_trials)
     start_index = max(int(args.start_index), 1)
     end_index = int(args.end_index)
     if end_index > 0:
@@ -624,7 +628,7 @@ def main() -> int:
             fpn_decoder_dropout=max(float(args.fpn_decoder_dropout), 0.0),
             fpn_decoder_merge_policy=str(args.fpn_decoder_merge_policy).strip().lower(),
         )
-        for index, (architecture, encoder, loss_name, optimizer_name, image_size, batch_size, learning_rate, weight_decay) in enumerate(trials, start=1)
+        for index, (architecture, encoder, loss_name, optimizer_name, image_size, batch_size, learning_rate, weight_decay) in trials
     ]
     write_trial_plan(output_dir, planned_trials)
 
@@ -636,7 +640,7 @@ def main() -> int:
 
     results: list[dict[str, Any]] = []
     total = len(trials)
-    for index, (architecture, encoder, loss_name, optimizer_name, image_size, batch_size, learning_rate, weight_decay) in enumerate(trials, start=1):
+    for position, (index, (architecture, encoder, loss_name, optimizer_name, image_size, batch_size, learning_rate, weight_decay)) in enumerate(trials, start=1):
         slug = build_trial_slug(
             index=index,
             architecture=architecture,
@@ -657,7 +661,7 @@ def main() -> int:
             fpn_decoder_dropout=max(float(args.fpn_decoder_dropout), 0.0),
             fpn_decoder_merge_policy=str(args.fpn_decoder_merge_policy).strip().lower(),
         )
-        print(f"[{index}/{total}] {slug}")
+        print(f"[{position}/{total}] {slug}")
         trial_config = trial_config_row(
             slug=slug,
             index=index,

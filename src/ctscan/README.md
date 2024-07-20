@@ -342,7 +342,7 @@ python scripts/segmentation/search_unet_backbone.py \
 - The run summary also records both the leaderboard sort metric and the trainer selection metric.
 - Each sweep also writes `model/backbone_search/trial_plan.json` with the resolved planned trials.
 - A Markdown version of the plan is also written to `model/backbone_search/trial_plan.md`.
-- Trial plans now include the resolved 1-based trial index, which helps when chunking sweeps with `--start-index` and `--end-index`.
+- Trial plans now include the original 1-based trial index, so chunked sweeps keep the same numbering as the full grid.
 - Trial plans and per-trial `*.config.json` snapshots now also record the resolved encoder-weight selector.
 - Add `--show-output-paths` to print all sweep artifact paths before running anything.
 - Add `--list-architectures` to print the supported sweep architectures.

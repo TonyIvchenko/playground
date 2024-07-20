@@ -838,7 +838,10 @@ def test_main_dry_run_respects_trial_window(tmp_path: Path, monkeypatch, capsys)
     assert sweep.main() == 0
 
     output = capsys.readouterr().out
-    assert "001_unet_efficientnet-b1_lovasz_ce_adamw_img320_bs6_lr0.0002_wd0.0001" in output
+    plan = json.loads((tmp_path / "search" / "trial_plan.json").read_text(encoding="utf-8"))
+    assert "002_unet_efficientnet-b1_lovasz_ce_adamw_img320_bs6_lr0.0002_wd0.0001" in output
+    assert plan[0]["index"] == 2
+    assert plan[0]["trial"] == "002_unet_efficientnet-b1_lovasz_ce_adamw_img320_bs6_lr0.0002_wd0.0001"
     assert "fpn_efficientnet-b1" not in output
 
 
