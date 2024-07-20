@@ -56,6 +56,7 @@ LEADERBOARD_FIELD_ORDER = [
     "trial",
     "architecture",
     "encoder",
+    "encoder_weights",
     "loss",
     "optimizer",
     "image_size",
@@ -164,6 +165,7 @@ def result_row_from_metrics(
     metrics: dict[str, Any],
     architecture: str,
     encoder: str,
+    encoder_weights: str | None,
     loss_name: str,
     optimizer_name: str,
     image_size: int,
@@ -186,6 +188,7 @@ def result_row_from_metrics(
         "trial": slug,
         "architecture": architecture,
         "encoder": encoder,
+        "encoder_weights": encoder_weights,
         "loss": loss_name,
         "optimizer": optimizer_name,
         "image_size": image_size,
@@ -276,8 +279,8 @@ def write_leaderboard(output_dir: Path, rows: list[dict[str, Any]]) -> None:
         writer.writeheader()
         writer.writerows(rows)
     markdown_lines = [
-        "| trial | val_mean_dice_fg | val_mean_iou_fg | val_loss | test_mean_dice_fg | error |",
-        "| --- | ---: | ---: | ---: | ---: | --- |",
+        "| trial | encoder | encoder_weights | val_mean_dice_fg | val_mean_iou_fg | val_loss | test_mean_dice_fg | error |",
+        "| --- | --- | --- | ---: | ---: | ---: | ---: | --- |",
     ]
     for row in rows:
         markdown_lines.append(
@@ -285,6 +288,8 @@ def write_leaderboard(output_dir: Path, rows: list[dict[str, Any]]) -> None:
             + " | ".join(
                 [
                     str(row.get("trial", "")),
+                    str(row.get("encoder", "")),
+                    str(row.get("encoder_weights", "")),
                     f"{float(row.get('val_mean_dice_fg', 0.0)):.4f}" if "val_mean_dice_fg" in row else "",
                     f"{float(row.get('val_mean_iou_fg', 0.0)):.4f}" if "val_mean_iou_fg" in row else "",
                     f"{float(row.get('val_loss', 0.0)):.4f}" if "val_loss" in row else "",
@@ -304,6 +309,7 @@ def write_leaderboard(output_dir: Path, rows: list[dict[str, Any]]) -> None:
                 "",
                 f"- architecture: `{best.get('architecture', '')}`",
                 f"- encoder: `{best.get('encoder', '')}`",
+                f"- encoder weights: `{best.get('encoder_weights', '')}`",
                 f"- loss: `{best.get('loss', '')}`",
                 f"- optimizer: `{best.get('optimizer', '')}`",
                 f"- val dice fg: `{float(best.get('val_mean_dice_fg', 0.0)):.4f}`" if "val_mean_dice_fg" in best else "- val dice fg: ``",
@@ -724,6 +730,7 @@ def main() -> int:
                     metrics=metrics,
                     architecture=architecture,
                     encoder=encoder,
+                    encoder_weights=encoder_weights,
                     loss_name=loss_name,
                     optimizer_name=optimizer_name,
                     image_size=image_size,
@@ -747,6 +754,7 @@ def main() -> int:
                     "trial": slug,
                     "architecture": architecture,
                     "encoder": encoder,
+                    "encoder_weights": encoder_weights,
                     "loss": loss_name,
                     "optimizer": optimizer_name,
                     "image_size": image_size,

@@ -19,6 +19,7 @@ def test_result_row_from_metrics_extracts_final_metrics():
         },
         architecture="fpn",
         encoder="efficientnet-b1",
+        encoder_weights="imagenet",
         loss_name="lovasz_ce",
         optimizer_name="adamw",
         image_size=320,
@@ -37,6 +38,7 @@ def test_result_row_from_metrics_extracts_final_metrics():
     )
 
     assert row["trial"] == "trial001"
+    assert row["encoder_weights"] == "imagenet"
     assert row["val_loss"] == 0.3
     assert row["val_mean_iou_fg"] == 0.4
     assert row["val_mean_dice_fg"] == 0.5
@@ -61,8 +63,8 @@ def test_require_nonempty_rejects_empty_lists():
 
 def test_write_leaderboard_writes_json_and_csv(tmp_path: Path):
     rows = [
-        {"trial": "a", "val_mean_dice_fg": 0.5, "val_loss": 0.2},
-        {"trial": "b", "val_mean_dice_fg": 0.4, "val_loss": 0.3},
+        {"trial": "a", "encoder": "efficientnet-b1", "encoder_weights": "imagenet", "val_mean_dice_fg": 0.5, "val_loss": 0.2},
+        {"trial": "b", "encoder": "resnet18", "encoder_weights": None, "val_mean_dice_fg": 0.4, "val_loss": 0.3},
     ]
 
     sweep.write_leaderboard(tmp_path, rows)
@@ -75,10 +77,11 @@ def test_write_leaderboard_writes_json_and_csv(tmp_path: Path):
 
     assert leaderboard_json[0]["trial"] == "a"
     assert best_trial_json["trial"] == "a"
-    assert leaderboard_csv.startswith("trial,val_mean_dice_fg,val_loss")
-    assert leaderboard_md.startswith("| trial | val_mean_dice_fg |")
-    assert "| a | 0.5000 |" in leaderboard_md
+    assert leaderboard_csv.startswith("trial,encoder,encoder_weights,val_mean_dice_fg,val_loss")
+    assert leaderboard_md.startswith("| trial | encoder | encoder_weights | val_mean_dice_fg |")
+    assert "| a | efficientnet-b1 | imagenet | 0.5000 |" in leaderboard_md
     assert best_trial_md.startswith("# a")
+    assert "- encoder weights: `imagenet`" in best_trial_md
     assert "- val dice fg: `0.5000`" in best_trial_md
     assert "a" in leaderboard_csv
     assert "b" in leaderboard_csv

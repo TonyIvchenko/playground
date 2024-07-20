@@ -335,6 +335,7 @@ python scripts/segmentation/search_unet_backbone.py \
 - A Markdown summary is also written to `model/backbone_search/leaderboard.md`.
 - The current winner is also written to `model/backbone_search/best_trial.json`.
 - A human-readable winner card is also written to `model/backbone_search/best_trial.md`.
+- Leaderboard rows and winner cards now include the resolved encoder-weight selector too.
 - Each sweep also writes `model/backbone_search/run_summary.json` with overall trial counts.
 - A Markdown version of the run summary is also written to `model/backbone_search/run_summary.md`.
 - `--show-output-paths` now includes both run-summary paths, not just the JSON one.
