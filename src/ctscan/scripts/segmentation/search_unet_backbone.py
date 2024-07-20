@@ -545,6 +545,10 @@ def main() -> int:
     args.device = validate_choice(args.device, SUPPORTED_DEVICE_CHOICES, "--device")
     args.sampler = validate_choice(args.sampler, SUPPORTED_SAMPLERS, "--sampler")
     args.augmentation = validate_choice(args.augmentation, SUPPORTED_AUGMENTATIONS, "--augmentation")
+    if int(args.start_index) < 1:
+        raise ValueError("--start-index must be >= 1")
+    if int(args.end_index) > 0 and int(args.end_index) < int(args.start_index):
+        raise ValueError("--end-index must be >= --start-index")
 
     architectures = require_nonempty(parse_list(args.architectures), "--architectures")
     encoders = require_nonempty(parse_list(args.encoders), "--encoders")
@@ -577,7 +581,7 @@ def main() -> int:
         )
     )
     trials = list(all_trials)
-    start_index = max(int(args.start_index), 1)
+    start_index = int(args.start_index)
     end_index = int(args.end_index)
     if end_index > 0:
         trials = trials[start_index - 1 : end_index]

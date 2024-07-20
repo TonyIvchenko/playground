@@ -368,6 +368,7 @@ python scripts/segmentation/search_unet_backbone.py \
 - Empty comma-separated sweep knobs now fail fast instead of silently producing an empty sweep.
 - Add `--fail-fast` to stop immediately after the first failed trial.
 - Use `--start-index` and `--end-index` to split a large sweep into smaller chunks.
+- Invalid sweep windows now fail fast instead of silently clamping `--start-index` or accepting an inverted range.
 
 
 ## Legacy End-To-End Runbook

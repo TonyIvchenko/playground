@@ -800,6 +800,56 @@ def test_main_rejects_unknown_encoder_weights(tmp_path: Path, monkeypatch):
         raise AssertionError("expected invalid encoder weights to fail")
 
 
+def test_main_rejects_non_positive_start_index(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "search_unet_backbone.py",
+            "--slice-dir",
+            str(tmp_path / "slice_dataset"),
+            "--output-dir",
+            str(tmp_path / "search"),
+            "--start-index",
+            "0",
+            "--dry-run",
+        ],
+    )
+
+    try:
+        sweep.main()
+    except ValueError as exc:
+        assert "--start-index must be >= 1" == str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("expected invalid start index to fail")
+
+
+def test_main_rejects_end_index_before_start_index(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "search_unet_backbone.py",
+            "--slice-dir",
+            str(tmp_path / "slice_dataset"),
+            "--output-dir",
+            str(tmp_path / "search"),
+            "--start-index",
+            "4",
+            "--end-index",
+            "2",
+            "--dry-run",
+        ],
+    )
+
+    try:
+        sweep.main()
+    except ValueError as exc:
+        assert "--end-index must be >= --start-index" == str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("expected invalid end index to fail")
+
+
 def test_main_dry_run_respects_trial_window(tmp_path: Path, monkeypatch, capsys):
     monkeypatch.setattr(
         sys,
