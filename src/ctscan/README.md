@@ -5,12 +5,16 @@ Chest CT semantic segmentation service.
 ## Scope
 
 - chest CT only
-- semantic issue overlays on axial slices
-- issue types in this version:
+- axial slice viewer with lung and finding overlays
+- default rule-based issue labels:
   - emphysema
   - fibrotic pattern
   - ground-glass opacity
   - consolidation
+- legacy VGG11 U-Net checkpoint path supports:
+  - ground-glass
+  - consolidation
+  - pleural effusion
 - per-issue damage as `% of lung volume`
 - research/demo workflow only, not diagnosis
 
@@ -19,14 +23,22 @@ Chest CT semantic segmentation service.
 - `main.py`
 - `study.py`
 - `model/unet.py`
+- `model/legacy_vgg11_unet.py`
 - `scripts/segmentation/download_data.py`
+- `scripts/segmentation/download_legacy_sources.py`
 - `scripts/segmentation/download_lidc.py`
+- `scripts/segmentation/build_legacy_dataset.py`
 - `scripts/segmentation/build_lidc_manifest.py`
 - `scripts/segmentation/build_luna_manifest.py`
 - `scripts/segmentation/build_nlstseg_manifest.py`
 - `scripts/segmentation/build_lndb_manifest.py`
 - `scripts/segmentation/build_dataset.py`
+- `scripts/segmentation/build_slice_dataset.py`
+- `scripts/segmentation/export_vgg11_unet_dataset.py`
+- `scripts/segmentation/train_legacy_vgg11_unet.py`
 - `scripts/segmentation/train_unet.py`
+- `scripts/segmentation/train_unet_backbone.py`
+- `scripts/segmentation/search_unet_backbone.py`
 - `tests/test_study.py`
 - `tests/test_ctscan_main.py`
 
