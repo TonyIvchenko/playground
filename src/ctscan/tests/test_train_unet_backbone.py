@@ -864,6 +864,66 @@ def test_main_rejects_unknown_encoder_weights(monkeypatch):
         raise AssertionError("expected invalid encoder weights to fail")
 
 
+def test_main_rejects_too_small_image_size(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "train_unet_backbone.py",
+            "--image-size",
+            "32",
+            "--dry-run",
+        ],
+    )
+
+    try:
+        main()
+    except ValueError as exc:
+        assert "--image-size must be >= 64" == str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("expected invalid image size to fail")
+
+
+def test_main_rejects_non_positive_batch_size(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "train_unet_backbone.py",
+            "--batch-size",
+            "0",
+            "--dry-run",
+        ],
+    )
+
+    try:
+        main()
+    except ValueError as exc:
+        assert "--batch-size must be >= 1" == str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("expected invalid batch size to fail")
+
+
+def test_main_rejects_non_positive_epoch_count(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "train_unet_backbone.py",
+            "--epochs",
+            "0",
+            "--dry-run",
+        ],
+    )
+
+    try:
+        main()
+    except ValueError as exc:
+        assert "--epochs must be >= 1" == str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("expected invalid epoch count to fail")
+
+
 def test_main_inspect_splits_prints_dataset_counts(tmp_path: Path, monkeypatch, capsys):
     root = tmp_path / "legacy_png"
     images_dir = root / "images"

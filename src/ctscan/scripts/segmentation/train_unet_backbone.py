@@ -236,9 +236,9 @@ def parse_args() -> TrainConfig:
         encoder_weights=encoder_weights,
         classes=max(int(args.classes), 2),
         in_channels=max(int(args.in_channels), 1),
-        image_size=max(int(args.image_size), 64),
-        batch_size=max(int(args.batch_size), 1),
-        epochs=max(int(args.epochs), 1),
+        image_size=int(args.image_size),
+        batch_size=int(args.batch_size),
+        epochs=int(args.epochs),
         learning_rate=float(args.learning_rate),
         weight_decay=max(float(args.weight_decay), 0.0),
         optimizer_name=str(args.optimizer).strip().lower(),
@@ -614,6 +614,12 @@ def validate_choice(name: str, supported_values: list[str], argument_name: str) 
         return value
     supported_text = ", ".join(supported_values)
     raise ValueError(f"unsupported {argument_name}: {name}. expected one of: {supported_text}")
+
+
+def validate_min_int(value: int, min_value: int, argument_name: str) -> int:
+    if int(value) < int(min_value):
+        raise ValueError(f"{argument_name} must be >= {min_value}")
+    return int(value)
 
 
 def metric_value(row: dict[str, float], name: str) -> float:
@@ -1070,6 +1076,9 @@ def main() -> int:
     config.scheduler_name = validate_choice(config.scheduler_name, SUPPORTED_SCHEDULERS, "--scheduler")
     config.sampler_name = validate_choice(config.sampler_name, SUPPORTED_SAMPLERS, "--sampler")
     config.augmentation_name = validate_choice(config.augmentation_name, SUPPORTED_AUGMENTATIONS, "--augmentation")
+    config.image_size = validate_min_int(config.image_size, 64, "--image-size")
+    config.batch_size = validate_min_int(config.batch_size, 1, "--batch-size")
+    config.epochs = validate_min_int(config.epochs, 1, "--epochs")
     if config.show_output_paths:
         print(json.dumps(output_paths_summary(config), indent=2))
         return 0

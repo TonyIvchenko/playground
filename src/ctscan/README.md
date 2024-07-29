@@ -310,6 +310,7 @@ Notes:
 - Trainer device selectors are also validated up front.
 - Trainer encoder-weight selectors are also validated up front.
 - Scheduler, sampler, and augmentation names are also validated before the trainer starts.
+- `--image-size`, `--batch-size`, and `--epochs` now fail fast on invalid values instead of being silently clamped.
 - Add `--inspect-splits` to print train/val/test row counts before starting a run.
 - Split inspection also reports whether rows came from `splits/*.csv` or `splits.json`, plus the exact source path for each split.
 - Add `--show-output-paths` to print checkpoint/metrics/config/report locations before starting a run.
