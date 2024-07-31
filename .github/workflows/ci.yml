@@ -9,6 +9,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,5 +39,11 @@ jobs:
       - name: Validate dependency graph
         run: pip check
 
-      - name: Run tests
-        run: pytest -q
+      - name: Run test service tests
+        run: python -m pytest -q src/test/tests
+
+      - name: Run disasters tests
+        run: python -m pytest -q src/disasters/tests
+
+      - name: Run ctscan tests
+        run: python -m pytest -q src/ctscan/tests
