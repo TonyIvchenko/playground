@@ -51,6 +51,16 @@ make run ctscan 8080
 make run test 8080
 ```
 
+## Tests
+
+Run the same service test targets the CI workflow uses:
+
+```bash
+python -m pytest -q src/test/tests
+python -m pytest -q src/disasters/tests
+python -m pytest -q src/ctscan/tests
+```
+
 ## Service Docs
 
 - `src/disasters/README.md`: local run, training, tiles, notebooks, Docker, tests
