@@ -61,6 +61,12 @@ python -m pytest -q src/disasters/tests
 python -m pytest -q src/ctscan/tests
 ```
 
+After `make update`, a plain root run also targets the same suites through `pytest.ini`:
+
+```bash
+python -m pytest -q
+```
+
 ## Service Docs
 
 - `src/disasters/README.md`: local run, training, tiles, notebooks, Docker, tests
