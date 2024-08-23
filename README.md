@@ -53,6 +53,8 @@ make run test 8080
 
 ## Tests
 
+Run `make update` first so the active `playground` env has `pytest` plus all service dependencies.
+
 Run the same service test targets the CI workflow uses:
 
 ```bash
