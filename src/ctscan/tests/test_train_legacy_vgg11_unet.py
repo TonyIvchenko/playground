@@ -4,11 +4,11 @@ from pathlib import Path
 
 import numpy as np
 from PIL import Image
-import nibabel
 import pytest
-import torch
+torch = pytest.importorskip("torch")
+torchvision = pytest.importorskip("torchvision")
+nibabel = pytest.importorskip("nibabel")
 from torch.utils.data import DataLoader
-import torchvision
 
 from src.ctscan.scripts.segmentation.train_legacy_vgg11_unet import LegacyLungDataset, TrainConfig, existing_png_names, train
 
