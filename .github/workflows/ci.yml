@@ -49,6 +49,9 @@ jobs:
       - name: Validate dependency graph
         run: pip check
 
+      - name: Collect tests
+        run: python -m pytest -q --collect-only
+
       - name: Run test service tests
         run: python -m pytest -q src/test/tests
 
