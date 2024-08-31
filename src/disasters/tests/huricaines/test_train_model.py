@@ -4,7 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-import torch
+
+torch = pytest.importorskip("torch")
 
 from src.disasters.scripts.huricaines.train_model import (
     auc_from_scores,

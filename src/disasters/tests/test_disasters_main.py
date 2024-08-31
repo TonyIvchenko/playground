@@ -1,3 +1,7 @@
+import pytest
+
+pytest.importorskip("torch")
+
 from src.disasters.main import (
     HURICAINES_MODEL_VERSION,
     WILDFIRES_MODEL_VERSION,

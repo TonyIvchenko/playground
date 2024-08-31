@@ -4,7 +4,9 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import torch
+import pytest
+
+torch = pytest.importorskip("torch")
 
 import src.disasters.scripts.huricaines.generate_tiles as huricaines_tiles
 
