@@ -6,7 +6,9 @@ import sys
 
 import numpy as np
 from PIL import Image
-import torch
+import pytest
+
+torch = pytest.importorskip("torch")
 from torch import nn
 
 from src.ctscan.scripts.segmentation.train_unet_backbone import (
