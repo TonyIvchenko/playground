@@ -543,5 +543,5 @@ Response includes:
 ## Tests
 
 ```bash
-pytest -q src/ctscan/tests
+python -m pytest -q src/ctscan/tests
 ```

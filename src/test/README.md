@@ -30,5 +30,5 @@ docker run --rm --name test -e REDIS_HOST=host.docker.internal -e REDIS_PORT=637
 ## Tests
 
 ```bash
-pytest -q src/test/tests
+python -m pytest -q src/test/tests
 ```

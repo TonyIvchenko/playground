@@ -78,5 +78,5 @@ docker run --rm --name disasters -p 8080:8080 -e PORT=8080 disasters
 ## Tests
 
 ```bash
-pytest -q src/disasters/tests
+python -m pytest -q src/disasters/tests
 ```
