@@ -32,7 +32,7 @@ make update
 ```bash
 make run disasters 8080
 make run ctscan 8080
-make run test 8080
+make run test
 ```
 
 Set service-specific environment variables as needed:
@@ -48,7 +48,7 @@ make setup
 make update
 make run disasters 8080
 make run ctscan 8080
-make run test 8080
+make run test
 ```
 
 ## Tests
