@@ -99,3 +99,26 @@ jobs:
 
       - name: Run ${{ matrix.name }} tests
         run: python -m pytest -q ${{ matrix.path }}
+
+  docker-builds:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DOCKER_BUILDKIT: "1"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: test
+            dockerfile: src/test/Dockerfile
+          - name: disasters
+            dockerfile: src/disasters/Dockerfile
+          - name: ctscan
+            dockerfile: src/ctscan/Dockerfile
+    name: docker-${{ matrix.name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build ${{ matrix.name }} image
+        run: docker build --file ${{ matrix.dockerfile }} --tag playground-${{ matrix.name }} .
