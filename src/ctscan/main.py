@@ -62,9 +62,7 @@ PORT = int(os.getenv("PORT", "8080"))
 SERVICE_NAME = os.getenv("SERVICE_NAME", "ctscan")
 SAMPLES_MANIFEST_PATH = Path(__file__).resolve().parent / "data" / "ctscan" / "samples" / "samples.json"
 SAMPLE_CACHE_DIR = Path(__file__).resolve().parent / "data" / "ctscan" / "samples" / "cache"
-EXTERNAL_SAMPLES_MANIFEST_PATH = Path("/Volumes/Extreme Pro/data/ctscan/samples/samples.json")
 LOCAL_LEGACY_CT_ZIPS_PATH = Path(__file__).resolve().parent / "data" / "ctscan" / "raw" / "legacy_sources" / "plethora" / "ct_zips"
-EXTERNAL_LEGACY_CT_ZIPS_PATH = Path("/Volumes/Extreme Pro/data/ctscan/raw/legacy_sources/plethora/ct_zips")
 DEFAULT_SAMPLE = ""
 METRICS_TABLE_COLUMNS = ["Issue", "Lung %", "Volume ml", "Current slice %"]
 LUNG_COLOR = "#10b981"
@@ -188,7 +186,6 @@ def _candidate_lidc_roots() -> list[Path]:
     env_root = os.getenv("CTSCAN_LIDC_ROOT", "").strip()
     if env_root:
         roots.append(Path(env_root))
-    roots.append(Path("/Volumes/Extreme Pro/data/ctscan/raw/lidc/LIDC-IDRI"))
     roots.append(Path(__file__).resolve().parent / "data" / "ctscan" / "raw" / "lidc" / "LIDC-IDRI")
     dedup: list[Path] = []
     seen: set[str] = set()
@@ -206,7 +203,7 @@ def _candidate_legacy_ct_zip_dirs() -> list[Path]:
     env_root = os.getenv("CTSCAN_DEMO_CT_ZIPS_ROOT", "").strip()
     if env_root:
         roots.append(Path(env_root))
-    roots.extend([LOCAL_LEGACY_CT_ZIPS_PATH, EXTERNAL_LEGACY_CT_ZIPS_PATH])
+    roots.append(LOCAL_LEGACY_CT_ZIPS_PATH)
     dedup: list[Path] = []
     seen: set[str] = set()
     for root in roots:
@@ -271,9 +268,26 @@ def _ensure_auto_demo_manifest() -> dict[str, dict[str, str]]:
     return manifest
 
 
+def _candidate_sample_manifest_paths() -> list[Path]:
+    paths: list[Path] = []
+    env_path = os.getenv("CTSCAN_SAMPLES_MANIFEST_PATH", "").strip()
+    if env_path:
+        paths.append(Path(env_path))
+    paths.append(SAMPLES_MANIFEST_PATH)
+    dedup: list[Path] = []
+    seen: set[str] = set()
+    for path in paths:
+        text = str(path.resolve()) if path.exists() else str(path)
+        if text in seen:
+            continue
+        seen.add(text)
+        dedup.append(path)
+    return dedup
+
+
 @lru_cache(maxsize=1)
 def load_samples_manifest() -> dict[str, dict[str, str]]:
-    for path in [SAMPLES_MANIFEST_PATH, EXTERNAL_SAMPLES_MANIFEST_PATH]:
+    for path in _candidate_sample_manifest_paths():
         if path.exists():
             manifest = _read_manifest(path)
             if manifest:

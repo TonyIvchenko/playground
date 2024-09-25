@@ -59,7 +59,6 @@ def test_auto_demo_manifest_from_legacy_ct_zips(tmp_path: Path, monkeypatch, mak
     target_zip.write_bytes(sample_zip.read_bytes())
 
     monkeypatch.setattr(ctscan_main, "SAMPLES_MANIFEST_PATH", samples_manifest)
-    monkeypatch.setattr(ctscan_main, "EXTERNAL_SAMPLES_MANIFEST_PATH", tmp_path / "missing_samples.json")
     monkeypatch.setenv("CTSCAN_DEMO_CT_ZIPS_ROOT", str(ct_zips_dir))
     ctscan_main.load_samples_manifest.cache_clear()
 
