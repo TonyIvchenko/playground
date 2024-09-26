@@ -122,3 +122,45 @@ jobs:
 
       - name: Build ${{ matrix.name }} image
         run: docker build --file ${{ matrix.dockerfile }} --tag playground-${{ matrix.name }} .
+
+  container-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DOCKER_BUILDKIT: "1"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: disasters
+            dockerfile: src/disasters/Dockerfile
+            port: 18080
+          - name: ctscan
+            dockerfile: src/ctscan/Dockerfile
+            port: 18081
+    name: smoke-${{ matrix.name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build ${{ matrix.name }} image
+        run: docker build --file ${{ matrix.dockerfile }} --tag playground-${{ matrix.name }} .
+
+      - name: Start ${{ matrix.name }} container
+        run: docker run --detach --rm --name playground-${{ matrix.name }} -p ${{ matrix.port }}:8080 playground-${{ matrix.name }}
+
+      - name: Wait for ${{ matrix.name }} health endpoint
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error "http://127.0.0.1:${{ matrix.port }}/health" > /tmp/${{ matrix.name }}-health.json; then
+              cat /tmp/${{ matrix.name }}-health.json
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs playground-${{ matrix.name }}
+          exit 1
+
+      - name: Stop ${{ matrix.name }} container
+        if: always()
+        run: docker rm --force playground-${{ matrix.name }}
