@@ -516,6 +516,13 @@ python main.py
 
 Open `http://localhost:8080/`.
 
+Optional runtime overrides:
+
+- `CTSCAN_MODEL_PATH`: load a specific checkpoint instead of the default local model path.
+- `CTSCAN_SAMPLES_MANIFEST_PATH`: point the app at a specific sample manifest file.
+- `CTSCAN_DEMO_CT_ZIPS_ROOT`: point auto-demo discovery at a directory of study zip files.
+- `CTSCAN_LIDC_ROOT`: point LIDC demo fallback discovery at a specific extracted LIDC tree.
+
 ## Docker
 
 ```bash
