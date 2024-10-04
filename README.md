@@ -69,6 +69,15 @@ After `make update`, a plain root run also targets the same suites through `pyte
 python -m pytest -q
 ```
 
+## CI
+
+The GitHub workflow currently checks four things on every push and pull request:
+
+1. test collection from the repo root
+2. service test suites split across `src/test/tests`, `src/disasters/tests`, and `src/ctscan/tests`
+3. Docker image builds for `test`, `disasters`, and `ctscan`
+4. container health smokes for `disasters` and `ctscan` via `GET /health`
+
 ## Service Docs
 
 - `src/disasters/README.md`: local run, training, tiles, notebooks, Docker, tests
