@@ -164,3 +164,64 @@ jobs:
       - name: Stop ${{ matrix.name }} container
         if: always()
         run: docker rm --force playground-${{ matrix.name }}
+
+  test-container-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DOCKER_BUILDKIT: "1"
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build test image
+        run: docker build --file src/test/Dockerfile --tag playground-test .
+
+      - name: Start test container
+        run: |
+          docker run --detach --rm --network host \
+            --name playground-test \
+            -e REDIS_HOST=127.0.0.1 \
+            -e REDIS_PORT=6379 \
+            -e REDIS_KEY=ci-smoke \
+            -e REDIS_VALUE=healthy \
+            -e SLEEP_SECONDS=1 \
+            playground-test
+
+      - name: Wait for Redis write
+        run: |
+          python - <<'PY'
+          import socket
+          import time
+
+          command = b"*2\r\n$3\r\nGET\r\n$8\r\nci-smoke\r\n"
+          expected = b"$7\r\nhealthy\r\n"
+
+          for _ in range(30):
+              try:
+                  with socket.create_connection(("127.0.0.1", 6379), timeout=2) as sock:
+                      sock.sendall(command)
+                      payload = sock.recv(4096)
+                  if expected in payload:
+                      print(payload.decode("utf-8", errors="ignore"))
+                      raise SystemExit(0)
+              except OSError:
+                  pass
+              time.sleep(2)
+
+          raise SystemExit(1)
+          PY
+
+      - name: Stop test container
+        if: always()
+        run: docker rm --force playground-test
