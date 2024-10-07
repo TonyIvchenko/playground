@@ -73,6 +73,7 @@ Allowed values:
 ```bash
 docker build -t disasters -f src/disasters/Dockerfile .
 docker run --rm --name disasters -p 8080:8080 -e PORT=8080 disasters
+curl http://localhost:8080/health
 ```
 
 ## Tests
