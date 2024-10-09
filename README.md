@@ -51,6 +51,16 @@ make run ctscan 8080
 make run test
 ```
 
+## Docker
+
+Build Docker images from the repo root so each Dockerfile can copy the shared `src/` tree:
+
+```bash
+docker build -t test -f src/test/Dockerfile .
+docker build -t disasters -f src/disasters/Dockerfile .
+docker build -t ctscan -f src/ctscan/Dockerfile .
+```
+
 ## Tests
 
 Run `make update` first so the active `playground` env has `pytest` plus all service dependencies.
