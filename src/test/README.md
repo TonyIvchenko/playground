@@ -24,7 +24,8 @@ From repo root:
 
 ```bash
 docker build -t test -f src/test/Dockerfile .
-docker run --rm --name test -e REDIS_HOST=host.docker.internal -e REDIS_PORT=6379 test
+docker run --rm --name test -e REDIS_HOST=host.docker.internal -e REDIS_PORT=6379 -e REDIS_KEY=smoke -e REDIS_VALUE=healthy -e SLEEP_SECONDS=1 test
+redis-cli -h 127.0.0.1 -p 6379 GET smoke
 ```
 
 ## Tests
