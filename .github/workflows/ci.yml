@@ -224,6 +224,10 @@ jobs:
           raise SystemExit(1)
           PY
 
+      - name: Show test container logs
+        if: failure()
+        run: docker logs playground-test
+
       - name: Stop test container
         if: always()
         run: docker rm --force playground-test
