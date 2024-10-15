@@ -211,6 +211,21 @@ jobs:
 
           for _ in range(30):
               try:
+                  import subprocess
+
+                  status = subprocess.check_output(
+                      [
+                          "docker",
+                          "inspect",
+                          "--format",
+                          "{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}",
+                          "playground-test",
+                      ],
+                      text=True,
+                  ).strip()
+                  if status != "healthy":
+                      time.sleep(2)
+                      continue
                   with socket.create_connection(("127.0.0.1", 6379), timeout=2) as sock:
                       sock.sendall(command)
                       payload = sock.recv(4096)
