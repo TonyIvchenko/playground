@@ -14,4 +14,6 @@ runs:
   steps:
     - name: Build image
       shell: bash
-      run: docker build --pull --file "${{ inputs.dockerfile }}" --tag "${{ inputs.image }}" .
+      run: |
+        set -euo pipefail
+        docker build --pull --file "${{ inputs.dockerfile }}" --tag "${{ inputs.image }}" .

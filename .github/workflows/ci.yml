@@ -92,7 +92,9 @@ jobs:
         run: docker run --detach --rm --init --name playground-${{ matrix.name }} -p ${{ matrix.port }}:8080 playground-${{ matrix.name }}
 
       - name: Wait for ${{ matrix.name }} health endpoint
+        shell: bash
         run: |
+          set -euo pipefail
           for attempt in $(seq 1 30); do
             status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' playground-${{ matrix.name }} 2>/dev/null || true)"
             if [ "$status" = "healthy" ]; then
@@ -138,7 +140,9 @@ jobs:
           image: playground-test
 
       - name: Start test container
+        shell: bash
         run: |
+          set -euo pipefail
           docker run --detach --rm --init --network host \
             --name playground-test \
             -e REDIS_HOST=127.0.0.1 \
@@ -149,7 +153,9 @@ jobs:
             playground-test
 
       - name: Wait for Redis write
+        shell: bash
         run: |
+          set -euo pipefail
           python - <<'PY'
           import subprocess
           import socket

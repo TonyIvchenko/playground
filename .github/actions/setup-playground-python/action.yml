@@ -20,8 +20,9 @@ runs:
     - name: Install dependencies
       shell: bash
       run: |
+        set -euo pipefail
         python -m pip install --upgrade pip
-        pip install \
+        python -m pip install \
           -r requirements.txt \
           -r src/test/requirements.txt \
           -r src/disasters/requirements.txt \
