@@ -76,6 +76,8 @@ docker run --rm --name disasters -p 8080:8080 -e PORT=8080 disasters
 curl http://localhost:8080/health
 ```
 
+The CI workflow uses the same `/health` smoke pattern for this service.
+
 ## Tests
 
 ```bash
