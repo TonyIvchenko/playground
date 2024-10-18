@@ -28,6 +28,8 @@ docker run --rm --name test -e REDIS_HOST=host.docker.internal -e REDIS_PORT=637
 redis-cli -h 127.0.0.1 -p 6379 GET smoke
 ```
 
+The CI workflow uses the same Redis-backed smoke pattern for this service.
+
 ## Tests
 
 ```bash
