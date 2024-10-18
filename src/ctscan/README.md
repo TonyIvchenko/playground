@@ -523,11 +523,13 @@ python main.py
 Open `http://localhost:8080/`.
 `PORT` defaults to `8080`.
 
+The upload control is labeled `Upload DICOM file`, but the current service contract expects one zip bundle containing a single DICOM study.
+
 Optional runtime overrides:
 
 - `CTSCAN_MODEL_PATH`: load a specific checkpoint instead of the default local model path.
 - `CTSCAN_SAMPLES_MANIFEST_PATH`: point the app at a specific sample manifest file.
-- `CTSCAN_DEMO_CT_ZIPS_ROOT`: point auto-demo discovery at a directory of study zip files.
+- `CTSCAN_DEMO_CT_ZIPS_ROOT`: point auto-demo discovery at a directory of study zip bundles.
 - `CTSCAN_LIDC_ROOT`: point LIDC demo fallback discovery at a specific extracted LIDC tree.
 
 ## Docker
@@ -549,7 +551,7 @@ The Docker build context intentionally excludes local data, tests, notebooks, an
 - `POST /predict`
 
 `POST /predict` accepts multipart form data:
-- `study_zip` (required unless `sample_id` is provided)
+- `study_zip` (required unless `sample_id` is provided; this should be one zip bundle for one DICOM study)
 - optional `sample_id`
 - optional `age`
 - optional `sex`

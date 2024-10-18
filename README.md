@@ -35,7 +35,7 @@ If you omit the port for `disasters` or `ctscan`, `PORT` defaults to `8080`.
 Set service-specific environment variables as needed:
 
 - `GMAPS_API_KEY` for `disasters`
-- `CTSCAN_MODEL_PATH`, `CTSCAN_SAMPLES_MANIFEST_PATH`, `CTSCAN_DEMO_CT_ZIPS_ROOT`, `CTSCAN_LIDC_ROOT` for `ctscan`
+- `CTSCAN_MODEL_PATH`, `CTSCAN_SAMPLES_MANIFEST_PATH`, `CTSCAN_DEMO_CT_ZIPS_ROOT`, `CTSCAN_LIDC_ROOT` for `ctscan` (`CTSCAN_DEMO_CT_ZIPS_ROOT` expects study zip bundles)
 - `REDIS_HOST`, `REDIS_PORT`, `REDIS_KEY`, `REDIS_VALUE`, `SLEEP_SECONDS` for `test`
 
 ## Docker

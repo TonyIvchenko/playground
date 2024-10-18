@@ -23,8 +23,9 @@ Environment variables:
 From repo root:
 
 ```bash
-# macOS / Windows Docker Desktop
 docker build --pull -t test -f src/test/Dockerfile .
+
+# macOS / Windows Docker Desktop
 docker run --rm --name test -e REDIS_HOST=host.docker.internal -e REDIS_PORT=6379 -e REDIS_KEY=smoke -e REDIS_VALUE=healthy -e SLEEP_SECONDS=1 test
 
 # Linux
@@ -32,6 +33,8 @@ docker run --rm --name test --network host -e REDIS_HOST=127.0.0.1 -e REDIS_PORT
 
 redis-cli -h 127.0.0.1 -p 6379 GET smoke
 ```
+
+Use `host.docker.internal` on Docker Desktop. Use `--network host` only on Linux.
 
 The CI workflow uses the same Redis-backed smoke pattern for this service.
 
