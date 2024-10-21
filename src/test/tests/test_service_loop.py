@@ -7,6 +7,12 @@ import pytest
 
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "service.py"
+SETTINGS_PATH = Path(__file__).resolve().parents[1] / "settings.py"
+SETTINGS_SPEC = spec_from_file_location("settings", SETTINGS_PATH)
+settings = module_from_spec(SETTINGS_SPEC)
+assert SETTINGS_SPEC.loader is not None
+SETTINGS_SPEC.loader.exec_module(settings)
+sys.modules["settings"] = settings
 SPEC = spec_from_file_location("test_runtime", MODULE_PATH)
 service = module_from_spec(SPEC)
 assert SPEC.loader is not None
@@ -30,6 +36,14 @@ def test_run_once_writes_expected_value():
     cache = FakeCache()
     service.run_once(cache, key="hello", value="world")
     assert cache.calls == [("hello", "world")]
+
+
+def test_service_defaults_match_settings_defaults():
+    assert service.DEFAULT_REDIS_HOST == settings.ServiceSettings.redis_host
+    assert service.DEFAULT_REDIS_PORT == settings.ServiceSettings.redis_port
+    assert service.DEFAULT_KEY == settings.ServiceSettings.redis_key
+    assert service.DEFAULT_VALUE == settings.ServiceSettings.redis_value
+    assert service.DEFAULT_SLEEP_SECONDS == settings.ServiceSettings.sleep_seconds
 
 
 def test_run_forever_success_path_uses_regular_sleep(monkeypatch):

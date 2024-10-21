@@ -3,14 +3,19 @@ import time
 
 import redis
 
+try:
+    from .settings import ServiceSettings
+except ImportError:
+    from settings import ServiceSettings
+
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_REDIS_HOST = "redis-service"
-DEFAULT_REDIS_PORT = 6379
-DEFAULT_KEY = "key"
-DEFAULT_VALUE = "value"
-DEFAULT_SLEEP_SECONDS = 60
+DEFAULT_REDIS_HOST = ServiceSettings.redis_host
+DEFAULT_REDIS_PORT = ServiceSettings.redis_port
+DEFAULT_KEY = ServiceSettings.redis_key
+DEFAULT_VALUE = ServiceSettings.redis_value
+DEFAULT_SLEEP_SECONDS = ServiceSettings.sleep_seconds
 DEFAULT_BACKOFF_INITIAL_SECONDS = 1.0
 DEFAULT_BACKOFF_MAX_SECONDS = 60.0
 DEFAULT_BACKOFF_MULTIPLIER = 2.0
