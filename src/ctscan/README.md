@@ -531,6 +531,8 @@ docker run --rm --name ctscan -p 8080:8080 -e PORT=8080 ctscan
 curl http://localhost:8080/health
 ```
 
+The CI workflow uses the same `/health` smoke pattern for this service.
+
 ## API
 
 - `GET /health`
