@@ -20,6 +20,10 @@ src/*/notebooks
 src/*/tests
 src/ctscan/logs
 src/ctscan/model/backbone_search*
+src/ctscan/model/arch_*.pt
+src/ctscan/model/backbone_*.pt
+src/ctscan/model/debug_*.pt
+src/ctscan/model/*.epoch*.pt
 src/ctscan/model/*.metrics.json
 src/ctscan/model/*.report.md
 src/ctscan/model/*.train.log
