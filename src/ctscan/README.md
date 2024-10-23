@@ -532,6 +532,7 @@ curl http://localhost:8080/health
 ```
 
 The CI workflow uses the same `/health` smoke pattern for this service.
+The Docker build context intentionally excludes local data, tests, notebooks, and debug/sweep checkpoints.
 
 ## API
 
