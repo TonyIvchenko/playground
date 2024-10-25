@@ -3,6 +3,8 @@ from pathlib import Path
 import sys
 import types
 
+import pytest
+
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "service.py"
 SPEC = spec_from_file_location("test_runtime", MODULE_PATH)
@@ -77,3 +79,29 @@ def test_run_forever_failure_path_uses_backoff(monkeypatch):
 
     assert cache.calls == [("x", "y"), ("x", "y"), ("x", "y")]
     assert sleep_calls == [1, 2, 7]
+
+
+def test_run_forever_failure_path_logs_underlying_error(monkeypatch, caplog: pytest.LogCaptureFixture):
+    cache = FakeCache(fail_times=1)
+    sleep_calls = []
+    should_stop = {"value": False}
+
+    def fake_sleep(seconds):
+        sleep_calls.append(seconds)
+        if len(sleep_calls) >= 2:
+            should_stop["value"] = True
+
+    monkeypatch.setattr(service.time, "sleep", fake_sleep)
+    with caplog.at_level("WARNING"):
+        service.run_forever(
+            cache,
+            sleep_seconds=5,
+            key="k",
+            value="v",
+            should_stop=lambda: should_stop["value"],
+            backoff_initial_seconds=1,
+            backoff_max_seconds=3,
+            backoff_multiplier=2,
+        )
+
+    assert "forced error" in caplog.text

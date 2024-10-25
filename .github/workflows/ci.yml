@@ -31,7 +31,7 @@ jobs:
         uses: ./.github/actions/setup-playground-python
 
       - name: Validate dependency graph
-        run: pip check
+        run: python -m pip check
 
       - name: Collect tests
         run: python -m pytest -q --collect-only

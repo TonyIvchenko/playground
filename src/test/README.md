@@ -12,7 +12,7 @@ REDIS_HOST=localhost REDIS_PORT=6379 python main.py
 
 Environment variables:
 
-- `REDIS_HOST` (default `redis-service`)
+- `REDIS_HOST` (default `redis-service`; for a local Redis on your machine, set `REDIS_HOST=localhost`)
 - `REDIS_PORT` (default `6379`)
 - `REDIS_KEY` (default `key`)
 - `REDIS_VALUE` (default `value`)
