@@ -61,6 +61,8 @@ docker build -t disasters -f src/disasters/Dockerfile .
 docker build -t ctscan -f src/ctscan/Dockerfile .
 ```
 
+The shared Docker build context excludes checked-out service data, notebooks, tests, and CT experiment artifacts.
+
 ## Tests
 
 Run `make update` first so the active `playground` env has `pytest` plus all service dependencies.
