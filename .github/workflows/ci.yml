@@ -16,15 +16,14 @@ env:
   DOCKER_BUILDKIT: "1"
   WEB_HEALTH_RETRIES: "30"
   REDIS_SMOKE_RETRIES: "30"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
 
 jobs:
   collect:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     name: tests-collect
-    env:
-      PIP_DISABLE_PIP_VERSION_CHECK: "1"
-      PYTHONDONTWRITEBYTECODE: "1"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,9 +43,6 @@ jobs:
     needs: collect
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    env:
-      PIP_DISABLE_PIP_VERSION_CHECK: "1"
-      PYTHONDONTWRITEBYTECODE: "1"
     strategy:
       fail-fast: false
       matrix:
