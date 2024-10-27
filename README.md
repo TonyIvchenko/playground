@@ -56,9 +56,9 @@ make run test
 Build Docker images from the repo root so each Dockerfile can copy the shared `src/` tree:
 
 ```bash
-docker build -t test -f src/test/Dockerfile .
-docker build -t disasters -f src/disasters/Dockerfile .
-docker build -t ctscan -f src/ctscan/Dockerfile .
+docker build --pull -t test -f src/test/Dockerfile .
+docker build --pull -t disasters -f src/disasters/Dockerfile .
+docker build --pull -t ctscan -f src/ctscan/Dockerfile .
 ```
 
 The shared Docker build context excludes checked-out service data, notebooks, tests, and CT experiment artifacts.
