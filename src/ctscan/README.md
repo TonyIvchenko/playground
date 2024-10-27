@@ -539,7 +539,7 @@ From repo root:
 ```bash
 docker build --pull -t ctscan -f src/ctscan/Dockerfile .
 docker run --rm --name ctscan -p 8080:8080 -e PORT=8080 ctscan
-curl http://localhost:8080/health
+curl --fail --silent --show-error http://127.0.0.1:8080/health
 ```
 
 The CI workflow uses the same `/health` smoke pattern for this service.
