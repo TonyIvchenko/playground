@@ -31,9 +31,11 @@ jobs:
         uses: ./.github/actions/setup-playground-python
 
       - name: Validate dependency graph
+        shell: bash
         run: python -m pip check
 
       - name: Collect tests
+        shell: bash
         run: python -m pytest -q --collect-only
 
   service-tests:
@@ -62,6 +64,7 @@ jobs:
         uses: ./.github/actions/setup-playground-python
 
       - name: Run ${{ matrix.name }} tests
+        shell: bash
         run: python -m pytest -q ${{ matrix.path }}
 
   container-smoke:
@@ -89,6 +92,7 @@ jobs:
           image: playground-${{ matrix.name }}
 
       - name: Start ${{ matrix.name }} container
+        shell: bash
         run: docker run --detach --rm --init --name playground-${{ matrix.name }} -p ${{ matrix.port }}:8080 playground-${{ matrix.name }}
 
       - name: Wait for ${{ matrix.name }} health endpoint
@@ -109,10 +113,12 @@ jobs:
 
       - name: Show ${{ matrix.name }} container logs
         if: failure()
+        shell: bash
         run: docker logs playground-${{ matrix.name }} || true
 
       - name: Stop ${{ matrix.name }} container
         if: always()
+        shell: bash
         run: docker rm --force playground-${{ matrix.name }} || true
 
   test-container-smoke:
@@ -194,8 +200,10 @@ jobs:
 
       - name: Show test container logs
         if: failure()
+        shell: bash
         run: docker logs playground-test || true
 
       - name: Stop test container
         if: always()
+        shell: bash
         run: docker rm --force playground-test || true
