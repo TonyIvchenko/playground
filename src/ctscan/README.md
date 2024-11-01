@@ -526,7 +526,7 @@ Optional runtime overrides:
 ## Docker
 
 ```bash
-docker build -t ctscan -f src/ctscan/Dockerfile .
+docker build --pull -t ctscan -f src/ctscan/Dockerfile .
 docker run --rm --name ctscan -p 8080:8080 -e PORT=8080 ctscan
 curl http://localhost:8080/health
 ```
