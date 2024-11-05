@@ -46,6 +46,24 @@ def test_service_defaults_match_settings_defaults():
     assert service.DEFAULT_SLEEP_SECONDS == settings.ServiceSettings.sleep_seconds
 
 
+def test_build_client_sets_short_socket_timeouts(monkeypatch):
+    calls = {}
+
+    class FakeRedis:
+        def __init__(self, **kwargs):
+            calls.update(kwargs)
+
+    monkeypatch.setattr(service.redis, "Redis", FakeRedis)
+    service.build_client(host="cache.local", port=6380)
+
+    assert calls == {
+        "host": "cache.local",
+        "port": 6380,
+        "socket_connect_timeout": service.DEFAULT_SOCKET_CONNECT_TIMEOUT_SECONDS,
+        "socket_timeout": service.DEFAULT_SOCKET_TIMEOUT_SECONDS,
+    }
+
+
 def test_run_forever_success_path_uses_regular_sleep(monkeypatch):
     cache = FakeCache()
     sleep_calls = []

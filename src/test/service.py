@@ -16,13 +16,20 @@ DEFAULT_REDIS_PORT = ServiceSettings.redis_port
 DEFAULT_KEY = ServiceSettings.redis_key
 DEFAULT_VALUE = ServiceSettings.redis_value
 DEFAULT_SLEEP_SECONDS = ServiceSettings.sleep_seconds
+DEFAULT_SOCKET_CONNECT_TIMEOUT_SECONDS = 5.0
+DEFAULT_SOCKET_TIMEOUT_SECONDS = 5.0
 DEFAULT_BACKOFF_INITIAL_SECONDS = 1.0
 DEFAULT_BACKOFF_MAX_SECONDS = 60.0
 DEFAULT_BACKOFF_MULTIPLIER = 2.0
 
 
 def build_client(host=DEFAULT_REDIS_HOST, port=DEFAULT_REDIS_PORT):
-    return redis.Redis(host=host, port=port)
+    return redis.Redis(
+        host=host,
+        port=port,
+        socket_connect_timeout=DEFAULT_SOCKET_CONNECT_TIMEOUT_SECONDS,
+        socket_timeout=DEFAULT_SOCKET_TIMEOUT_SECONDS,
+    )
 
 
 def run_once(cache, key=DEFAULT_KEY, value=DEFAULT_VALUE):
