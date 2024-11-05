@@ -165,7 +165,7 @@ jobs:
 
       - name: Show ${{ matrix.name }} container logs
         if: failure()
-        run: docker logs playground-${{ matrix.name }}
+        run: docker logs playground-${{ matrix.name }} || true
 
       - name: Stop ${{ matrix.name }} container
         if: always()
@@ -245,7 +245,7 @@ jobs:
 
       - name: Show test container logs
         if: failure()
-        run: docker logs playground-test
+        run: docker logs playground-test || true
 
       - name: Stop test container
         if: always()
