@@ -163,6 +163,10 @@ jobs:
           docker logs playground-${{ matrix.name }}
           exit 1
 
+      - name: Show ${{ matrix.name }} container logs
+        if: failure()
+        run: docker logs playground-${{ matrix.name }}
+
       - name: Stop ${{ matrix.name }} container
         if: always()
         run: docker rm --force playground-${{ matrix.name }}
