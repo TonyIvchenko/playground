@@ -29,13 +29,20 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, _handle_signal)
 
     logger.info(
-        "Starting test-service host=%s port=%s key=%s sleep=%s",
+        "Starting test-service host=%s port=%s key=%s sleep=%s connect_timeout=%s socket_timeout=%s",
         settings.redis_host,
         settings.redis_port,
         settings.redis_key,
         settings.sleep_seconds,
+        settings.redis_socket_connect_timeout,
+        settings.redis_socket_timeout,
     )
-    cache = build_client(host=settings.redis_host, port=settings.redis_port)
+    cache = build_client(
+        host=settings.redis_host,
+        port=settings.redis_port,
+        socket_connect_timeout=settings.redis_socket_connect_timeout,
+        socket_timeout=settings.redis_socket_timeout,
+    )
     try:
         run_forever(
             cache,

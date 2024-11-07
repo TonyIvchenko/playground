@@ -17,6 +17,8 @@ Environment variables:
 - `REDIS_KEY` (default `key`)
 - `REDIS_VALUE` (default `value`)
 - `SLEEP_SECONDS` (default `60`)
+- `REDIS_SOCKET_CONNECT_TIMEOUT` (default `5`)
+- `REDIS_SOCKET_TIMEOUT` (default `5`)
 
 ## Docker
 

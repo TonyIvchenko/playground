@@ -9,6 +9,8 @@ class ServiceSettings:
     redis_key: str = "key"
     redis_value: str = "value"
     sleep_seconds: float = 60.0
+    redis_socket_connect_timeout: float = 5.0
+    redis_socket_timeout: float = 5.0
 
 
 def _read_int(env, key, default):
@@ -33,4 +35,14 @@ def load_settings(env=None):
         redis_key=values.get("REDIS_KEY", ServiceSettings.redis_key),
         redis_value=values.get("REDIS_VALUE", ServiceSettings.redis_value),
         sleep_seconds=_read_float(values, "SLEEP_SECONDS", ServiceSettings.sleep_seconds),
+        redis_socket_connect_timeout=_read_float(
+            values,
+            "REDIS_SOCKET_CONNECT_TIMEOUT",
+            ServiceSettings.redis_socket_connect_timeout,
+        ),
+        redis_socket_timeout=_read_float(
+            values,
+            "REDIS_SOCKET_TIMEOUT",
+            ServiceSettings.redis_socket_timeout,
+        ),
     )

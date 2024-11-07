@@ -18,6 +18,8 @@ def test_load_settings_uses_defaults_when_env_is_empty():
     assert loaded.redis_key == "key"
     assert loaded.redis_value == "value"
     assert loaded.sleep_seconds == 60.0
+    assert loaded.redis_socket_connect_timeout == 5.0
+    assert loaded.redis_socket_timeout == 5.0
 
 
 def test_load_settings_reads_values_from_env_mapping():
@@ -28,6 +30,8 @@ def test_load_settings_reads_values_from_env_mapping():
             "REDIS_KEY": "alpha",
             "REDIS_VALUE": "beta",
             "SLEEP_SECONDS": "2.5",
+            "REDIS_SOCKET_CONNECT_TIMEOUT": "1.5",
+            "REDIS_SOCKET_TIMEOUT": "4.5",
         }
     )
     assert loaded.redis_host == "cache.local"
@@ -35,6 +39,8 @@ def test_load_settings_reads_values_from_env_mapping():
     assert loaded.redis_key == "alpha"
     assert loaded.redis_value == "beta"
     assert loaded.sleep_seconds == 2.5
+    assert loaded.redis_socket_connect_timeout == 1.5
+    assert loaded.redis_socket_timeout == 4.5
 
 
 def test_load_settings_raises_for_invalid_numeric_values():
@@ -43,3 +49,9 @@ def test_load_settings_raises_for_invalid_numeric_values():
 
     with pytest.raises(ValueError):
         settings.load_settings({"SLEEP_SECONDS": "nope"})
+
+    with pytest.raises(ValueError):
+        settings.load_settings({"REDIS_SOCKET_CONNECT_TIMEOUT": "bad"})
+
+    with pytest.raises(ValueError):
+        settings.load_settings({"REDIS_SOCKET_TIMEOUT": "bad"})
