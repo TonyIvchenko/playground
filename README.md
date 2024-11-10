@@ -13,7 +13,7 @@ Minimal multi-service playground.
 1. Root `requirements.txt` contains only shared environment dependencies.
 2. Each service defines its own dependencies in `src/<service>/requirements.txt`.
 3. Root `environment.yml` installs root requirements plus all service requirements files.
-4. New service checklist: create `src/<service>/main.py`, `Dockerfile`, `requirements.txt`, then add its requirements file to `environment.yml`.
+4. New service checklist: create `src/<service>/main.py`, `Dockerfile`, `requirements.txt`, `README.md`, add service tests under `src/<service>/tests`, then add the service requirements file to `environment.yml`.
 
 ## Environment
 
