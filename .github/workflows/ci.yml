@@ -16,6 +16,11 @@ env:
   DOCKER_BUILDKIT: "1"
   WEB_HEALTH_RETRIES: "30"
   REDIS_SMOKE_RETRIES: "30"
+  REDIS_SMOKE_KEY: "ci-smoke"
+  REDIS_SMOKE_VALUE: "healthy"
+  REDIS_SMOKE_SLEEP_SECONDS: "1"
+  REDIS_SOCKET_CONNECT_TIMEOUT: "5"
+  REDIS_SOCKET_TIMEOUT: "5"
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
   PYTHONDONTWRITEBYTECODE: "1"
 
@@ -151,9 +156,11 @@ jobs:
             --name playground-test \
             -e REDIS_HOST=127.0.0.1 \
             -e REDIS_PORT=6379 \
-            -e REDIS_KEY=ci-smoke \
-            -e REDIS_VALUE=healthy \
-            -e SLEEP_SECONDS=1 \
+            -e REDIS_KEY="$REDIS_SMOKE_KEY" \
+            -e REDIS_VALUE="$REDIS_SMOKE_VALUE" \
+            -e REDIS_SOCKET_CONNECT_TIMEOUT \
+            -e REDIS_SOCKET_TIMEOUT \
+            -e SLEEP_SECONDS="$REDIS_SMOKE_SLEEP_SECONDS" \
             playground-test
 
       - name: Wait for Redis write
@@ -161,12 +168,15 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
+          import os
           import subprocess
           import socket
           import time
 
-          command = b"*2\r\n$3\r\nGET\r\n$8\r\nci-smoke\r\n"
-          expected = b"$7\r\nhealthy\r\n"
+          smoke_key = os.environ["REDIS_SMOKE_KEY"].encode("utf-8")
+          smoke_value = os.environ["REDIS_SMOKE_VALUE"].encode("utf-8")
+          command = b"*2\r\n$3\r\nGET\r\n$" + str(len(smoke_key)).encode("ascii") + b"\r\n" + smoke_key + b"\r\n"
+          expected = b"$" + str(len(smoke_value)).encode("ascii") + b"\r\n" + smoke_value + b"\r\n"
           retries = int("${REDIS_SMOKE_RETRIES}")
 
           for _ in range(retries):
