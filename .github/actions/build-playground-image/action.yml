@@ -1,0 +1,17 @@
+name: Build Playground Image
+description: Build one service image from the repo root with a fresh base image.
+
+inputs:
+  dockerfile:
+    description: Path to the Dockerfile relative to the repo root.
+    required: true
+  image:
+    description: Image tag to build.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Build image
+      shell: bash
+      run: docker build --pull --file "${{ inputs.dockerfile }}" --tag "${{ inputs.image }}" .
