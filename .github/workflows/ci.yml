@@ -16,6 +16,8 @@ env:
   DOCKER_BUILDKIT: "1"
   WEB_HEALTH_RETRIES: "30"
   REDIS_SMOKE_RETRIES: "30"
+  REDIS_SMOKE_HOST: "127.0.0.1"
+  REDIS_SMOKE_PORT: "6379"
   REDIS_SMOKE_KEY: "ci-smoke"
   REDIS_SMOKE_VALUE: "healthy"
   REDIS_SMOKE_SLEEP_SECONDS: "1"
@@ -154,8 +156,8 @@ jobs:
           set -euo pipefail
           docker run --detach --rm --init --network host \
             --name playground-test \
-            -e REDIS_HOST=127.0.0.1 \
-            -e REDIS_PORT=6379 \
+            -e REDIS_HOST="$REDIS_SMOKE_HOST" \
+            -e REDIS_PORT="$REDIS_SMOKE_PORT" \
             -e REDIS_KEY="$REDIS_SMOKE_KEY" \
             -e REDIS_VALUE="$REDIS_SMOKE_VALUE" \
             -e REDIS_SOCKET_CONNECT_TIMEOUT \
@@ -175,6 +177,8 @@ jobs:
 
           smoke_key = os.environ["REDIS_SMOKE_KEY"].encode("utf-8")
           smoke_value = os.environ["REDIS_SMOKE_VALUE"].encode("utf-8")
+          smoke_host = os.environ["REDIS_SMOKE_HOST"]
+          smoke_port = int(os.environ["REDIS_SMOKE_PORT"])
           command = b"*2\r\n$3\r\nGET\r\n$" + str(len(smoke_key)).encode("ascii") + b"\r\n" + smoke_key + b"\r\n"
           expected = b"$" + str(len(smoke_value)).encode("ascii") + b"\r\n" + smoke_value + b"\r\n"
           retries = int("${REDIS_SMOKE_RETRIES}")
@@ -194,7 +198,7 @@ jobs:
                   if status != "healthy":
                       time.sleep(2)
                       continue
-                  with socket.create_connection(("127.0.0.1", 6379), timeout=2) as sock:
+                  with socket.create_connection((smoke_host, smoke_port), timeout=2) as sock:
                       sock.sendall(command)
                       payload = sock.recv(4096)
                   if expected in payload:
