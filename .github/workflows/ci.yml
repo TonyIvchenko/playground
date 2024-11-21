@@ -107,7 +107,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build ${{ matrix.name }} image
-        run: docker build --pull --file ${{ matrix.dockerfile }} --tag playground-${{ matrix.name }} .
+        uses: ./.github/actions/build-playground-image
+        with:
+          dockerfile: ${{ matrix.dockerfile }}
+          image: playground-${{ matrix.name }}
 
       - name: Start ${{ matrix.name }} container
         run: docker run --detach --rm --name playground-${{ matrix.name }} -p ${{ matrix.port }}:8080 playground-${{ matrix.name }}
