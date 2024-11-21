@@ -179,6 +179,7 @@ jobs:
           smoke_value = os.environ["REDIS_SMOKE_VALUE"].encode("utf-8")
           smoke_host = os.environ["REDIS_SMOKE_HOST"]
           smoke_port = int(os.environ["REDIS_SMOKE_PORT"])
+          connect_timeout = float(os.environ["REDIS_SOCKET_CONNECT_TIMEOUT"])
           command = b"*2\r\n$3\r\nGET\r\n$" + str(len(smoke_key)).encode("ascii") + b"\r\n" + smoke_key + b"\r\n"
           expected = b"$" + str(len(smoke_value)).encode("ascii") + b"\r\n" + smoke_value + b"\r\n"
           retries = int("${REDIS_SMOKE_RETRIES}")
@@ -198,7 +199,7 @@ jobs:
                   if status != "healthy":
                       time.sleep(2)
                       continue
-                  with socket.create_connection((smoke_host, smoke_port), timeout=2) as sock:
+                  with socket.create_connection((smoke_host, smoke_port), timeout=connect_timeout) as sock:
                       sock.sendall(command)
                       payload = sock.recv(4096)
                   if expected in payload:
