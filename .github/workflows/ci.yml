@@ -157,7 +157,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build test image
-        run: docker build --pull --file src/test/Dockerfile --tag playground-test .
+        uses: ./.github/actions/build-playground-image
+        with:
+          dockerfile: src/test/Dockerfile
+          image: playground-test
 
       - name: Start test container
         run: |
