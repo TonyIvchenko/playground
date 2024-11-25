@@ -18,7 +18,7 @@ Environment variables:
 - `REDIS_VALUE` (default `value`)
 - `SLEEP_SECONDS` (default `60`)
 
-## Docker Run
+## Docker
 
 From repo root:
 
