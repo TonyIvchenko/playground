@@ -41,16 +41,6 @@ Set service-specific environment variables as needed:
 - `CTSCAN_MODEL_PATH`, `CTSCAN_SAMPLES_MANIFEST_PATH`, `CTSCAN_DEMO_CT_ZIPS_ROOT`, `CTSCAN_LIDC_ROOT` for `ctscan`
 - `REDIS_HOST`, `REDIS_PORT`, `REDIS_KEY`, `REDIS_VALUE`, `SLEEP_SECONDS` for `test`
 
-## Make Commands
-
-```bash
-make setup
-make update
-make run disasters 8080
-make run ctscan 8080
-make run test
-```
-
 ## Docker
 
 Build Docker images from the repo root so each Dockerfile can copy the shared `src/` tree:
