@@ -113,7 +113,7 @@ jobs:
           image: playground-${{ matrix.name }}
 
       - name: Start ${{ matrix.name }} container
-        run: docker run --detach --rm --name playground-${{ matrix.name }} -p ${{ matrix.port }}:8080 playground-${{ matrix.name }}
+        run: docker run --detach --rm --init --name playground-${{ matrix.name }} -p ${{ matrix.port }}:8080 playground-${{ matrix.name }}
 
       - name: Wait for ${{ matrix.name }} health endpoint
         run: |
