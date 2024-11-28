@@ -35,6 +35,8 @@ make run ctscan 8080
 make run test
 ```
 
+If you omit the port for `disasters` or `ctscan`, `PORT` defaults to `8080`.
+
 Set service-specific environment variables as needed:
 
 - `GMAPS_API_KEY` for `disasters`
