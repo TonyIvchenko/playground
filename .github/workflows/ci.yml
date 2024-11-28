@@ -165,7 +165,7 @@ jobs:
 
       - name: Start test container
         run: |
-          docker run --detach --rm --network host \
+          docker run --detach --rm --init --network host \
             --name playground-test \
             -e REDIS_HOST=127.0.0.1 \
             -e REDIS_PORT=6379 \
