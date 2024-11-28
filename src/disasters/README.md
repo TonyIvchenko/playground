@@ -33,6 +33,7 @@ GMAPS_API_KEY=<google_maps_js_api_key> PORT=8080 python main.py
 ```
 
 Open `http://localhost:8080/`.
+`PORT` defaults to `8080`.
 
 ## Data + Training
 
