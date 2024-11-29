@@ -20,6 +20,9 @@ def test_load_settings_uses_defaults_when_env_is_empty():
     assert loaded.sleep_seconds == 60.0
     assert loaded.redis_socket_connect_timeout == 5.0
     assert loaded.redis_socket_timeout == 5.0
+    assert loaded.redis_backoff_initial_seconds == 1.0
+    assert loaded.redis_backoff_max_seconds == 60.0
+    assert loaded.redis_backoff_multiplier == 2.0
 
 
 def test_load_settings_reads_values_from_env_mapping():
@@ -32,6 +35,9 @@ def test_load_settings_reads_values_from_env_mapping():
             "SLEEP_SECONDS": "2.5",
             "REDIS_SOCKET_CONNECT_TIMEOUT": "1.5",
             "REDIS_SOCKET_TIMEOUT": "4.5",
+            "REDIS_BACKOFF_INITIAL_SECONDS": "0.5",
+            "REDIS_BACKOFF_MAX_SECONDS": "8.0",
+            "REDIS_BACKOFF_MULTIPLIER": "1.75",
         }
     )
     assert loaded.redis_host == "cache.local"
@@ -41,6 +47,9 @@ def test_load_settings_reads_values_from_env_mapping():
     assert loaded.sleep_seconds == 2.5
     assert loaded.redis_socket_connect_timeout == 1.5
     assert loaded.redis_socket_timeout == 4.5
+    assert loaded.redis_backoff_initial_seconds == 0.5
+    assert loaded.redis_backoff_max_seconds == 8.0
+    assert loaded.redis_backoff_multiplier == 1.75
 
 
 def test_load_settings_raises_for_invalid_numeric_values():
@@ -55,3 +64,38 @@ def test_load_settings_raises_for_invalid_numeric_values():
 
     with pytest.raises(ValueError):
         settings.load_settings({"REDIS_SOCKET_TIMEOUT": "bad"})
+
+    with pytest.raises(ValueError):
+        settings.load_settings({"REDIS_BACKOFF_INITIAL_SECONDS": "bad"})
+
+    with pytest.raises(ValueError):
+        settings.load_settings({"REDIS_BACKOFF_MAX_SECONDS": "bad"})
+
+    with pytest.raises(ValueError):
+        settings.load_settings({"REDIS_BACKOFF_MULTIPLIER": "bad"})
+
+
+def test_load_settings_rejects_invalid_numeric_ranges():
+    with pytest.raises(ValueError):
+        settings.load_settings({"REDIS_PORT": "0"})
+
+    with pytest.raises(ValueError):
+        settings.load_settings({"REDIS_PORT": "-1"})
+
+    with pytest.raises(ValueError):
+        settings.load_settings({"SLEEP_SECONDS": "-0.1"})
+
+    with pytest.raises(ValueError):
+        settings.load_settings({"REDIS_SOCKET_CONNECT_TIMEOUT": "0"})
+
+    with pytest.raises(ValueError):
+        settings.load_settings({"REDIS_SOCKET_TIMEOUT": "-1"})
+
+    with pytest.raises(ValueError):
+        settings.load_settings({"REDIS_BACKOFF_INITIAL_SECONDS": "0"})
+
+    with pytest.raises(ValueError):
+        settings.load_settings({"REDIS_BACKOFF_MAX_SECONDS": "-1"})
+
+    with pytest.raises(ValueError):
+        settings.load_settings({"REDIS_BACKOFF_MULTIPLIER": "0"})

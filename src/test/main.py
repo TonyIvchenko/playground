@@ -29,13 +29,16 @@ def main():
     signal.signal(signal.SIGTERM, _handle_signal)
 
     logger.info(
-        "Starting test-service host=%s port=%s key=%s sleep=%s connect_timeout=%s socket_timeout=%s",
+        "Starting test-service host=%s port=%s key=%s sleep=%s connect_timeout=%s socket_timeout=%s backoff_initial=%s backoff_max=%s backoff_multiplier=%s",
         settings.redis_host,
         settings.redis_port,
         settings.redis_key,
         settings.sleep_seconds,
         settings.redis_socket_connect_timeout,
         settings.redis_socket_timeout,
+        settings.redis_backoff_initial_seconds,
+        settings.redis_backoff_max_seconds,
+        settings.redis_backoff_multiplier,
     )
     cache = build_client(
         host=settings.redis_host,
@@ -50,6 +53,9 @@ def main():
             key=settings.redis_key,
             value=settings.redis_value,
             should_stop=stop_event.is_set,
+            backoff_initial_seconds=settings.redis_backoff_initial_seconds,
+            backoff_max_seconds=settings.redis_backoff_max_seconds,
+            backoff_multiplier=settings.redis_backoff_multiplier,
         )
     finally:
         close_method = getattr(cache, "close", None)

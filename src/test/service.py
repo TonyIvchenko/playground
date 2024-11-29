@@ -18,9 +18,9 @@ DEFAULT_VALUE = ServiceSettings.redis_value
 DEFAULT_SLEEP_SECONDS = ServiceSettings.sleep_seconds
 DEFAULT_SOCKET_CONNECT_TIMEOUT_SECONDS = ServiceSettings.redis_socket_connect_timeout
 DEFAULT_SOCKET_TIMEOUT_SECONDS = ServiceSettings.redis_socket_timeout
-DEFAULT_BACKOFF_INITIAL_SECONDS = 1.0
-DEFAULT_BACKOFF_MAX_SECONDS = 60.0
-DEFAULT_BACKOFF_MULTIPLIER = 2.0
+DEFAULT_BACKOFF_INITIAL_SECONDS = ServiceSettings.redis_backoff_initial_seconds
+DEFAULT_BACKOFF_MAX_SECONDS = ServiceSettings.redis_backoff_max_seconds
+DEFAULT_BACKOFF_MULTIPLIER = ServiceSettings.redis_backoff_multiplier
 
 
 def build_client(

@@ -19,6 +19,9 @@ Environment variables:
 - `SLEEP_SECONDS` (default `60`)
 - `REDIS_SOCKET_CONNECT_TIMEOUT` (default `5`)
 - `REDIS_SOCKET_TIMEOUT` (default `5`)
+- `REDIS_BACKOFF_INITIAL_SECONDS` (default `1`)
+- `REDIS_BACKOFF_MAX_SECONDS` (default `60`)
+- `REDIS_BACKOFF_MULTIPLIER` (default `2`)
 
 ## Docker
 

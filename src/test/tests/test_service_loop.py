@@ -46,6 +46,9 @@ def test_service_defaults_match_settings_defaults():
     assert service.DEFAULT_SLEEP_SECONDS == settings.ServiceSettings.sleep_seconds
     assert service.DEFAULT_SOCKET_CONNECT_TIMEOUT_SECONDS == settings.ServiceSettings.redis_socket_connect_timeout
     assert service.DEFAULT_SOCKET_TIMEOUT_SECONDS == settings.ServiceSettings.redis_socket_timeout
+    assert service.DEFAULT_BACKOFF_INITIAL_SECONDS == settings.ServiceSettings.redis_backoff_initial_seconds
+    assert service.DEFAULT_BACKOFF_MAX_SECONDS == settings.ServiceSettings.redis_backoff_max_seconds
+    assert service.DEFAULT_BACKOFF_MULTIPLIER == settings.ServiceSettings.redis_backoff_multiplier
 
 
 def test_build_client_sets_short_socket_timeouts(monkeypatch):
