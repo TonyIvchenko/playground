@@ -99,3 +99,16 @@ def test_load_settings_rejects_invalid_numeric_ranges():
 
     with pytest.raises(ValueError):
         settings.load_settings({"REDIS_BACKOFF_MULTIPLIER": "0"})
+
+
+def test_load_settings_rejects_invalid_backoff_policy():
+    with pytest.raises(ValueError):
+        settings.load_settings({"REDIS_BACKOFF_MULTIPLIER": "0.5"})
+
+    with pytest.raises(ValueError):
+        settings.load_settings(
+            {
+                "REDIS_BACKOFF_INITIAL_SECONDS": "5",
+                "REDIS_BACKOFF_MAX_SECONDS": "4",
+            }
+        )

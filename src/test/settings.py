@@ -53,7 +53,7 @@ def _read_positive_float(env, key, default):
 
 def load_settings(env=None):
     values = os.environ if env is None else env
-    return ServiceSettings(
+    loaded = ServiceSettings(
         redis_host=values.get("REDIS_HOST", ServiceSettings.redis_host),
         redis_port=_read_positive_int(values, "REDIS_PORT", ServiceSettings.redis_port),
         redis_key=values.get("REDIS_KEY", ServiceSettings.redis_key),
@@ -85,3 +85,8 @@ def load_settings(env=None):
             ServiceSettings.redis_backoff_multiplier,
         ),
     )
+    if loaded.redis_backoff_multiplier < 1.0:
+        raise ValueError("REDIS_BACKOFF_MULTIPLIER must be >= 1")
+    if loaded.redis_backoff_max_seconds < loaded.redis_backoff_initial_seconds:
+        raise ValueError("REDIS_BACKOFF_MAX_SECONDS must be >= REDIS_BACKOFF_INITIAL_SECONDS")
+    return loaded
