@@ -12,6 +12,9 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  DOCKER_BUILDKIT: "1"
+
 jobs:
   collect:
     runs-on: ubuntu-latest
