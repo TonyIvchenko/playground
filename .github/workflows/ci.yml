@@ -66,8 +66,6 @@ jobs:
   docker-builds:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    env:
-      DOCKER_BUILDKIT: "1"
     strategy:
       fail-fast: false
       matrix:
