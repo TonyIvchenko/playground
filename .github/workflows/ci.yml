@@ -140,8 +140,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     name: smoke-test
-    env:
-      DOCKER_BUILDKIT: "1"
     services:
       redis:
         image: redis:7-alpine
