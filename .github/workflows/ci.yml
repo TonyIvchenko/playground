@@ -188,6 +188,7 @@ jobs:
           smoke_host = os.environ["REDIS_SMOKE_HOST"]
           smoke_port = int(os.environ["REDIS_SMOKE_PORT"])
           connect_timeout = float(os.environ["REDIS_SOCKET_CONNECT_TIMEOUT"])
+          socket_timeout = float(os.environ["REDIS_SOCKET_TIMEOUT"])
           wait_seconds = float(os.environ["REDIS_SMOKE_WAIT_SECONDS"])
           command = b"*2\r\n$3\r\nGET\r\n$" + str(len(smoke_key)).encode("ascii") + b"\r\n" + smoke_key + b"\r\n"
           expected = b"$" + str(len(smoke_value)).encode("ascii") + b"\r\n" + smoke_value + b"\r\n"
@@ -209,6 +210,7 @@ jobs:
                       time.sleep(wait_seconds)
                       continue
                   with socket.create_connection((smoke_host, smoke_port), timeout=connect_timeout) as sock:
+                      sock.settimeout(socket_timeout)
                       sock.sendall(command)
                       payload = sock.recv(4096)
                   if expected in payload:
