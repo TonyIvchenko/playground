@@ -31,10 +31,32 @@ From repo root:
 docker build --pull -t test -f src/test/Dockerfile .
 
 # macOS / Windows Docker Desktop
-docker run --rm --name test -e REDIS_HOST=host.docker.internal -e REDIS_PORT=6379 -e REDIS_KEY=smoke -e REDIS_VALUE=healthy -e SLEEP_SECONDS=1 test
+docker run --rm --name test \
+  -e REDIS_HOST=host.docker.internal \
+  -e REDIS_PORT=6379 \
+  -e REDIS_KEY=smoke \
+  -e REDIS_VALUE=healthy \
+  -e SLEEP_SECONDS=1 \
+  -e REDIS_SOCKET_CONNECT_TIMEOUT=5 \
+  -e REDIS_SOCKET_TIMEOUT=5 \
+  -e REDIS_BACKOFF_INITIAL_SECONDS=1 \
+  -e REDIS_BACKOFF_MAX_SECONDS=30 \
+  -e REDIS_BACKOFF_MULTIPLIER=2 \
+  test
 
 # Linux
-docker run --rm --name test --network host -e REDIS_HOST=127.0.0.1 -e REDIS_PORT=6379 -e REDIS_KEY=smoke -e REDIS_VALUE=healthy -e SLEEP_SECONDS=1 test
+docker run --rm --name test --network host \
+  -e REDIS_HOST=127.0.0.1 \
+  -e REDIS_PORT=6379 \
+  -e REDIS_KEY=smoke \
+  -e REDIS_VALUE=healthy \
+  -e SLEEP_SECONDS=1 \
+  -e REDIS_SOCKET_CONNECT_TIMEOUT=5 \
+  -e REDIS_SOCKET_TIMEOUT=5 \
+  -e REDIS_BACKOFF_INITIAL_SECONDS=1 \
+  -e REDIS_BACKOFF_MAX_SECONDS=30 \
+  -e REDIS_BACKOFF_MULTIPLIER=2 \
+  test
 
 redis-cli -h 127.0.0.1 -p 6379 GET smoke
 ```
