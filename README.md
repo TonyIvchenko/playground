@@ -15,15 +15,10 @@ Minimal multi-service playground.
 3. Root `environment.yml` installs root requirements plus all service requirements files.
 4. New service checklist: create `src/<service>/main.py`, `Dockerfile`, `requirements.txt`, then add its requirements file to `environment.yml`.
 
-## Setup
+## Environment
 
 ```bash
 make setup
-```
-
-## Update Environment
-
-```bash
 make update
 ```
 
