@@ -101,6 +101,17 @@ def test_load_settings_rejects_invalid_numeric_ranges():
         settings.load_settings({"REDIS_BACKOFF_MULTIPLIER": "0"})
 
 
+def test_load_settings_rejects_empty_string_values():
+    with pytest.raises(ValueError):
+        settings.load_settings({"REDIS_HOST": ""})
+
+    with pytest.raises(ValueError):
+        settings.load_settings({"REDIS_KEY": ""})
+
+    with pytest.raises(ValueError):
+        settings.load_settings({"REDIS_VALUE": ""})
+
+
 def test_load_settings_rejects_invalid_backoff_policy():
     with pytest.raises(ValueError):
         settings.load_settings({"REDIS_BACKOFF_MULTIPLIER": "0.5"})
