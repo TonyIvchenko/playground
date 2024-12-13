@@ -106,6 +106,9 @@ def test_load_settings_rejects_empty_string_values():
         settings.load_settings({"REDIS_HOST": ""})
 
     with pytest.raises(ValueError):
+        settings.load_settings({"REDIS_HOST": "   "})
+
+    with pytest.raises(ValueError):
         settings.load_settings({"REDIS_KEY": ""})
 
     with pytest.raises(ValueError):

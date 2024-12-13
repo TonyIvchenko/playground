@@ -27,7 +27,7 @@ def _read_non_empty_string(env, key, default):
     raw_value = env.get(key)
     if raw_value is None:
         return default
-    if raw_value == "":
+    if raw_value.strip() == "":
         raise ValueError(f"{key} must not be empty")
     return raw_value
 
