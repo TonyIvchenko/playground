@@ -32,6 +32,10 @@ def _read_non_empty_string(env, key, default):
     return raw_value
 
 
+def _read_non_empty_trimmed_string(env, key, default):
+    return _read_non_empty_string(env, key, default).strip()
+
+
 def _read_float(env, key, default):
     raw_value = env.get(key)
     if raw_value in (None, ""):
@@ -63,7 +67,7 @@ def _read_positive_float(env, key, default):
 def load_settings(env=None):
     values = os.environ if env is None else env
     loaded = ServiceSettings(
-        redis_host=_read_non_empty_string(values, "REDIS_HOST", ServiceSettings.redis_host),
+        redis_host=_read_non_empty_trimmed_string(values, "REDIS_HOST", ServiceSettings.redis_host),
         redis_port=_read_positive_int(values, "REDIS_PORT", ServiceSettings.redis_port),
         redis_key=_read_non_empty_string(values, "REDIS_KEY", ServiceSettings.redis_key),
         redis_value=_read_non_empty_string(values, "REDIS_VALUE", ServiceSettings.redis_value),

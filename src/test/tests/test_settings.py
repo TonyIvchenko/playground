@@ -28,7 +28,7 @@ def test_load_settings_uses_defaults_when_env_is_empty():
 def test_load_settings_reads_values_from_env_mapping():
     loaded = settings.load_settings(
         {
-            "REDIS_HOST": "cache.local",
+            "REDIS_HOST": " cache.local ",
             "REDIS_PORT": "6380",
             "REDIS_KEY": "alpha",
             "REDIS_VALUE": "beta",
