@@ -71,6 +71,8 @@ Allowed values:
 
 ## Docker
 
+From repo root:
+
 ```bash
 docker build --pull -t disasters -f src/disasters/Dockerfile .
 docker run --rm --name disasters -p 8080:8080 -e PORT=8080 disasters
