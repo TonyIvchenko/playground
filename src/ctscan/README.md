@@ -526,6 +526,8 @@ Optional runtime overrides:
 
 ## Docker
 
+From repo root:
+
 ```bash
 docker build --pull -t ctscan -f src/ctscan/Dockerfile .
 docker run --rm --name ctscan -p 8080:8080 -e PORT=8080 ctscan
