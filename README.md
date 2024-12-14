@@ -70,13 +70,12 @@ python -m pytest -q
 
 ## CI
 
-The GitHub workflow currently checks five things on every push and pull request:
+The GitHub workflow currently checks four things on every push and pull request:
 
 1. test collection from the repo root
 2. service test suites split across `src/test/tests`, `src/disasters/tests`, and `src/ctscan/tests`
-3. Docker image builds for `test`, `disasters`, and `ctscan`
-4. container health smokes for `disasters` and `ctscan` via `GET /health`
-5. a Redis-backed runtime smoke for the `test` container
+3. container health smokes for `disasters` and `ctscan` via `GET /health`, including fresh image builds
+4. a Redis-backed runtime smoke for the `test` container, including a fresh image build
 
 ## Service Docs
 
