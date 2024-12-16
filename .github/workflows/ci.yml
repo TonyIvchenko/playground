@@ -150,6 +150,7 @@ jobs:
       - name: Wait for Redis write
         run: |
           python - <<'PY'
+          import subprocess
           import socket
           import time
 
@@ -158,8 +159,6 @@ jobs:
 
           for _ in range(30):
               try:
-                  import subprocess
-
                   status = subprocess.check_output(
                       [
                           "docker",
@@ -179,7 +178,7 @@ jobs:
                   if expected in payload:
                       print(payload.decode("utf-8", errors="ignore"))
                       raise SystemExit(0)
-              except OSError:
+              except (OSError, subprocess.CalledProcessError):
                   pass
               time.sleep(2)
 
