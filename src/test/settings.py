@@ -69,8 +69,8 @@ def load_settings(env=None):
     loaded = ServiceSettings(
         redis_host=_read_non_empty_trimmed_string(values, "REDIS_HOST", ServiceSettings.redis_host),
         redis_port=_read_positive_int(values, "REDIS_PORT", ServiceSettings.redis_port),
-        redis_key=_read_non_empty_string(values, "REDIS_KEY", ServiceSettings.redis_key),
-        redis_value=_read_non_empty_string(values, "REDIS_VALUE", ServiceSettings.redis_value),
+        redis_key=_read_non_empty_trimmed_string(values, "REDIS_KEY", ServiceSettings.redis_key),
+        redis_value=_read_non_empty_trimmed_string(values, "REDIS_VALUE", ServiceSettings.redis_value),
         sleep_seconds=_read_non_negative_float(values, "SLEEP_SECONDS", ServiceSettings.sleep_seconds),
         redis_socket_connect_timeout=_read_positive_float(
             values,

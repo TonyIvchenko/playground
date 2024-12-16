@@ -30,8 +30,8 @@ def test_load_settings_reads_values_from_env_mapping():
         {
             "REDIS_HOST": " cache.local ",
             "REDIS_PORT": "6380",
-            "REDIS_KEY": "alpha",
-            "REDIS_VALUE": "beta",
+            "REDIS_KEY": " alpha ",
+            "REDIS_VALUE": " beta ",
             "SLEEP_SECONDS": "2.5",
             "REDIS_SOCKET_CONNECT_TIMEOUT": "1.5",
             "REDIS_SOCKET_TIMEOUT": "4.5",
