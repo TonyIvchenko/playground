@@ -23,6 +23,8 @@ Environment variables:
 - `REDIS_BACKOFF_MAX_SECONDS` (default `60`)
 - `REDIS_BACKOFF_MULTIPLIER` (default `2`)
 
+`REDIS_HOST`, `REDIS_KEY`, and `REDIS_VALUE` are trimmed at startup, and blank values are rejected.
+
 ## Docker
 
 From repo root:
