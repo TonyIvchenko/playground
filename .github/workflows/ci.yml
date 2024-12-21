@@ -52,7 +52,7 @@ jobs:
             path: src/disasters/tests
           - name: ctscan
             path: src/ctscan/tests
-    name: ${{ matrix.name }}
+    name: tests-${{ matrix.name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
