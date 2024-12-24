@@ -77,7 +77,7 @@ jobs:
           - name: ctscan
             dockerfile: src/ctscan/Dockerfile
             port: 18081
-    name: smoke-${{ matrix.name }}
+    name: smoke-web-${{ matrix.name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
