@@ -465,6 +465,12 @@ python scripts/segmentation/train_legacy_vgg11_unet.py \
   --skip-existing-png
 ```
 
+If you are training on Apple Silicon with `device=mps` and want an explicit cleanup pass between epochs, add:
+
+```bash
+  --clear-mps-cache-per-epoch
+```
+
 7. Resume from the last best checkpoint if needed.
 
 ```bash

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 from PIL import Image
@@ -10,7 +11,8 @@ torchvision = pytest.importorskip("torchvision")
 nibabel = pytest.importorskip("nibabel")
 from torch.utils.data import DataLoader
 
-from src.ctscan.scripts.segmentation.train_legacy_vgg11_unet import LegacyLungDataset, TrainConfig, existing_png_names, train
+import src.ctscan.scripts.segmentation.train_legacy_vgg11_unet as legacy_train
+from src.ctscan.scripts.segmentation.train_legacy_vgg11_unet import LegacyLungDataset, TrainConfig, existing_png_names, maybe_clear_mps_cache, train
 
 
 def _write_pair(images_dir: Path, masks_dir: Path, name: str, size: int) -> None:
@@ -93,6 +95,7 @@ def test_legacy_trainer_rejects_mixed_png_cache_without_resize(tmp_path: Path):
         device="cpu",
         overwrite_workdir=False,
         skip_existing_png=True,
+        clear_mps_cache_per_epoch=False,
         max_volumes=1,
     )
 
@@ -139,6 +142,7 @@ def test_legacy_trainer_writes_epoch_checkpoints(tmp_path: Path, monkeypatch):
         device="cpu",
         overwrite_workdir=True,
         skip_existing_png=False,
+        clear_mps_cache_per_epoch=False,
         max_volumes=1,
     )
 
@@ -151,3 +155,15 @@ def test_legacy_trainer_writes_epoch_checkpoints(tmp_path: Path, monkeypatch):
     loaded = torch.load(config.output_path, map_location="cpu")
     assert isinstance(loaded, dict)
     assert all(isinstance(value, torch.Tensor) for value in loaded.values())
+
+
+def test_maybe_clear_mps_cache_runs_gc_and_mps_clear(monkeypatch):
+    calls: list[str] = []
+
+    monkeypatch.setattr(legacy_train.gc, "collect", lambda: calls.append("gc"))
+    dummy_mps = SimpleNamespace(empty_cache=lambda: calls.append("mps"))
+    monkeypatch.setattr(legacy_train.torch, "mps", dummy_mps, raising=False)
+
+    maybe_clear_mps_cache(enabled=True, device=SimpleNamespace(type="mps"))
+
+    assert calls == ["gc", "mps"]

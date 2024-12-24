@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 from dataclasses import dataclass
+import gc
 import json
 from pathlib import Path
 import random
@@ -73,6 +74,7 @@ class TrainConfig:
     device: str
     overwrite_workdir: bool
     skip_existing_png: bool
+    clear_mps_cache_per_epoch: bool
     max_volumes: int
 
 
@@ -210,6 +212,7 @@ def parse_args() -> TrainConfig:
     parser.add_argument("--device", type=str, default="auto")
     parser.add_argument("--overwrite-workdir", action="store_true")
     parser.add_argument("--skip-existing-png", action="store_true")
+    parser.add_argument("--clear-mps-cache-per-epoch", action="store_true")
     parser.add_argument("--max-volumes", type=int, default=0)
     args = parser.parse_args()
 
@@ -230,6 +233,7 @@ def parse_args() -> TrainConfig:
         device=str(args.device).strip().lower(),
         overwrite_workdir=bool(args.overwrite_workdir),
         skip_existing_png=bool(args.skip_existing_png),
+        clear_mps_cache_per_epoch=bool(args.clear_mps_cache_per_epoch),
         max_volumes=max(int(args.max_volumes), 0),
     )
 
@@ -258,6 +262,19 @@ def seed_everything(seed: int) -> None:
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
+
+
+def maybe_clear_mps_cache(enabled: bool, device: torch.device | None) -> None:
+    if not enabled:
+        return
+    gc.collect()
+    if torch is None:
+        return
+    if getattr(device, "type", "") != "mps":
+        return
+    empty_cache = getattr(getattr(torch, "mps", None), "empty_cache", None)
+    if callable(empty_cache):
+        empty_cache()
 
 
 def volume_id_from_path(path: Path) -> str:
@@ -609,6 +626,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
 
             epoch_state = {k: v.detach().cpu() for k, v in model.state_dict().items()}
             torch.save(epoch_state, epoch_checkpoint_path(config.output_path, epoch))
+            maybe_clear_mps_cache(enabled=config.clear_mps_cache_per_epoch, device=device)
 
     if best_state is None:
         best_state = {k: v.detach().cpu() for k, v in model.state_dict().items()}
@@ -648,6 +666,7 @@ def train(config: TrainConfig) -> dict[str, Any]:
         "image_size": int(config.image_size),
         "epoch_checkpoint_pattern": str(epoch_checkpoint_path(config.output_path, 1)).replace("epoch001", "epochNNN"),
         "resume_path": str(config.resume_path) if config.resume_path is not None else None,
+        "clear_mps_cache_per_epoch": bool(config.clear_mps_cache_per_epoch),
     }
     config.metrics_path.parent.mkdir(parents=True, exist_ok=True)
     config.metrics_path.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
