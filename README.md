@@ -46,6 +46,9 @@ Set service-specific environment variables as needed:
 - `CTSCAN_MODEL_PATH`, `CTSCAN_SAMPLES_MANIFEST_PATH`, `CTSCAN_DEMO_CT_ZIPS_ROOT`, `CTSCAN_LIDC_ROOT` for `ctscan` (`CTSCAN_DEMO_CT_ZIPS_ROOT` expects study zip bundles)
 - `REDIS_HOST`, `REDIS_PORT`, `REDIS_KEY`, `REDIS_VALUE`, `SLEEP_SECONDS`, `REDIS_SOCKET_CONNECT_TIMEOUT`, `REDIS_SOCKET_TIMEOUT`, `REDIS_BACKOFF_INITIAL_SECONDS`, `REDIS_BACKOFF_MAX_SECONDS`, `REDIS_BACKOFF_MULTIPLIER` for `test` (`REDIS_HOST=localhost` for a local Redis)
 
+For `test`, `REDIS_HOST`, `REDIS_KEY`, and `REDIS_VALUE` are trimmed at startup, and blank values are rejected.
+When you run `test` in Docker, use `REDIS_HOST=host.docker.internal` on Docker Desktop or `REDIS_HOST=127.0.0.1` with `--network host` on Linux.
+
 ## Docker
 
 Build Docker images from the repo root so each Dockerfile can copy the shared `src/` tree:

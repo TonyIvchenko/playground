@@ -64,7 +64,7 @@ redis-cli -h 127.0.0.1 -p 6379 GET smoke
 ```
 
 Use `host.docker.internal` on Docker Desktop. Use `--network host` only on Linux.
-The container healthcheck uses the same `REDIS_SOCKET_CONNECT_TIMEOUT` and `REDIS_SOCKET_TIMEOUT` env vars as the service runtime.
+The container healthcheck uses the same `REDIS_HOST`, `REDIS_PORT`, `REDIS_SOCKET_CONNECT_TIMEOUT`, and `REDIS_SOCKET_TIMEOUT` env vars as the service runtime.
 
 The CI workflow uses the same Redis-backed smoke pattern for this service.
 
