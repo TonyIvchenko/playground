@@ -58,7 +58,11 @@
     }
 
     video {
-      opacity: 0;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+
+    canvas {
       pointer-events: none;
     }
 
@@ -69,7 +73,6 @@
       font-size: 14px;
     }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
 </head>
@@ -100,11 +103,14 @@
       canvasElement.height = height;
     }
 
+    let isProcessing = false;
+
     function onResults(results) {
       resizeCanvas();
       canvasCtx.save();
       canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-      canvasCtx.drawImage(results.image, 0, 0, canvasElement.width, canvasElement.height);
+      canvasCtx.translate(canvasElement.width, 0);
+      canvasCtx.scale(-1, 1);
 
       if (results.multiFaceLandmarks) {
         for (const landmarks of results.multiFaceLandmarks) {
@@ -142,18 +148,50 @@
 
     faceMesh.onResults(onResults);
 
-    const camera = new Camera(videoElement, {
-      onFrame: async () => {
-        await faceMesh.send({image: videoElement});
-      },
-      width: 960,
-      height: 720,
-    });
+    async function processFrame() {
+      if (videoElement.readyState < 2) {
+        requestAnimationFrame(processFrame);
+        return;
+      }
 
-    camera.start().catch((error) => {
-      console.error(error);
-      setStatus('Camera access failed. Open this page on localhost and allow the camera.');
-    });
+      if (!isProcessing) {
+        isProcessing = true;
+        try {
+          await faceMesh.send({image: videoElement});
+        } finally {
+          isProcessing = false;
+        }
+      }
+
+      requestAnimationFrame(processFrame);
+    }
+
+    async function start() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            facingMode: 'user',
+            width: {ideal: 960},
+            height: {ideal: 720},
+          },
+        });
+
+        videoElement.srcObject = stream;
+        await videoElement.play();
+        setStatus('Camera ready. Loading face mesh...');
+        requestAnimationFrame(processFrame);
+
+        window.addEventListener('beforeunload', () => {
+          stream.getTracks().forEach((track) => track.stop());
+        });
+      } catch (error) {
+        console.error(error);
+        setStatus('Camera access failed. Open this page on localhost and allow the camera.');
+      }
+    }
+
+    start();
   </script>
 </body>
 </html>
