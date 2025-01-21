@@ -91,6 +91,8 @@
     const canvasElement = document.querySelector('.output_canvas');
     const canvasCtx = canvasElement.getContext('2d');
     const statusElement = document.getElementById('status');
+    const inputCanvas = document.createElement('canvas');
+    const inputCtx = inputCanvas.getContext('2d');
 
     function setStatus(message) {
       statusElement.textContent = message;
@@ -101,6 +103,8 @@
       const height = videoElement.videoHeight || 720;
       canvasElement.width = width;
       canvasElement.height = height;
+      inputCanvas.width = width;
+      inputCanvas.height = height;
     }
 
     let isProcessing = false;
@@ -148,22 +152,35 @@
 
     faceMesh.onResults(onResults);
 
+    function queueNextFrame() {
+      if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+        videoElement.requestVideoFrameCallback(() => {
+          processFrame();
+        });
+        return;
+      }
+
+      requestAnimationFrame(processFrame);
+    }
+
     async function processFrame() {
       if (videoElement.readyState < 2) {
-        requestAnimationFrame(processFrame);
+        queueNextFrame();
         return;
       }
 
       if (!isProcessing) {
         isProcessing = true;
         try {
-          await faceMesh.send({image: videoElement});
+          resizeCanvas();
+          inputCtx.drawImage(videoElement, 0, 0, inputCanvas.width, inputCanvas.height);
+          await faceMesh.send({image: inputCanvas});
         } finally {
           isProcessing = false;
         }
       }
 
-      requestAnimationFrame(processFrame);
+      queueNextFrame();
     }
 
     async function start() {
@@ -180,7 +197,7 @@
         videoElement.srcObject = stream;
         await videoElement.play();
         setStatus('Camera ready. Loading face mesh...');
-        requestAnimationFrame(processFrame);
+        queueNextFrame();
 
         window.addEventListener('beforeunload', () => {
           stream.getTracks().forEach((track) => track.stop());
