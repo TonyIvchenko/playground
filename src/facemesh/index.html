@@ -108,6 +108,9 @@
     }
 
     let isProcessing = false;
+    let lastProcessedTime = -1;
+    let stream = null;
+    let inferenceTimer = null;
 
     function onResults(results) {
       resizeCanvas();
@@ -152,40 +155,34 @@
 
     faceMesh.onResults(onResults);
 
-    function queueNextFrame() {
-      if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
-        videoElement.requestVideoFrameCallback(() => {
-          processFrame();
-        });
-        return;
-      }
-
-      requestAnimationFrame(processFrame);
-    }
-
     async function processFrame() {
       if (videoElement.readyState < 2) {
-        queueNextFrame();
         return;
       }
 
-      if (!isProcessing) {
-        isProcessing = true;
-        try {
-          resizeCanvas();
-          inputCtx.drawImage(videoElement, 0, 0, inputCanvas.width, inputCanvas.height);
-          await faceMesh.send({image: inputCanvas});
-        } finally {
-          isProcessing = false;
-        }
+      if (isProcessing || videoElement.currentTime === lastProcessedTime) {
+        return;
       }
 
-      queueNextFrame();
+      lastProcessedTime = videoElement.currentTime;
+      isProcessing = true;
+
+      try {
+        resizeCanvas();
+        inputCtx.clearRect(0, 0, inputCanvas.width, inputCanvas.height);
+        inputCtx.drawImage(videoElement, 0, 0, inputCanvas.width, inputCanvas.height);
+        await faceMesh.send({image: inputCanvas});
+      } catch (error) {
+        console.error(error);
+        setStatus('Face mesh update failed. Check the browser console.');
+      } finally {
+        isProcessing = false;
+      }
     }
 
     async function start() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
+        stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
           video: {
             facingMode: 'user',
@@ -195,11 +192,19 @@
         });
 
         videoElement.srcObject = stream;
+        videoElement.autoplay = true;
+        videoElement.muted = true;
         await videoElement.play();
         setStatus('Camera ready. Loading face mesh...');
-        queueNextFrame();
+        await processFrame();
+        inferenceTimer = window.setInterval(() => {
+          void processFrame();
+        }, 1000 / 30);
 
         window.addEventListener('beforeunload', () => {
+          if (inferenceTimer !== null) {
+            window.clearInterval(inferenceTimer);
+          }
           stream.getTracks().forEach((track) => track.stop());
         });
       } catch (error) {
