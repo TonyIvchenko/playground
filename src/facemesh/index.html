@@ -108,38 +108,38 @@
     }
 
     let isProcessing = false;
-    let lastProcessedTime = -1;
+    let lastSubmittedTime = -1;
     let stream = null;
-    let inferenceTimer = null;
+    let latestLandmarks = [];
 
-    function onResults(results) {
+    function drawOverlay() {
       resizeCanvas();
       canvasCtx.save();
       canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
       canvasCtx.translate(canvasElement.width, 0);
       canvasCtx.scale(-1, 1);
 
-      if (results.multiFaceLandmarks) {
-        for (const landmarks of results.multiFaceLandmarks) {
-          drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION, {
-            color: '#36d7ff',
-            lineWidth: 0.8,
-          });
-          drawConnectors(canvasCtx, landmarks, FACEMESH_CONTOURS, {
-            color: '#8dff8a',
-            lineWidth: 1.2,
-          });
-          drawConnectors(canvasCtx, landmarks, FACEMESH_IRISES, {
-            color: '#ffb347',
-            lineWidth: 1.4,
-          });
-        }
-        setStatus('Face mesh active.');
-      } else {
-        setStatus('No face detected.');
+      for (const landmarks of latestLandmarks) {
+        drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION, {
+          color: '#36d7ff',
+          lineWidth: 0.8,
+        });
+        drawConnectors(canvasCtx, landmarks, FACEMESH_CONTOURS, {
+          color: '#8dff8a',
+          lineWidth: 1.2,
+        });
+        drawConnectors(canvasCtx, landmarks, FACEMESH_IRISES, {
+          color: '#ffb347',
+          lineWidth: 1.4,
+        });
       }
 
       canvasCtx.restore();
+    }
+
+    function onResults(results) {
+      latestLandmarks = results.multiFaceLandmarks || [];
+      setStatus(latestLandmarks.length > 0 ? 'Face mesh active.' : 'No face detected.');
     }
 
     const faceMesh = new FaceMesh({
@@ -155,29 +155,46 @@
 
     faceMesh.onResults(onResults);
 
-    async function processFrame() {
+    function scheduleNextFrame() {
+      if (typeof videoElement.requestVideoFrameCallback === 'function') {
+        videoElement.requestVideoFrameCallback(onVideoFrame);
+        return;
+      }
+
+      requestAnimationFrame(() => {
+        onVideoFrame(0, {mediaTime: videoElement.currentTime});
+      });
+    }
+
+    function onVideoFrame(_now, metadata) {
       if (videoElement.readyState < 2) {
+        scheduleNextFrame();
         return;
       }
 
-      if (isProcessing || videoElement.currentTime === lastProcessedTime) {
-        return;
-      }
+      drawOverlay();
 
-      lastProcessedTime = videoElement.currentTime;
-      isProcessing = true;
+      const mediaTime = typeof metadata?.mediaTime === 'number'
+        ? metadata.mediaTime
+        : videoElement.currentTime;
 
-      try {
+      if (!isProcessing && mediaTime !== lastSubmittedTime) {
+        lastSubmittedTime = mediaTime;
+        isProcessing = true;
+
         resizeCanvas();
         inputCtx.clearRect(0, 0, inputCanvas.width, inputCanvas.height);
         inputCtx.drawImage(videoElement, 0, 0, inputCanvas.width, inputCanvas.height);
-        await faceMesh.send({image: inputCanvas});
-      } catch (error) {
-        console.error(error);
-        setStatus('Face mesh update failed. Check the browser console.');
-      } finally {
-        isProcessing = false;
+
+        faceMesh.send({image: inputCanvas}).catch((error) => {
+          console.error(error);
+          setStatus('Face mesh update failed. Check the browser console.');
+        }).finally(() => {
+          isProcessing = false;
+        });
       }
+
+      scheduleNextFrame();
     }
 
     async function start() {
@@ -196,15 +213,9 @@
         videoElement.muted = true;
         await videoElement.play();
         setStatus('Camera ready. Loading face mesh...');
-        await processFrame();
-        inferenceTimer = window.setInterval(() => {
-          void processFrame();
-        }, 1000 / 30);
+        scheduleNextFrame();
 
         window.addEventListener('beforeunload', () => {
-          if (inferenceTimer !== null) {
-            window.clearInterval(inferenceTimer);
-          }
           stream.getTracks().forEach((track) => track.stop());
         });
       } catch (error) {
