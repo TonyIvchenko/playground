@@ -93,6 +93,14 @@
     const statusElement = document.getElementById('status');
     const inputCanvas = document.createElement('canvas');
     const inputCtx = inputCanvas.getContext('2d');
+    const faceMeshTesselation = typeof FACEMESH_TESSELATION !== 'undefined' ? FACEMESH_TESSELATION : [];
+    const faceMeshContours = typeof FACEMESH_CONTOURS !== 'undefined' ? FACEMESH_CONTOURS : [];
+    const faceMeshIrises = typeof FACEMESH_IRISES !== 'undefined'
+      ? FACEMESH_IRISES
+      : [
+          ...(typeof FACEMESH_LEFT_IRIS !== 'undefined' ? FACEMESH_LEFT_IRIS : []),
+          ...(typeof FACEMESH_RIGHT_IRIS !== 'undefined' ? FACEMESH_RIGHT_IRIS : []),
+        ];
 
     function setStatus(message) {
       statusElement.textContent = message;
@@ -120,15 +128,15 @@
       canvasCtx.scale(-1, 1);
 
       for (const landmarks of latestLandmarks) {
-        drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION, {
+        drawConnectors(canvasCtx, landmarks, faceMeshTesselation, {
           color: '#36d7ff',
           lineWidth: 0.8,
         });
-        drawConnectors(canvasCtx, landmarks, FACEMESH_CONTOURS, {
+        drawConnectors(canvasCtx, landmarks, faceMeshContours, {
           color: '#8dff8a',
           lineWidth: 1.2,
         });
-        drawConnectors(canvasCtx, landmarks, FACEMESH_IRISES, {
+        drawConnectors(canvasCtx, landmarks, faceMeshIrises, {
           color: '#ffb347',
           lineWidth: 1.4,
         });
