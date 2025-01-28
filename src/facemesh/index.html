@@ -60,6 +60,7 @@
     video {
       object-fit: cover;
       transform: scaleX(-1);
+      opacity: 0;
     }
 
     canvas {
@@ -91,8 +92,6 @@
     const canvasElement = document.querySelector('.output_canvas');
     const canvasCtx = canvasElement.getContext('2d');
     const statusElement = document.getElementById('status');
-    const inputCanvas = document.createElement('canvas');
-    const inputCtx = inputCanvas.getContext('2d');
     const faceMeshTesselation = typeof FACEMESH_TESSELATION !== 'undefined' ? FACEMESH_TESSELATION : [];
     const faceMeshContours = typeof FACEMESH_CONTOURS !== 'undefined' ? FACEMESH_CONTOURS : [];
     const faceMeshIrises = typeof FACEMESH_IRISES !== 'undefined'
@@ -111,8 +110,6 @@
       const height = videoElement.videoHeight || 720;
       canvasElement.width = width;
       canvasElement.height = height;
-      inputCanvas.width = width;
-      inputCanvas.height = height;
     }
 
     let isProcessing = false;
@@ -126,6 +123,7 @@
       canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
       canvasCtx.translate(canvasElement.width, 0);
       canvasCtx.scale(-1, 1);
+      canvasCtx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
 
       for (const landmarks of latestLandmarks) {
         drawConnectors(canvasCtx, landmarks, faceMeshTesselation, {
@@ -190,11 +188,7 @@
         lastSubmittedTime = mediaTime;
         isProcessing = true;
 
-        resizeCanvas();
-        inputCtx.clearRect(0, 0, inputCanvas.width, inputCanvas.height);
-        inputCtx.drawImage(videoElement, 0, 0, inputCanvas.width, inputCanvas.height);
-
-        faceMesh.send({image: inputCanvas}).catch((error) => {
+        faceMesh.send({image: videoElement}).catch((error) => {
           console.error(error);
           setStatus('Face mesh update failed. Check the browser console.');
         }).finally(() => {
