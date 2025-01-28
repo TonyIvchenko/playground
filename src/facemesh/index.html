@@ -94,12 +94,8 @@
     const statusElement = document.getElementById('status');
     const faceMeshTesselation = typeof FACEMESH_TESSELATION !== 'undefined' ? FACEMESH_TESSELATION : [];
     const faceMeshContours = typeof FACEMESH_CONTOURS !== 'undefined' ? FACEMESH_CONTOURS : [];
-    const faceMeshIrises = typeof FACEMESH_IRISES !== 'undefined'
-      ? FACEMESH_IRISES
-      : [
-          ...(typeof FACEMESH_LEFT_IRIS !== 'undefined' ? FACEMESH_LEFT_IRIS : []),
-          ...(typeof FACEMESH_RIGHT_IRIS !== 'undefined' ? FACEMESH_RIGHT_IRIS : []),
-        ];
+    const leftEyeIrisIndexes = [468, 469, 470, 471, 472];
+    const rightEyeIrisIndexes = [473, 474, 475, 476, 477];
 
     function setStatus(message) {
       statusElement.textContent = message;
@@ -117,6 +113,25 @@
     let stream = null;
     let latestLandmarks = [];
 
+    function drawIrisDots(landmarks, indexes) {
+      for (const index of indexes) {
+        const point = landmarks[index];
+        if (!point) {
+          continue;
+        }
+
+        canvasCtx.beginPath();
+        canvasCtx.arc(
+          point.x * canvasElement.width,
+          point.y * canvasElement.height,
+          2.5,
+          0,
+          Math.PI * 2,
+        );
+        canvasCtx.fill();
+      }
+    }
+
     function drawOverlay() {
       resizeCanvas();
       canvasCtx.save();
@@ -124,20 +139,20 @@
       canvasCtx.translate(canvasElement.width, 0);
       canvasCtx.scale(-1, 1);
       canvasCtx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
+      canvasCtx.strokeStyle = '#ffffff';
+      canvasCtx.fillStyle = '#ffffff';
 
       for (const landmarks of latestLandmarks) {
         drawConnectors(canvasCtx, landmarks, faceMeshTesselation, {
-          color: '#36d7ff',
+          color: '#ffffff',
           lineWidth: 0.8,
         });
         drawConnectors(canvasCtx, landmarks, faceMeshContours, {
-          color: '#8dff8a',
+          color: '#ffffff',
           lineWidth: 1.2,
         });
-        drawConnectors(canvasCtx, landmarks, faceMeshIrises, {
-          color: '#ffb347',
-          lineWidth: 1.4,
-        });
+        drawIrisDots(landmarks, leftEyeIrisIndexes);
+        drawIrisDots(landmarks, rightEyeIrisIndexes);
       }
 
       canvasCtx.restore();
