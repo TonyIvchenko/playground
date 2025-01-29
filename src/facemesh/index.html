@@ -25,13 +25,13 @@
     }
 
     .app {
-      width: min(100vw, 960px);
+      width: min(100vw, 1180px);
       padding: 24px;
     }
 
     .layout {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 240px;
+      grid-template-columns: minmax(0, 1fr) 320px;
       gap: 20px;
       align-items: start;
     }
@@ -53,12 +53,47 @@
       font-size: 16px;
     }
 
+    .panel-section + .panel-section {
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(148, 163, 184, 0.22);
+    }
+
     .control {
       display: flex;
       align-items: center;
       gap: 10px;
       font-size: 14px;
       color: #334155;
+    }
+
+    .reference-stage {
+      position: relative;
+      width: 100%;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #e8edf4;
+      box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.18);
+    }
+
+    .reference-stage img,
+    .reference-stage canvas {
+      display: block;
+      width: 100%;
+    }
+
+    .reference-stage canvas {
+      position: absolute;
+      inset: 0;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .reference-caption {
+      margin-top: 10px;
+      color: #5f6d7b;
+      font-size: 13px;
+      line-height: 1.4;
     }
 
     h1 {
@@ -128,11 +163,26 @@
         <div class="status" id="status">Starting camera...</div>
       </section>
       <aside class="panel">
-        <h2>Controls</h2>
-        <label class="control">
-          <input id="show-mesh" type="checkbox" checked>
-          <span>Show mesh</span>
-        </label>
+        <section class="panel-section">
+          <h2>Controls</h2>
+          <label class="control">
+            <input id="show-mesh" type="checkbox" checked>
+            <span>Show mesh</span>
+          </label>
+        </section>
+        <section class="panel-section">
+          <h2>Reference</h2>
+          <div class="reference-stage">
+            <img
+              id="reference-image"
+              src="https://tinyurl.com/36vm32fs"
+              alt="Reference face"
+              crossorigin="anonymous"
+            >
+            <canvas id="reference-canvas"></canvas>
+          </div>
+          <div class="reference-caption" id="reference-status">Loading reference image...</div>
+        </section>
       </aside>
     </div>
   </main>
@@ -142,6 +192,10 @@
     const canvasCtx = canvasElement.getContext('2d');
     const statusElement = document.getElementById('status');
     const showMeshInput = document.getElementById('show-mesh');
+    const referenceImage = document.getElementById('reference-image');
+    const referenceCanvas = document.getElementById('reference-canvas');
+    const referenceCtx = referenceCanvas.getContext('2d');
+    const referenceStatusElement = document.getElementById('reference-status');
     const faceMeshTesselation = typeof FACEMESH_TESSELATION !== 'undefined' ? FACEMESH_TESSELATION : [];
     const faceMeshContours = typeof FACEMESH_CONTOURS !== 'undefined' ? FACEMESH_CONTOURS : [];
     const leftEyeCenterIndex = 468;
@@ -151,6 +205,10 @@
       statusElement.textContent = message;
     }
 
+    function setReferenceStatus(message) {
+      referenceStatusElement.textContent = message;
+    }
+
     function resizeCanvas() {
       const width = videoElement.videoWidth || 960;
       const height = videoElement.videoHeight || 720;
@@ -158,26 +216,54 @@
       canvasElement.height = height;
     }
 
+    function resizeReferenceCanvas() {
+      const width = referenceImage.clientWidth || referenceImage.naturalWidth || 320;
+      const height = referenceImage.clientHeight || referenceImage.naturalHeight || 320;
+      referenceCanvas.width = width;
+      referenceCanvas.height = height;
+    }
+
     let isProcessing = false;
     let lastSubmittedTime = -1;
     let stream = null;
     let latestLandmarks = [];
+    let latestReferenceLandmarks = [];
 
-    function drawEyeDot(landmarks, index) {
+    function drawEyeDot(ctx, width, height, landmarks, index) {
       const point = landmarks[index];
       if (!point) {
         return;
       }
 
-      canvasCtx.beginPath();
-      canvasCtx.arc(
-        point.x * canvasElement.width,
-        point.y * canvasElement.height,
+      ctx.beginPath();
+      ctx.arc(
+        point.x * width,
+        point.y * height,
         1.6,
         0,
         Math.PI * 2,
       );
-      canvasCtx.fill();
+      ctx.fill();
+    }
+
+    function drawMesh(ctx, width, height, landmarksList) {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.72)';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.82)';
+
+      if (showMeshInput.checked) {
+        for (const landmarks of landmarksList) {
+          drawConnectors(ctx, landmarks, faceMeshTesselation, {
+            color: '#ffffff',
+            lineWidth: 0.5,
+          });
+          drawConnectors(ctx, landmarks, faceMeshContours, {
+            color: '#ffffff',
+            lineWidth: 0.8,
+          });
+          drawEyeDot(ctx, width, height, landmarks, leftEyeCenterIndex);
+          drawEyeDot(ctx, width, height, landmarks, rightEyeCenterIndex);
+        }
+      }
     }
 
     function drawOverlay() {
@@ -187,25 +273,14 @@
       canvasCtx.translate(canvasElement.width, 0);
       canvasCtx.scale(-1, 1);
       canvasCtx.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height);
-      canvasCtx.strokeStyle = 'rgba(255, 255, 255, 0.72)';
-      canvasCtx.fillStyle = 'rgba(255, 255, 255, 0.82)';
-
-      if (showMeshInput.checked) {
-        for (const landmarks of latestLandmarks) {
-          drawConnectors(canvasCtx, landmarks, faceMeshTesselation, {
-            color: '#ffffff',
-            lineWidth: 0.5,
-          });
-          drawConnectors(canvasCtx, landmarks, faceMeshContours, {
-            color: '#ffffff',
-            lineWidth: 0.8,
-          });
-          drawEyeDot(landmarks, leftEyeCenterIndex);
-          drawEyeDot(landmarks, rightEyeCenterIndex);
-        }
-      }
-
+      drawMesh(canvasCtx, canvasElement.width, canvasElement.height, latestLandmarks);
       canvasCtx.restore();
+    }
+
+    function drawReferenceOverlay() {
+      resizeReferenceCanvas();
+      referenceCtx.clearRect(0, 0, referenceCanvas.width, referenceCanvas.height);
+      drawMesh(referenceCtx, referenceCanvas.width, referenceCanvas.height, latestReferenceLandmarks);
     }
 
     function onResults(results) {
@@ -213,18 +288,60 @@
       setStatus(latestLandmarks.length > 0 ? 'Face mesh active.' : 'No face detected.');
     }
 
-    const faceMesh = new FaceMesh({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+    function createFaceMesh(onResultsHandler) {
+      const mesh = new FaceMesh({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+      });
+
+      mesh.setOptions({
+        maxNumFaces: 1,
+        refineLandmarks: true,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5,
+      });
+
+      mesh.onResults(onResultsHandler);
+      return mesh;
+    }
+
+    function onReferenceResults(results) {
+      latestReferenceLandmarks = results.multiFaceLandmarks || [];
+      drawReferenceOverlay();
+      setReferenceStatus(latestReferenceLandmarks.length > 0 ? 'Reference mesh ready.' : 'No face detected in reference image.');
+    }
+
+    const faceMesh = createFaceMesh(onResults);
+    const referenceFaceMesh = createFaceMesh(onReferenceResults);
+
+    showMeshInput.addEventListener('change', () => {
+      drawOverlay();
+      drawReferenceOverlay();
     });
 
-    faceMesh.setOptions({
-      maxNumFaces: 1,
-      refineLandmarks: true,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5,
+    async function processReferenceImage() {
+      resizeReferenceCanvas();
+      drawReferenceOverlay();
+      await referenceFaceMesh.send({image: referenceImage}).catch((error) => {
+        console.error(error);
+        setReferenceStatus('Reference image mesh failed. Check the browser console.');
+      });
+    }
+
+    referenceImage.addEventListener('load', () => {
+      void processReferenceImage();
     });
 
-    faceMesh.onResults(onResults);
+    referenceImage.addEventListener('error', () => {
+      setReferenceStatus('Reference image failed to load.');
+    });
+
+    window.addEventListener('resize', () => {
+      drawReferenceOverlay();
+    });
+
+    if (referenceImage.complete && referenceImage.naturalWidth > 0) {
+      void processReferenceImage();
+    }
 
     function scheduleNextFrame() {
       if (typeof videoElement.requestVideoFrameCallback === 'function') {
