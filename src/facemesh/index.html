@@ -29,6 +29,38 @@
       padding: 24px;
     }
 
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 240px;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .viewer {
+      min-width: 0;
+    }
+
+    .panel {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.75);
+      box-shadow: 0 14px 36px rgba(34, 52, 76, 0.10);
+      backdrop-filter: blur(10px);
+    }
+
+    .panel h2 {
+      margin: 0 0 14px;
+      font-size: 16px;
+    }
+
+    .control {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      color: #334155;
+    }
+
     h1 {
       margin: 0 0 8px;
       font-size: 32px;
@@ -73,6 +105,12 @@
       color: #5f6d7b;
       font-size: 14px;
     }
+
+    @media (max-width: 840px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
@@ -81,17 +119,29 @@
   <main class="app">
     <h1>Facemesh</h1>
     <p>Allow camera access to see the MediaPipe face mesh grid drawn on your face.</p>
-    <section class="stage">
-      <video class="input_video" playsinline></video>
-      <canvas class="output_canvas"></canvas>
-    </section>
-    <div class="status" id="status">Starting camera...</div>
+    <div class="layout">
+      <section class="viewer">
+        <section class="stage">
+          <video class="input_video" playsinline></video>
+          <canvas class="output_canvas"></canvas>
+        </section>
+        <div class="status" id="status">Starting camera...</div>
+      </section>
+      <aside class="panel">
+        <h2>Controls</h2>
+        <label class="control">
+          <input id="show-mesh" type="checkbox" checked>
+          <span>Show mesh</span>
+        </label>
+      </aside>
+    </div>
   </main>
   <script>
     const videoElement = document.querySelector('.input_video');
     const canvasElement = document.querySelector('.output_canvas');
     const canvasCtx = canvasElement.getContext('2d');
     const statusElement = document.getElementById('status');
+    const showMeshInput = document.getElementById('show-mesh');
     const faceMeshTesselation = typeof FACEMESH_TESSELATION !== 'undefined' ? FACEMESH_TESSELATION : [];
     const faceMeshContours = typeof FACEMESH_CONTOURS !== 'undefined' ? FACEMESH_CONTOURS : [];
     const leftEyeCenterIndex = 468;
@@ -140,17 +190,19 @@
       canvasCtx.strokeStyle = 'rgba(255, 255, 255, 0.72)';
       canvasCtx.fillStyle = 'rgba(255, 255, 255, 0.82)';
 
-      for (const landmarks of latestLandmarks) {
-        drawConnectors(canvasCtx, landmarks, faceMeshTesselation, {
-          color: '#ffffff',
-          lineWidth: 0.5,
-        });
-        drawConnectors(canvasCtx, landmarks, faceMeshContours, {
-          color: '#ffffff',
-          lineWidth: 0.8,
-        });
-        drawEyeDot(landmarks, leftEyeCenterIndex);
-        drawEyeDot(landmarks, rightEyeCenterIndex);
+      if (showMeshInput.checked) {
+        for (const landmarks of latestLandmarks) {
+          drawConnectors(canvasCtx, landmarks, faceMeshTesselation, {
+            color: '#ffffff',
+            lineWidth: 0.5,
+          });
+          drawConnectors(canvasCtx, landmarks, faceMeshContours, {
+            color: '#ffffff',
+            lineWidth: 0.8,
+          });
+          drawEyeDot(landmarks, leftEyeCenterIndex);
+          drawEyeDot(landmarks, rightEyeCenterIndex);
+        }
       }
 
       canvasCtx.restore();
