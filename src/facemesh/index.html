@@ -31,7 +31,7 @@
 
     .layout {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 320px;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 260px;
       gap: 20px;
       align-items: start;
     }
@@ -53,12 +53,6 @@
       font-size: 16px;
     }
 
-    .panel-section + .panel-section {
-      margin-top: 18px;
-      padding-top: 18px;
-      border-top: 1px solid rgba(148, 163, 184, 0.22);
-    }
-
     .control {
       display: flex;
       align-items: center;
@@ -67,9 +61,15 @@
       color: #334155;
     }
 
+    .reference-viewer img,
+    .reference-viewer canvas {
+      transform: none;
+    }
+
     .reference-stage {
       position: relative;
       width: 100%;
+      aspect-ratio: 4 / 3;
       border-radius: 16px;
       overflow: hidden;
       background: #e8edf4;
@@ -90,7 +90,7 @@
     }
 
     .reference-caption {
-      margin-top: 10px;
+      margin-top: 14px;
       color: #5f6d7b;
       font-size: 13px;
       line-height: 1.4;
@@ -162,27 +162,24 @@
         </section>
         <div class="status" id="status">Starting camera...</div>
       </section>
+      <section class="viewer reference-viewer">
+        <section class="reference-stage">
+          <img
+            id="reference-image"
+            src="https://instagram.fcps3-1.fna.fbcdn.net/v/t51.82787-15/626071791_18063758177643979_3217503898408863517_n.jpg?stp=dst-jpg_e35_tt6&efg=eyJ2ZW5jb2RlX3RhZyI6InRocmVhZHMuRkVFRC5pbWFnZV91cmxnZW4uMTQ2OHgxNDQwLnNkci5mODI3ODcuZGVmYXVsdF9pbWFnZS5jMiJ9&_nc_ht=instagram.fcps3-1.fna.fbcdn.net&_nc_cat=107&_nc_oc=Q6cZ2gHtCjTHlZN97iAQf3_6rpVvGkHojjbTl5wt-diUrugluJNkht8--Qn8FWUhPuP7zi9g2Sl2dqLDLTzFLvBmAAPR&_nc_ohc=RapNfBsJu3MQ7kNvwFNdLs0&_nc_gid=BcAt5pyyUgH_HEJnSNzNSA&edm=AKr904kBAAAA&ccb=7-5&ig_cache_key=MzUyNDYwNzEzMzMwMDc3NTc5Mw%3D%3D.3-ccb7-5&oh=00_AfzL-omBZI86ub2IdjGH_QnfTuhXOyl9p3q1dxGn8cVy1w&oe=69C23572&_nc_sid=23467f"
+            alt="Reference face"
+            crossorigin="anonymous"
+          >
+          <canvas id="reference-canvas"></canvas>
+        </section>
+        <div class="reference-caption" id="reference-status">Loading reference image...</div>
+      </section>
       <aside class="panel">
-        <section class="panel-section">
-          <h2>Controls</h2>
-          <label class="control">
-            <input id="show-mesh" type="checkbox" checked>
-            <span>Show mesh</span>
-          </label>
-        </section>
-        <section class="panel-section">
-          <h2>Reference</h2>
-          <div class="reference-stage">
-            <img
-              id="reference-image"
-              src="https://tinyurl.com/36vm32fs"
-              alt="Reference face"
-              crossorigin="anonymous"
-            >
-            <canvas id="reference-canvas"></canvas>
-          </div>
-          <div class="reference-caption" id="reference-status">Loading reference image...</div>
-        </section>
+        <h2>Controls</h2>
+        <label class="control">
+          <input id="show-mesh" type="checkbox" checked>
+          <span>Show mesh</span>
+        </label>
       </aside>
     </div>
   </main>
