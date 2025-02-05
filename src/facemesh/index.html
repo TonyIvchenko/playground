@@ -79,14 +79,20 @@
     .reference-stage img,
     .reference-stage canvas {
       display: block;
-      width: 100%;
+      width: auto;
+      height: 100%;
     }
 
     .reference-stage canvas {
       position: absolute;
-      inset: 0;
-      height: 100%;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
       pointer-events: none;
+    }
+
+    .reference-stage img {
+      margin: 0 auto;
     }
 
     .reference-caption {
@@ -285,13 +291,13 @@
       setStatus(latestLandmarks.length > 0 ? 'Face mesh active.' : 'No face detected.');
     }
 
-    function createFaceMesh(onResultsHandler) {
+    function createFaceMesh(onResultsHandler, options = {}) {
       const mesh = new FaceMesh({
         locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
       });
 
       mesh.setOptions({
-        maxNumFaces: 1,
+        maxNumFaces: options.maxNumFaces ?? 1,
         refineLandmarks: true,
         minDetectionConfidence: 0.5,
         minTrackingConfidence: 0.5,
@@ -308,7 +314,7 @@
     }
 
     const faceMesh = createFaceMesh(onResults);
-    const referenceFaceMesh = createFaceMesh(onReferenceResults);
+    const referenceFaceMesh = createFaceMesh(onReferenceResults, {maxNumFaces: 2});
 
     showMeshInput.addEventListener('change', () => {
       drawOverlay();
