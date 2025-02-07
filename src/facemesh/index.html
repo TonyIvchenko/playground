@@ -205,6 +205,12 @@
     const faceMeshContours = typeof FACEMESH_CONTOURS !== 'undefined' ? FACEMESH_CONTOURS : [];
     const leftEyeCenterIndex = 468;
     const rightEyeCenterIndex = 473;
+    const anchorIndices = [33, 263, 1, 168];
+    const expressionGain = 1.0;
+    const smoothingFactor = 0.35;
+
+    const referenceSourceCanvas = document.createElement('canvas');
+    const referenceSourceCtx = referenceSourceCanvas.getContext('2d');
 
     function setStatus(message) {
       statusElement.textContent = message;
@@ -234,6 +240,12 @@
     let faceMesh = null;
     let latestLandmarks = [];
     let latestReferenceLandmarks = [];
+    let latestTransferredReferenceLandmarks = [];
+    let referenceBaseLandmarks = [];
+    let cameraBaselineLandmarks = [];
+    let cameraCurrentLandmarks = [];
+    let referenceTriangles = [];
+    let smoothedReferencePoints = [];
 
     function drawEyeDot(ctx, frame, landmarks, index) {
       const point = landmarks[index];
@@ -287,6 +299,240 @@
       }
     }
 
+    function add3(a, b) {
+      return {x: a.x + b.x, y: a.y + b.y, z: a.z + b.z};
+    }
+
+    function sub3(a, b) {
+      return {x: a.x - b.x, y: a.y - b.y, z: a.z - b.z};
+    }
+
+    function mul3(a, scalar) {
+      return {x: a.x * scalar, y: a.y * scalar, z: a.z * scalar};
+    }
+
+    function dot3(a, b) {
+      return (a.x * b.x) + (a.y * b.y) + (a.z * b.z);
+    }
+
+    function norm3(a) {
+      return Math.sqrt(dot3(a, a));
+    }
+
+    function normalize3(a, fallback) {
+      const length = norm3(a);
+      if (length < 1e-8) {
+        return fallback;
+      }
+      return mul3(a, 1 / length);
+    }
+
+    function cross3(a, b) {
+      return {
+        x: (a.y * b.z) - (a.z * b.y),
+        y: (a.z * b.x) - (a.x * b.z),
+        z: (a.x * b.y) - (a.y * b.x),
+      };
+    }
+
+    function toVec3(point) {
+      return {x: point.x, y: point.y, z: point.z || 0};
+    }
+
+    function getBasisFromLandmarks(landmarks) {
+      if (!landmarks || landmarks.length <= Math.max(...anchorIndices)) {
+        return null;
+      }
+
+      const leftEye = toVec3(landmarks[anchorIndices[0]]);
+      const rightEye = toVec3(landmarks[anchorIndices[1]]);
+      const noseTip = toVec3(landmarks[anchorIndices[2]]);
+      const noseBridge = toVec3(landmarks[anchorIndices[3]]);
+
+      const origin = noseTip;
+      const xAxis = normalize3(sub3(rightEye, leftEye), {x: 1, y: 0, z: 0});
+      const upRaw = sub3(noseBridge, noseTip);
+      const upProjected = sub3(upRaw, mul3(xAxis, dot3(upRaw, xAxis)));
+      const yAxis = normalize3(upProjected, {x: 0, y: -1, z: 0});
+      const zAxis = normalize3(cross3(xAxis, yAxis), {x: 0, y: 0, z: 1});
+      const scale = Math.max(1e-6, norm3(sub3(rightEye, leftEye)));
+
+      return {origin, xAxis, yAxis, zAxis, scale};
+    }
+
+    function normalizeLandmarks(landmarks, basis) {
+      return landmarks.map((landmark) => {
+        const relative = sub3(toVec3(landmark), basis.origin);
+        return {
+          x: dot3(relative, basis.xAxis) / basis.scale,
+          y: dot3(relative, basis.yAxis) / basis.scale,
+          z: dot3(relative, basis.zAxis) / basis.scale,
+        };
+      });
+    }
+
+    function denormalizePoint(normalized, basis) {
+      let point = basis.origin;
+      point = add3(point, mul3(basis.xAxis, normalized.x * basis.scale));
+      point = add3(point, mul3(basis.yAxis, normalized.y * basis.scale));
+      point = add3(point, mul3(basis.zAxis, normalized.z * basis.scale));
+      return point;
+    }
+
+    function lerp(valueA, valueB, t) {
+      return (valueA * (1 - t)) + (valueB * t);
+    }
+
+    function blendPoints(previousPoints, nextPoints, factor) {
+      if (!previousPoints || previousPoints.length !== nextPoints.length) {
+        return nextPoints;
+      }
+      return nextPoints.map((point, index) => {
+        const prev = previousPoints[index];
+        return {
+          x: lerp(prev.x, point.x, factor),
+          y: lerp(prev.y, point.y, factor),
+        };
+      });
+    }
+
+    function buildTrianglesFromEdges(edges, pointCount) {
+      const adjacency = new Map();
+
+      for (let index = 0; index < pointCount; index += 1) {
+        adjacency.set(index, new Set());
+      }
+
+      for (const [start, end] of edges) {
+        if (start >= pointCount || end >= pointCount || start === end) {
+          continue;
+        }
+        adjacency.get(start).add(end);
+        adjacency.get(end).add(start);
+      }
+
+      const triangleKeys = new Set();
+      const triangles = [];
+
+      for (let a = 0; a < pointCount; a += 1) {
+        const neighbors = [...adjacency.get(a)].sort((left, right) => left - right);
+        for (let i = 0; i < neighbors.length; i += 1) {
+          for (let j = i + 1; j < neighbors.length; j += 1) {
+            const b = neighbors[i];
+            const c = neighbors[j];
+            if (!adjacency.get(b).has(c)) {
+              continue;
+            }
+
+            const sorted = [a, b, c].sort((left, right) => left - right);
+            const key = sorted.join(':');
+            if (triangleKeys.has(key)) {
+              continue;
+            }
+            triangleKeys.add(key);
+            triangles.push(sorted);
+          }
+        }
+      }
+
+      return triangles;
+    }
+
+    function triangleArea(pointA, pointB, pointC) {
+      return Math.abs(
+        (pointA.x * (pointB.y - pointC.y))
+        + (pointB.x * (pointC.y - pointA.y))
+        + (pointC.x * (pointA.y - pointB.y)),
+      ) * 0.5;
+    }
+
+    function affineFromTriangles(srcA, srcB, srcC, dstA, dstB, dstC) {
+      const denominator =
+        (srcA.x * (srcB.y - srcC.y))
+        + (srcB.x * (srcC.y - srcA.y))
+        + (srcC.x * (srcA.y - srcB.y));
+
+      if (Math.abs(denominator) < 1e-8) {
+        return null;
+      }
+
+      const a = (
+        (dstA.x * (srcB.y - srcC.y))
+        + (dstB.x * (srcC.y - srcA.y))
+        + (dstC.x * (srcA.y - srcB.y))
+      ) / denominator;
+
+      const c = (
+        (dstA.x * (srcC.x - srcB.x))
+        + (dstB.x * (srcA.x - srcC.x))
+        + (dstC.x * (srcB.x - srcA.x))
+      ) / denominator;
+
+      const e = (
+        (dstA.x * ((srcB.x * srcC.y) - (srcC.x * srcB.y)))
+        + (dstB.x * ((srcC.x * srcA.y) - (srcA.x * srcC.y)))
+        + (dstC.x * ((srcA.x * srcB.y) - (srcB.x * srcA.y)))
+      ) / denominator;
+
+      const b = (
+        (dstA.y * (srcB.y - srcC.y))
+        + (dstB.y * (srcC.y - srcA.y))
+        + (dstC.y * (srcA.y - srcB.y))
+      ) / denominator;
+
+      const d = (
+        (dstA.y * (srcC.x - srcB.x))
+        + (dstB.y * (srcA.x - srcC.x))
+        + (dstC.y * (srcB.x - srcA.x))
+      ) / denominator;
+
+      const f = (
+        (dstA.y * ((srcB.x * srcC.y) - (srcC.x * srcB.y)))
+        + (dstB.y * ((srcC.x * srcA.y) - (srcA.x * srcC.y)))
+        + (dstC.y * ((srcA.x * srcB.y) - (srcB.x * srcA.y)))
+      ) / denominator;
+
+      return {a, b, c, d, e, f};
+    }
+
+    function warpReferenceByTriangles(sourceCanvas, destinationCtx, sourcePoints, destinationPoints, triangles) {
+      destinationCtx.clearRect(0, 0, destinationCtx.canvas.width, destinationCtx.canvas.height);
+
+      for (const [indexA, indexB, indexC] of triangles) {
+        const srcA = sourcePoints[indexA];
+        const srcB = sourcePoints[indexB];
+        const srcC = sourcePoints[indexC];
+        const dstA = destinationPoints[indexA];
+        const dstB = destinationPoints[indexB];
+        const dstC = destinationPoints[indexC];
+
+        if (!srcA || !srcB || !srcC || !dstA || !dstB || !dstC) {
+          continue;
+        }
+
+        if (triangleArea(dstA, dstB, dstC) < 0.5 || triangleArea(srcA, srcB, srcC) < 0.5) {
+          continue;
+        }
+
+        const matrix = affineFromTriangles(srcA, srcB, srcC, dstA, dstB, dstC);
+        if (!matrix) {
+          continue;
+        }
+
+        destinationCtx.save();
+        destinationCtx.beginPath();
+        destinationCtx.moveTo(dstA.x, dstA.y);
+        destinationCtx.lineTo(dstB.x, dstB.y);
+        destinationCtx.lineTo(dstC.x, dstC.y);
+        destinationCtx.closePath();
+        destinationCtx.clip();
+
+        destinationCtx.setTransform(matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f);
+        destinationCtx.drawImage(sourceCanvas, 0, 0);
+        destinationCtx.restore();
+      }
+    }
+
     function getContainFrame(containerWidth, containerHeight, sourceWidth, sourceHeight) {
       const scale = Math.min(containerWidth / sourceWidth, containerHeight / sourceHeight);
       const width = sourceWidth * scale;
@@ -312,8 +558,8 @@
 
     function drawReferenceOverlay() {
       resizeReferenceCanvas();
-      referenceCtx.clearRect(0, 0, referenceCanvas.width, referenceCanvas.height);
       if (!referenceImage.complete || referenceImage.naturalWidth === 0 || referenceImage.naturalHeight === 0) {
+        referenceCtx.clearRect(0, 0, referenceCanvas.width, referenceCanvas.height);
         return;
       }
 
@@ -326,12 +572,101 @@
 
       referenceCtx.imageSmoothingEnabled = true;
       referenceCtx.imageSmoothingQuality = 'high';
-      referenceCtx.drawImage(referenceImage, frame.x, frame.y, frame.width, frame.height);
-      drawMesh(referenceCtx, referenceCanvas.width, referenceCanvas.height, latestReferenceLandmarks, frame);
+
+      referenceSourceCanvas.width = referenceCanvas.width;
+      referenceSourceCanvas.height = referenceCanvas.height;
+      referenceSourceCtx.clearRect(0, 0, referenceSourceCanvas.width, referenceSourceCanvas.height);
+      referenceSourceCtx.drawImage(referenceImage, frame.x, frame.y, frame.width, frame.height);
+
+      const activeLandmarks = computeTransferredReferenceLandmarks();
+      const sourcePoints = referenceBaseLandmarks.map((landmark) => ({
+        x: frame.x + (landmark.x * frame.width),
+        y: frame.y + (landmark.y * frame.height),
+      }));
+      const destinationPoints = activeLandmarks.map((landmark) => ({
+        x: frame.x + (landmark.x * frame.width),
+        y: frame.y + (landmark.y * frame.height),
+      }));
+
+      if (referenceTriangles.length === 0 || sourcePoints.length === 0 || destinationPoints.length === 0) {
+        referenceCtx.clearRect(0, 0, referenceCanvas.width, referenceCanvas.height);
+        referenceCtx.drawImage(referenceSourceCanvas, 0, 0);
+      } else {
+        warpReferenceByTriangles(referenceSourceCanvas, referenceCtx, sourcePoints, destinationPoints, referenceTriangles);
+      }
+
+      latestTransferredReferenceLandmarks = [activeLandmarks];
+      drawMesh(referenceCtx, referenceCanvas.width, referenceCanvas.height, latestTransferredReferenceLandmarks, frame);
+    }
+
+    function computeTransferredReferenceLandmarks() {
+      if (
+        referenceBaseLandmarks.length === 0
+        || cameraBaselineLandmarks.length === 0
+        || cameraCurrentLandmarks.length === 0
+      ) {
+        smoothedReferencePoints = referenceBaseLandmarks.map((point) => ({x: point.x, y: point.y, z: point.z || 0}));
+        return smoothedReferencePoints;
+      }
+
+      const referenceBasis = getBasisFromLandmarks(referenceBaseLandmarks);
+      const cameraBaselineBasis = getBasisFromLandmarks(cameraBaselineLandmarks);
+      const cameraCurrentBasis = getBasisFromLandmarks(cameraCurrentLandmarks);
+
+      if (!referenceBasis || !cameraBaselineBasis || !cameraCurrentBasis) {
+        smoothedReferencePoints = referenceBaseLandmarks.map((point) => ({x: point.x, y: point.y, z: point.z || 0}));
+        return smoothedReferencePoints;
+      }
+
+      const referenceNormalized = normalizeLandmarks(referenceBaseLandmarks, referenceBasis);
+      const cameraBaselineNormalized = normalizeLandmarks(cameraBaselineLandmarks, cameraBaselineBasis);
+      const cameraCurrentNormalized = normalizeLandmarks(cameraCurrentLandmarks, cameraCurrentBasis);
+
+      const transferred = referenceNormalized.map((referencePoint, index) => {
+        const baselinePoint = cameraBaselineNormalized[index];
+        const currentPoint = cameraCurrentNormalized[index];
+        if (!baselinePoint || !currentPoint) {
+          return {x: referenceBaseLandmarks[index].x, y: referenceBaseLandmarks[index].y, z: referenceBaseLandmarks[index].z || 0};
+        }
+
+        const expressionDelta = {
+          x: (currentPoint.x - baselinePoint.x) * expressionGain,
+          y: (currentPoint.y - baselinePoint.y) * expressionGain,
+          z: (currentPoint.z - baselinePoint.z) * expressionGain,
+        };
+
+        const targetNormalized = {
+          x: referencePoint.x + expressionDelta.x,
+          y: referencePoint.y + expressionDelta.y,
+          z: referencePoint.z + expressionDelta.z,
+        };
+
+        const world = denormalizePoint(targetNormalized, referenceBasis);
+        return {
+          x: Math.min(1, Math.max(0, world.x)),
+          y: Math.min(1, Math.max(0, world.y)),
+          z: world.z,
+        };
+      });
+
+      smoothedReferencePoints = blendPoints(smoothedReferencePoints, transferred, smoothingFactor).map((point, index) => ({
+        x: point.x,
+        y: point.y,
+        z: transferred[index].z,
+      }));
+      return smoothedReferencePoints;
     }
 
     function onResults(results) {
       latestLandmarks = results.multiFaceLandmarks || [];
+      cameraCurrentLandmarks = latestLandmarks[0] || [];
+
+      if (cameraCurrentLandmarks.length > 0 && cameraBaselineLandmarks.length === 0) {
+        cameraBaselineLandmarks = cameraCurrentLandmarks.map((point) => ({x: point.x, y: point.y, z: point.z || 0}));
+        setStatus('Face mesh active. Baseline captured.');
+        return;
+      }
+
       setStatus(latestLandmarks.length > 0 ? 'Face mesh active.' : 'No face detected.');
     }
 
@@ -353,8 +688,17 @@
 
     function onReferenceResults(results) {
       latestReferenceLandmarks = results.multiFaceLandmarks || [];
+      referenceBaseLandmarks = latestReferenceLandmarks[0] || [];
+      smoothedReferencePoints = referenceBaseLandmarks.map((point) => ({x: point.x, y: point.y, z: point.z || 0}));
+
+      if (referenceBaseLandmarks.length > 0) {
+        referenceTriangles = buildTrianglesFromEdges(faceMeshTesselation, referenceBaseLandmarks.length);
+      } else {
+        referenceTriangles = [];
+      }
+
       drawReferenceOverlay();
-      setReferenceStatus(latestReferenceLandmarks.length > 0 ? 'Reference mesh ready.' : 'No face detected in reference image.');
+      setReferenceStatus(referenceBaseLandmarks.length > 0 ? 'Reference mesh ready.' : 'No face detected in reference image.');
     }
 
     showMeshInput.addEventListener('change', () => {
@@ -433,12 +777,13 @@
       }
 
       drawOverlay();
+      drawReferenceOverlay();
 
       const mediaTime = typeof metadata?.mediaTime === 'number'
         ? metadata.mediaTime
         : videoElement.currentTime;
 
-      if (!isProcessing && mediaTime !== lastSubmittedTime) {
+      if (!isProcessing && mediaTime !== lastSubmittedTime && faceMesh) {
         lastSubmittedTime = mediaTime;
         isProcessing = true;
 
