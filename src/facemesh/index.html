@@ -231,6 +231,7 @@
     let isProcessing = false;
     let lastSubmittedTime = -1;
     let stream = null;
+    let faceMesh = null;
     let latestLandmarks = [];
     let latestReferenceLandmarks = [];
 
@@ -356,9 +357,6 @@
       setReferenceStatus(latestReferenceLandmarks.length > 0 ? 'Reference mesh ready.' : 'No face detected in reference image.');
     }
 
-    const faceMesh = createFaceMesh(onResults);
-    const referenceFaceMesh = createFaceMesh(onReferenceResults, {maxNumFaces: 2});
-
     showMeshInput.addEventListener('change', () => {
       drawOverlay();
       drawReferenceOverlay();
@@ -367,26 +365,54 @@
     async function processReferenceImage() {
       resizeReferenceCanvas();
       drawReferenceOverlay();
-      await referenceFaceMesh.send({image: referenceImage}).catch((error) => {
+      setReferenceStatus('Detecting reference mesh...');
+      const referenceFaceMesh = createFaceMesh(onReferenceResults, {maxNumFaces: 2});
+      try {
+        await referenceFaceMesh.send({image: referenceImage});
+      } catch (error) {
         console.error(error);
         setReferenceStatus('Reference image mesh failed. Check the browser console.');
-      });
+      } finally {
+        if (typeof referenceFaceMesh.close === 'function') {
+          await referenceFaceMesh.close().catch((closeError) => {
+            console.warn(closeError);
+          });
+        }
+      }
     }
-
-    referenceImage.addEventListener('load', () => {
-      void processReferenceImage();
-    });
-
-    referenceImage.addEventListener('error', () => {
-      setReferenceStatus('Reference image failed to load.');
-    });
 
     window.addEventListener('resize', () => {
       drawReferenceOverlay();
     });
 
-    if (referenceImage.complete && referenceImage.naturalWidth > 0) {
-      void processReferenceImage();
+    async function waitForReferenceImage() {
+      if (referenceImage.complete) {
+        if (referenceImage.naturalWidth === 0) {
+          setReferenceStatus('Reference image failed to load.');
+        }
+        return;
+      }
+
+      await new Promise((resolve) => {
+        const onLoad = () => {
+          cleanup();
+          resolve();
+        };
+
+        const onError = () => {
+          setReferenceStatus('Reference image failed to load.');
+          cleanup();
+          resolve();
+        };
+
+        const cleanup = () => {
+          referenceImage.removeEventListener('load', onLoad);
+          referenceImage.removeEventListener('error', onError);
+        };
+
+        referenceImage.addEventListener('load', onLoad);
+        referenceImage.addEventListener('error', onError);
+      });
     }
 
     function scheduleNextFrame() {
@@ -429,6 +455,7 @@
 
     async function start() {
       try {
+        faceMesh = createFaceMesh(onResults);
         stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
           video: {
@@ -454,7 +481,15 @@
       }
     }
 
-    start();
+    async function bootstrap() {
+      await waitForReferenceImage();
+      if (referenceImage.naturalWidth > 0) {
+        await processReferenceImage();
+      }
+      await start();
+    }
+
+    void bootstrap();
   </script>
 </body>
 </html>
