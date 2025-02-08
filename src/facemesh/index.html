@@ -205,7 +205,7 @@
     const faceMeshContours = typeof FACEMESH_CONTOURS !== 'undefined' ? FACEMESH_CONTOURS : [];
     const leftEyeCenterIndex = 468;
     const rightEyeCenterIndex = 473;
-    const anchorIndices = [33, 263, 1, 168];
+    const anchorIndices = [234, 454, 6, 10];
     const expressionGain = 1.0;
     const smoothingFactor = 0.35;
 
@@ -376,18 +376,18 @@
         return null;
       }
 
-      const leftEye = toVec3(landmarks[anchorIndices[0]]);
-      const rightEye = toVec3(landmarks[anchorIndices[1]]);
-      const noseTip = toVec3(landmarks[anchorIndices[2]]);
-      const noseBridge = toVec3(landmarks[anchorIndices[3]]);
+      const leftCheekbone = toVec3(landmarks[anchorIndices[0]]);
+      const rightCheekbone = toVec3(landmarks[anchorIndices[1]]);
+      const noseUpper = toVec3(landmarks[anchorIndices[2]]);
+      const foreheadTop = toVec3(landmarks[anchorIndices[3]]);
 
-      const origin = noseTip;
-      const xAxis = normalize3(sub3(rightEye, leftEye), {x: 1, y: 0, z: 0});
-      const upRaw = sub3(noseBridge, noseTip);
+      const origin = noseUpper;
+      const xAxis = normalize3(sub3(rightCheekbone, leftCheekbone), {x: 1, y: 0, z: 0});
+      const upRaw = sub3(foreheadTop, noseUpper);
       const upProjected = sub3(upRaw, mul3(xAxis, dot3(upRaw, xAxis)));
       const yAxis = normalize3(upProjected, {x: 0, y: -1, z: 0});
       const zAxis = normalize3(cross3(xAxis, yAxis), {x: 0, y: 0, z: 1});
-      const scale = Math.max(1e-6, norm3(sub3(rightEye, leftEye)));
+      const scale = Math.max(1e-6, norm3(sub3(rightCheekbone, leftCheekbone)));
 
       return {origin, xAxis, yAxis, zAxis, scale};
     }
