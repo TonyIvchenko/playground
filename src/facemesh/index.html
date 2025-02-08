@@ -270,15 +270,21 @@
         return;
       }
 
+      const scaleX = (ctx.canvas.clientWidth || ctx.canvas.width || 1) / (ctx.canvas.width || 1);
+      const scaleY = (ctx.canvas.clientHeight || ctx.canvas.height || 1) / (ctx.canvas.height || 1);
+      const displayScale = Math.max(1e-6, (scaleX + scaleY) * 0.5);
+      const radius = 2.0 / displayScale;
+      const strokeWidth = 0.8 / displayScale;
+
       ctx.save();
       ctx.fillStyle = 'rgba(255, 0, 0, 0.95)';
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-      ctx.lineWidth = 1.6;
+      ctx.lineWidth = strokeWidth;
       ctx.beginPath();
       ctx.arc(
         frame.x + (point.x * frame.width),
         frame.y + (point.y * frame.height),
-        4.6,
+        radius,
         0,
         Math.PI * 2,
       );
