@@ -264,6 +264,29 @@
       ctx.fill();
     }
 
+    function drawAnchorDot(ctx, frame, landmarks, index) {
+      const point = landmarks[index];
+      if (!point) {
+        return;
+      }
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(255, 0, 0, 0.95)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(
+        frame.x + (point.x * frame.width),
+        frame.y + (point.y * frame.height),
+        4.6,
+        0,
+        Math.PI * 2,
+      );
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
     function drawConnections(ctx, frame, landmarks, connections, lineWidth) {
       ctx.beginPath();
       for (const [startIndex, endIndex] of connections) {
@@ -295,6 +318,9 @@
           drawConnections(ctx, frame, landmarks, faceMeshContours, 0.8);
           drawEyeDot(ctx, frame, landmarks, leftEyeCenterIndex);
           drawEyeDot(ctx, frame, landmarks, rightEyeCenterIndex);
+          for (const anchorIndex of anchorIndices) {
+            drawAnchorDot(ctx, frame, landmarks, anchorIndex);
+          }
         }
       }
     }
