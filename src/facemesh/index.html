@@ -206,7 +206,8 @@
     const leftEyeCenterIndex = 468;
     const rightEyeCenterIndex = 473;
     const anchorIndices = [234, 454, 1, 10];
-    const expressionGain = 1.0;
+    const expressionGain = 0.55;
+    const maxExpressionDisplacementNormalized = 0.045;
     const smoothingFactor = 0.35;
 
     const referenceSourceCanvas = document.createElement('canvas');
@@ -341,6 +342,14 @@
 
     function mul3(a, scalar) {
       return {x: a.x * scalar, y: a.y * scalar, z: a.z * scalar};
+    }
+
+    function clampMagnitude3(vector, maxMagnitude) {
+      const magnitude = norm3(vector);
+      if (magnitude <= maxMagnitude || magnitude < 1e-8) {
+        return vector;
+      }
+      return mul3(vector, maxMagnitude / magnitude);
     }
 
     function dot3(a, b) {
@@ -661,11 +670,12 @@
           return {x: referenceBaseLandmarks[index].x, y: referenceBaseLandmarks[index].y, z: referenceBaseLandmarks[index].z || 0};
         }
 
-        const expressionDelta = {
+        const rawExpressionDelta = {
           x: (currentPoint.x - baselinePoint.x) * expressionGain,
           y: (currentPoint.y - baselinePoint.y) * expressionGain,
           z: (currentPoint.z - baselinePoint.z) * expressionGain,
         };
+        const expressionDelta = clampMagnitude3(rawExpressionDelta, maxExpressionDisplacementNormalized);
 
         const targetNormalized = {
           x: referencePoint.x + expressionDelta.x,
