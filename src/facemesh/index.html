@@ -209,9 +209,29 @@
     const expressionGain = 0.55;
     const maxExpressionDisplacementNormalized = 0.045;
     const smoothingFactor = 0.35;
+    const mouthRegionWeight = 1.0;
+    const eyeBrowRegionWeight = 0.6;
+    const noseRegionWeight = 0.3;
+    const defaultRegionWeight = 0.35;
 
     const referenceSourceCanvas = document.createElement('canvas');
     const referenceSourceCtx = referenceSourceCanvas.getContext('2d');
+
+    function buildIndexSetFromConnections(connections) {
+      const indexSet = new Set();
+      for (const [startIndex, endIndex] of connections) {
+        indexSet.add(startIndex);
+        indexSet.add(endIndex);
+      }
+      return indexSet;
+    }
+
+    const mouthIndexSet = buildIndexSetFromConnections(typeof FACEMESH_LIPS !== 'undefined' ? FACEMESH_LIPS : []);
+    const leftEyeIndexSet = buildIndexSetFromConnections(typeof FACEMESH_LEFT_EYE !== 'undefined' ? FACEMESH_LEFT_EYE : []);
+    const rightEyeIndexSet = buildIndexSetFromConnections(typeof FACEMESH_RIGHT_EYE !== 'undefined' ? FACEMESH_RIGHT_EYE : []);
+    const leftBrowIndexSet = buildIndexSetFromConnections(typeof FACEMESH_LEFT_EYEBROW !== 'undefined' ? FACEMESH_LEFT_EYEBROW : []);
+    const rightBrowIndexSet = buildIndexSetFromConnections(typeof FACEMESH_RIGHT_EYEBROW !== 'undefined' ? FACEMESH_RIGHT_EYEBROW : []);
+    const noseIndexSet = buildIndexSetFromConnections(typeof FACEMESH_NOSE !== 'undefined' ? FACEMESH_NOSE : []);
 
     function setStatus(message) {
       statusElement.textContent = message;
@@ -422,6 +442,24 @@
 
     function lerp(valueA, valueB, t) {
       return (valueA * (1 - t)) + (valueB * t);
+    }
+
+    function getExpressionWeightForIndex(index) {
+      if (mouthIndexSet.has(index)) {
+        return mouthRegionWeight;
+      }
+      if (
+        leftEyeIndexSet.has(index)
+        || rightEyeIndexSet.has(index)
+        || leftBrowIndexSet.has(index)
+        || rightBrowIndexSet.has(index)
+      ) {
+        return eyeBrowRegionWeight;
+      }
+      if (noseIndexSet.has(index)) {
+        return noseRegionWeight;
+      }
+      return defaultRegionWeight;
     }
 
     function blendPoints(previousPoints, nextPoints, factor) {
@@ -669,11 +707,12 @@
         if (!baselinePoint || !currentPoint) {
           return {x: referenceBaseLandmarks[index].x, y: referenceBaseLandmarks[index].y, z: referenceBaseLandmarks[index].z || 0};
         }
+        const regionWeight = getExpressionWeightForIndex(index);
 
         const rawExpressionDelta = {
-          x: (currentPoint.x - baselinePoint.x) * expressionGain,
-          y: (currentPoint.y - baselinePoint.y) * expressionGain,
-          z: (currentPoint.z - baselinePoint.z) * expressionGain,
+          x: (currentPoint.x - baselinePoint.x) * expressionGain * regionWeight,
+          y: (currentPoint.y - baselinePoint.y) * expressionGain * regionWeight,
+          z: (currentPoint.z - baselinePoint.z) * expressionGain * regionWeight,
         };
         const expressionDelta = clampMagnitude3(rawExpressionDelta, maxExpressionDisplacementNormalized);
 
