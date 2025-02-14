@@ -209,6 +209,8 @@
     const expressionGain = 0.55;
     const maxExpressionDisplacementNormalized = 0.045;
     const smoothingFactor = 0.35;
+    const spatialSmoothingBlend = 0.18;
+    const spatialSmoothingPasses = 2;
     const mouthRegionWeight = 1.0;
     const eyeBrowRegionWeight = 0.6;
     const noseRegionWeight = 0.3;
@@ -268,6 +270,7 @@
     let cameraBaselineLandmarks = [];
     let cameraCurrentLandmarks = [];
     let referenceTriangles = [];
+    let referenceNeighborMap = [];
     let smoothedReferencePoints = [];
 
     function drawEyeDot(ctx, frame, landmarks, index) {
@@ -522,6 +525,76 @@
       return triangles;
     }
 
+    function buildNeighborMapFromTriangles(triangles, pointCount) {
+      const neighbors = Array.from({length: pointCount}, () => new Set());
+
+      for (const [a, b, c] of triangles) {
+        if (a >= pointCount || b >= pointCount || c >= pointCount) {
+          continue;
+        }
+        neighbors[a].add(b);
+        neighbors[a].add(c);
+        neighbors[b].add(a);
+        neighbors[b].add(c);
+        neighbors[c].add(a);
+        neighbors[c].add(b);
+      }
+
+      return neighbors.map((neighborSet) => [...neighborSet]);
+    }
+
+    function spatialSmoothPoints(points, neighborMap, blend, passes) {
+      if (!points || points.length === 0 || !neighborMap || neighborMap.length === 0) {
+        return points;
+      }
+
+      let current = points.map((point) => ({x: point.x, y: point.y, z: point.z || 0}));
+
+      for (let pass = 0; pass < passes; pass += 1) {
+        const next = current.map((point, index) => {
+          if (anchorIndexSet.has(index) || faceOvalIndexSet.has(index)) {
+            return point;
+          }
+
+          const neighbors = neighborMap[index] || [];
+          if (neighbors.length === 0) {
+            return point;
+          }
+
+          let sumX = 0;
+          let sumY = 0;
+          let sumZ = 0;
+          let count = 0;
+
+          for (const neighborIndex of neighbors) {
+            const neighbor = current[neighborIndex];
+            if (!neighbor) {
+              continue;
+            }
+            sumX += neighbor.x;
+            sumY += neighbor.y;
+            sumZ += neighbor.z || 0;
+            count += 1;
+          }
+
+          if (count === 0) {
+            return point;
+          }
+
+          const invCount = 1 / count;
+          return {
+            x: lerp(point.x, sumX * invCount, blend),
+            y: lerp(point.y, sumY * invCount, blend),
+            z: lerp(point.z || 0, sumZ * invCount, blend),
+          };
+        });
+
+        current = next;
+      }
+
+      return current;
+    }
+
     function triangleArea(pointA, pointB, pointC) {
       return Math.abs(
         (pointA.x * (pointB.y - pointC.y))
@@ -735,11 +808,17 @@
         };
       });
 
-      smoothedReferencePoints = blendPoints(smoothedReferencePoints, transferred, smoothingFactor).map((point, index) => ({
+      const temporallySmoothed = blendPoints(smoothedReferencePoints, transferred, smoothingFactor).map((point, index) => ({
         x: point.x,
         y: point.y,
         z: transferred[index].z,
       }));
+      smoothedReferencePoints = spatialSmoothPoints(
+        temporallySmoothed,
+        referenceNeighborMap,
+        spatialSmoothingBlend,
+        spatialSmoothingPasses,
+      );
       return smoothedReferencePoints;
     }
 
@@ -779,8 +858,10 @@
 
       if (referenceBaseLandmarks.length > 0) {
         referenceTriangles = buildTrianglesFromEdges(faceMeshTesselation, referenceBaseLandmarks.length);
+        referenceNeighborMap = buildNeighborMapFromTriangles(referenceTriangles, referenceBaseLandmarks.length);
       } else {
         referenceTriangles = [];
+        referenceNeighborMap = [];
       }
 
       drawReferenceOverlay();
