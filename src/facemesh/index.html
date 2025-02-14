@@ -232,6 +232,8 @@
     const leftBrowIndexSet = buildIndexSetFromConnections(typeof FACEMESH_LEFT_EYEBROW !== 'undefined' ? FACEMESH_LEFT_EYEBROW : []);
     const rightBrowIndexSet = buildIndexSetFromConnections(typeof FACEMESH_RIGHT_EYEBROW !== 'undefined' ? FACEMESH_RIGHT_EYEBROW : []);
     const noseIndexSet = buildIndexSetFromConnections(typeof FACEMESH_NOSE !== 'undefined' ? FACEMESH_NOSE : []);
+    const faceOvalIndexSet = buildIndexSetFromConnections(typeof FACEMESH_FACE_OVAL !== 'undefined' ? FACEMESH_FACE_OVAL : []);
+    const anchorIndexSet = new Set(anchorIndices);
 
     function setStatus(message) {
       statusElement.textContent = message;
@@ -445,6 +447,9 @@
     }
 
     function getExpressionWeightForIndex(index) {
+      if (anchorIndexSet.has(index) || faceOvalIndexSet.has(index)) {
+        return 0.0;
+      }
       if (mouthIndexSet.has(index)) {
         return mouthRegionWeight;
       }
