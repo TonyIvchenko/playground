@@ -211,10 +211,12 @@
     const smoothingFactor = 0.35;
     const spatialSmoothingBlend = 0.18;
     const spatialSmoothingPasses = 2;
-    const mouthRegionWeight = 1.0;
-    const eyeBrowRegionWeight = 0.6;
+    const boundaryRampHops = 7;
+    const boundaryWeightPower = 1.2;
+    const mouthRegionWeight = 1.15;
+    const eyeBrowRegionWeight = 0.85;
     const noseRegionWeight = 0.3;
-    const defaultRegionWeight = 0.35;
+    const defaultRegionWeight = 0.45;
 
     const referenceSourceCanvas = document.createElement('canvas');
     const referenceSourceCtx = referenceSourceCanvas.getContext('2d');
@@ -271,6 +273,7 @@
     let cameraCurrentLandmarks = [];
     let referenceTriangles = [];
     let referenceNeighborMap = [];
+    let boundaryFalloffWeights = [];
     let smoothedReferencePoints = [];
 
     function drawEyeDot(ctx, frame, landmarks, index) {
@@ -450,7 +453,7 @@
     }
 
     function getExpressionWeightForIndex(index) {
-      if (anchorIndexSet.has(index) || faceOvalIndexSet.has(index)) {
+      if (anchorIndexSet.has(index)) {
         return 0.0;
       }
       if (mouthIndexSet.has(index)) {
@@ -541,6 +544,46 @@
       }
 
       return neighbors.map((neighborSet) => [...neighborSet]);
+    }
+
+    function buildBoundaryFalloffWeights(neighborMap, pointCount, boundaryIndexSet, rampHops, power) {
+      const distances = Array(pointCount).fill(Infinity);
+      const queue = [];
+
+      for (const index of boundaryIndexSet) {
+        if (index < 0 || index >= pointCount) {
+          continue;
+        }
+        distances[index] = 0;
+        queue.push(index);
+      }
+
+      let cursor = 0;
+      while (cursor < queue.length) {
+        const current = queue[cursor];
+        cursor += 1;
+        const currentDistance = distances[current];
+        const neighbors = neighborMap[current] || [];
+
+        for (const neighbor of neighbors) {
+          if (neighbor < 0 || neighbor >= pointCount) {
+            continue;
+          }
+          const nextDistance = currentDistance + 1;
+          if (nextDistance < distances[neighbor]) {
+            distances[neighbor] = nextDistance;
+            queue.push(neighbor);
+          }
+        }
+      }
+
+      return distances.map((distance) => {
+        if (!Number.isFinite(distance)) {
+          return 1.0;
+        }
+        const linear = Math.min(1, distance / Math.max(1, rampHops));
+        return Math.pow(linear, power);
+      });
     }
 
     function spatialSmoothPoints(points, neighborMap, blend, passes) {
@@ -786,11 +829,13 @@
           return {x: referenceBaseLandmarks[index].x, y: referenceBaseLandmarks[index].y, z: referenceBaseLandmarks[index].z || 0};
         }
         const regionWeight = getExpressionWeightForIndex(index);
+        const boundaryWeight = boundaryFalloffWeights[index] ?? 1.0;
+        const combinedWeight = regionWeight * boundaryWeight;
 
         const rawExpressionDelta = {
-          x: (currentPoint.x - baselinePoint.x) * expressionGain * regionWeight,
-          y: (currentPoint.y - baselinePoint.y) * expressionGain * regionWeight,
-          z: (currentPoint.z - baselinePoint.z) * expressionGain * regionWeight,
+          x: (currentPoint.x - baselinePoint.x) * expressionGain * combinedWeight,
+          y: (currentPoint.y - baselinePoint.y) * expressionGain * combinedWeight,
+          z: (currentPoint.z - baselinePoint.z) * expressionGain * combinedWeight,
         };
         const expressionDelta = clampMagnitude3(rawExpressionDelta, maxExpressionDisplacementNormalized);
 
@@ -859,9 +904,17 @@
       if (referenceBaseLandmarks.length > 0) {
         referenceTriangles = buildTrianglesFromEdges(faceMeshTesselation, referenceBaseLandmarks.length);
         referenceNeighborMap = buildNeighborMapFromTriangles(referenceTriangles, referenceBaseLandmarks.length);
+        boundaryFalloffWeights = buildBoundaryFalloffWeights(
+          referenceNeighborMap,
+          referenceBaseLandmarks.length,
+          faceOvalIndexSet,
+          boundaryRampHops,
+          boundaryWeightPower,
+        );
       } else {
         referenceTriangles = [];
         referenceNeighborMap = [];
+        boundaryFalloffWeights = [];
       }
 
       drawReferenceOverlay();
