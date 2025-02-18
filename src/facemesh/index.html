@@ -279,6 +279,7 @@
     let cameraBaselineLandmarks = [];
     let cameraCurrentLandmarks = [];
     let referenceTriangles = [];
+    let referenceWarpTriangles = [];
     let referenceNeighborMap = [];
     let boundaryFalloffWeights = [];
     let smoothedReferencePoints = [];
@@ -715,6 +716,46 @@
       return merged;
     }
 
+    function shouldWarpTriangle(triangle) {
+      const hasIrisPoint = triangle.some((index) => irisIndexSet.has(index));
+      if (hasIrisPoint) {
+        return true;
+      }
+
+      const hasEyeExteriorPoint = triangle.some(
+        (index) => leftEyeIndexSet.has(index) || rightEyeIndexSet.has(index),
+      );
+      return !hasEyeExteriorPoint;
+    }
+
+    function drawStaticEyePatch(ctx, sourceCanvas, sourcePoints, outerIndex, innerIndex, topIndex, bottomIndex) {
+      const outer = sourcePoints[outerIndex];
+      const inner = sourcePoints[innerIndex];
+      const top = sourcePoints[topIndex];
+      const bottom = sourcePoints[bottomIndex];
+      if (!outer || !inner || !top || !bottom) {
+        return;
+      }
+
+      const centerX = (outer.x + inner.x) * 0.5;
+      const centerY = (outer.y + inner.y) * 0.5;
+      const radiusX = Math.max(2, Math.hypot(inner.x - outer.x, inner.y - outer.y) * 0.62);
+      const radiusY = Math.max(2, Math.hypot(bottom.x - top.x, bottom.y - top.y) * 0.95);
+      const rotation = Math.atan2(inner.y - outer.y, inner.x - outer.x);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.ellipse(centerX, centerY, radiusX, radiusY, rotation, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(sourceCanvas, 0, 0);
+      ctx.restore();
+    }
+
+    function drawStaticEyeBackground(ctx, sourceCanvas, sourcePoints) {
+      drawStaticEyePatch(ctx, sourceCanvas, sourcePoints, 33, 133, 159, 145);
+      drawStaticEyePatch(ctx, sourceCanvas, sourcePoints, 263, 362, 386, 374);
+    }
+
     function buildNeighborMapFromTriangles(triangles, pointCount) {
       const neighbors = Array.from({length: pointCount}, () => new Set());
 
@@ -978,31 +1019,37 @@
       }));
 
       const lockFace = lockFaceInput.checked;
-      if (referenceTriangles.length === 0 || sourcePoints.length === 0 || destinationPoints.length === 0) {
+      const warpTriangles = referenceWarpTriangles.length > 0 ? referenceWarpTriangles : referenceTriangles;
+      if (warpTriangles.length === 0 || sourcePoints.length === 0 || destinationPoints.length === 0) {
         referenceCtx.clearRect(0, 0, referenceCanvas.width, referenceCanvas.height);
         if (lockFace) {
           referenceCtx.drawImage(referenceSourceCanvas, 0, 0);
+        } else {
+          drawStaticEyeBackground(referenceCtx, referenceSourceCanvas, sourcePoints);
         }
       } else {
         if (lockFace) {
           referenceCtx.clearRect(0, 0, referenceCanvas.width, referenceCanvas.height);
           referenceCtx.drawImage(referenceSourceCanvas, 0, 0);
+          drawStaticEyeBackground(referenceCtx, referenceSourceCanvas, sourcePoints);
           warpReferenceByTriangles(
             referenceSourceCanvas,
             referenceCtx,
             sourcePoints,
             destinationPoints,
-            referenceTriangles,
+            warpTriangles,
             false,
           );
         } else {
+          referenceCtx.clearRect(0, 0, referenceCanvas.width, referenceCanvas.height);
+          drawStaticEyeBackground(referenceCtx, referenceSourceCanvas, sourcePoints);
           warpReferenceByTriangles(
             referenceSourceCanvas,
             referenceCtx,
             sourcePoints,
             destinationPoints,
-            referenceTriangles,
-            true,
+            warpTriangles,
+            false,
           );
         }
       }
@@ -1127,6 +1174,7 @@
         const baseTriangles = buildTrianglesFromEdges(faceMeshTesselation, referenceBaseLandmarks.length);
         const eyeInteriorTriangles = buildEyeInteriorTriangles(referenceBaseLandmarks.length);
         referenceTriangles = mergeTriangles(baseTriangles, eyeInteriorTriangles);
+        referenceWarpTriangles = referenceTriangles.filter(shouldWarpTriangle);
         referenceNeighborMap = buildNeighborMapFromTriangles(referenceTriangles, referenceBaseLandmarks.length);
         boundaryFalloffWeights = buildBoundaryFalloffWeights(
           referenceNeighborMap,
@@ -1137,6 +1185,7 @@
         );
       } else {
         referenceTriangles = [];
+        referenceWarpTriangles = [];
         referenceNeighborMap = [];
         boundaryFalloffWeights = [];
       }
