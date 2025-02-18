@@ -187,6 +187,10 @@
           <input id="show-mesh" type="checkbox" checked>
           <span>Show mesh</span>
         </label>
+        <label class="control">
+          <input id="lock-face" type="checkbox" checked>
+          <span>Lock face</span>
+        </label>
       </aside>
     </div>
   </main>
@@ -196,6 +200,7 @@
     const canvasCtx = canvasElement.getContext('2d');
     const statusElement = document.getElementById('status');
     const showMeshInput = document.getElementById('show-mesh');
+    const lockFaceInput = document.getElementById('lock-face');
     const referenceStage = document.querySelector('.reference-stage');
     const referenceImage = document.getElementById('reference-image');
     const referenceCanvas = document.getElementById('reference-canvas');
@@ -448,6 +453,115 @@
       return point;
     }
 
+    function getAnchorCenter2D(landmarks, mirrorX = false) {
+      if (!landmarks || landmarks.length === 0) {
+        return null;
+      }
+
+      let sumX = 0;
+      let sumY = 0;
+      let count = 0;
+
+      for (const index of anchorIndices) {
+        const point = landmarks[index];
+        if (!point) {
+          continue;
+        }
+        sumX += mirrorX ? (1 - point.x) : point.x;
+        sumY += point.y;
+        count += 1;
+      }
+
+      if (count === 0) {
+        return null;
+      }
+
+      const invCount = 1 / count;
+      return {
+        x: sumX * invCount,
+        y: sumY * invCount,
+      };
+    }
+
+    function getCheekVector2D(landmarks, mirrorX = false) {
+      if (!landmarks || landmarks.length <= Math.max(anchorIndices[0], anchorIndices[1])) {
+        return null;
+      }
+      const left = landmarks[anchorIndices[0]];
+      const right = landmarks[anchorIndices[1]];
+      if (!left || !right) {
+        return null;
+      }
+      const leftX = mirrorX ? (1 - left.x) : left.x;
+      const rightX = mirrorX ? (1 - right.x) : right.x;
+      return {
+        x: rightX - leftX,
+        y: right.y - left.y,
+      };
+    }
+
+    function computeRigidMotion2D(baselineLandmarks, currentLandmarks) {
+      const baselineCenter = getAnchorCenter2D(baselineLandmarks, true);
+      const currentCenter = getAnchorCenter2D(currentLandmarks, true);
+      const baselineAxis = getCheekVector2D(baselineLandmarks, true);
+      const currentAxis = getCheekVector2D(currentLandmarks, true);
+
+      if (!baselineCenter || !currentCenter || !baselineAxis || !currentAxis) {
+        return null;
+      }
+
+      const baselineLength = Math.hypot(baselineAxis.x, baselineAxis.y);
+      const currentLength = Math.hypot(currentAxis.x, currentAxis.y);
+      if (baselineLength < 1e-6 || currentLength < 1e-6) {
+        return null;
+      }
+
+      const baselineAngle = Math.atan2(baselineAxis.y, baselineAxis.x);
+      const currentAngle = Math.atan2(currentAxis.y, currentAxis.x);
+
+      const rotation = Math.max(-0.8, Math.min(0.8, currentAngle - baselineAngle));
+      const scale = Math.max(0.72, Math.min(1.4, currentLength / baselineLength));
+
+      return {
+        translation: {
+          x: currentCenter.x - baselineCenter.x,
+          y: currentCenter.y - baselineCenter.y,
+        },
+        rotation,
+        scale,
+      };
+    }
+
+    function applyRigidMotionToLandmarks(landmarks, baseLandmarks, motion) {
+      if (!landmarks || landmarks.length === 0 || !baseLandmarks || baseLandmarks.length === 0 || !motion) {
+        return landmarks;
+      }
+
+      const center = getAnchorCenter2D(baseLandmarks, false);
+      if (!center) {
+        return landmarks;
+      }
+
+      const cosA = Math.cos(motion.rotation);
+      const sinA = Math.sin(motion.rotation);
+      const moved = [];
+
+      for (const point of landmarks) {
+        const relativeX = (point.x - center.x) * motion.scale;
+        const relativeY = (point.y - center.y) * motion.scale;
+        const rotatedX = (relativeX * cosA) - (relativeY * sinA);
+        const rotatedY = (relativeX * sinA) + (relativeY * cosA);
+
+        moved.push({
+          x: rotatedX + center.x + motion.translation.x,
+          y: rotatedY + center.y + motion.translation.y,
+          z: point.z || 0,
+        });
+      }
+
+      return moved;
+    }
+
     function lerp(valueA, valueB, t) {
       return (valueA * (1 - t)) + (valueB * t);
     }
@@ -695,8 +809,10 @@
       return {a, b, c, d, e, f};
     }
 
-    function warpReferenceByTriangles(sourceCanvas, destinationCtx, sourcePoints, destinationPoints, triangles) {
-      destinationCtx.clearRect(0, 0, destinationCtx.canvas.width, destinationCtx.canvas.height);
+    function warpReferenceByTriangles(sourceCanvas, destinationCtx, sourcePoints, destinationPoints, triangles, clearBefore = true) {
+      if (clearBefore) {
+        destinationCtx.clearRect(0, 0, destinationCtx.canvas.width, destinationCtx.canvas.height);
+      }
 
       for (const [indexA, indexB, indexC] of triangles) {
         const srcA = sourcePoints[indexA];
@@ -788,11 +904,34 @@
         y: frame.y + (landmark.y * frame.height),
       }));
 
+      const lockFace = lockFaceInput.checked;
       if (referenceTriangles.length === 0 || sourcePoints.length === 0 || destinationPoints.length === 0) {
         referenceCtx.clearRect(0, 0, referenceCanvas.width, referenceCanvas.height);
-        referenceCtx.drawImage(referenceSourceCanvas, 0, 0);
+        if (lockFace) {
+          referenceCtx.drawImage(referenceSourceCanvas, 0, 0);
+        }
       } else {
-        warpReferenceByTriangles(referenceSourceCanvas, referenceCtx, sourcePoints, destinationPoints, referenceTriangles);
+        if (lockFace) {
+          referenceCtx.clearRect(0, 0, referenceCanvas.width, referenceCanvas.height);
+          referenceCtx.drawImage(referenceSourceCanvas, 0, 0);
+          warpReferenceByTriangles(
+            referenceSourceCanvas,
+            referenceCtx,
+            sourcePoints,
+            destinationPoints,
+            referenceTriangles,
+            false,
+          );
+        } else {
+          warpReferenceByTriangles(
+            referenceSourceCanvas,
+            referenceCtx,
+            sourcePoints,
+            destinationPoints,
+            referenceTriangles,
+            true,
+          );
+        }
       }
 
       latestTransferredReferenceLandmarks = [activeLandmarks];
@@ -864,7 +1003,17 @@
         spatialSmoothingBlend,
         spatialSmoothingPasses,
       );
-      return smoothedReferencePoints;
+
+      if (lockFaceInput.checked) {
+        return smoothedReferencePoints;
+      }
+
+      const motion = computeRigidMotion2D(cameraBaselineLandmarks, cameraCurrentLandmarks);
+      if (!motion) {
+        return smoothedReferencePoints;
+      }
+
+      return applyRigidMotionToLandmarks(smoothedReferencePoints, referenceBaseLandmarks, motion);
     }
 
     function onResults(results) {
@@ -923,6 +1072,10 @@
 
     showMeshInput.addEventListener('change', () => {
       drawOverlay();
+      drawReferenceOverlay();
+    });
+
+    lockFaceInput.addEventListener('change', () => {
       drawReferenceOverlay();
     });
 
