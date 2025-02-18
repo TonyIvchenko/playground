@@ -728,32 +728,55 @@
       return !hasEyeExteriorPoint;
     }
 
-    function drawStaticEyePatch(ctx, sourceCanvas, sourcePoints, outerIndex, innerIndex, topIndex, bottomIndex) {
-      const outer = sourcePoints[outerIndex];
-      const inner = sourcePoints[innerIndex];
-      const top = sourcePoints[topIndex];
-      const bottom = sourcePoints[bottomIndex];
-      if (!outer || !inner || !top || !bottom) {
+    function drawEyePatchTransformed(
+      ctx,
+      sourceCanvas,
+      sourcePoints,
+      destinationPoints,
+      outerIndex,
+      innerIndex,
+      topIndex,
+      bottomIndex,
+    ) {
+      const srcOuter = sourcePoints[outerIndex];
+      const srcInner = sourcePoints[innerIndex];
+      const srcTop = sourcePoints[topIndex];
+      const srcBottom = sourcePoints[bottomIndex];
+      const dstOuter = destinationPoints[outerIndex];
+      const dstInner = destinationPoints[innerIndex];
+      const dstTop = destinationPoints[topIndex];
+      const dstBottom = destinationPoints[bottomIndex];
+
+      if (
+        !srcOuter || !srcInner || !srcTop || !srcBottom
+        || !dstOuter || !dstInner || !dstTop || !dstBottom
+      ) {
         return;
       }
 
-      const centerX = (outer.x + inner.x) * 0.5;
-      const centerY = (outer.y + inner.y) * 0.5;
-      const radiusX = Math.max(2, Math.hypot(inner.x - outer.x, inner.y - outer.y) * 0.62);
-      const radiusY = Math.max(2, Math.hypot(bottom.x - top.x, bottom.y - top.y) * 0.95);
-      const rotation = Math.atan2(inner.y - outer.y, inner.x - outer.x);
+      const matrix = affineFromTriangles(srcOuter, srcInner, srcTop, dstOuter, dstInner, dstTop);
+      if (!matrix) {
+        return;
+      }
+
+      const centerX = (dstOuter.x + dstInner.x) * 0.5;
+      const centerY = (dstOuter.y + dstInner.y) * 0.5;
+      const radiusX = Math.max(2, Math.hypot(dstInner.x - dstOuter.x, dstInner.y - dstOuter.y) * 0.62);
+      const radiusY = Math.max(2, Math.hypot(dstBottom.x - dstTop.x, dstBottom.y - dstTop.y) * 0.95);
+      const rotation = Math.atan2(dstInner.y - dstOuter.y, dstInner.x - dstOuter.x);
 
       ctx.save();
       ctx.beginPath();
       ctx.ellipse(centerX, centerY, radiusX, radiusY, rotation, 0, Math.PI * 2);
       ctx.clip();
+      ctx.setTransform(matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f);
       ctx.drawImage(sourceCanvas, 0, 0);
       ctx.restore();
     }
 
-    function drawStaticEyeBackground(ctx, sourceCanvas, sourcePoints) {
-      drawStaticEyePatch(ctx, sourceCanvas, sourcePoints, 33, 133, 159, 145);
-      drawStaticEyePatch(ctx, sourceCanvas, sourcePoints, 263, 362, 386, 374);
+    function drawStaticEyeBackground(ctx, sourceCanvas, sourcePoints, destinationPoints) {
+      drawEyePatchTransformed(ctx, sourceCanvas, sourcePoints, destinationPoints, 33, 133, 159, 145);
+      drawEyePatchTransformed(ctx, sourceCanvas, sourcePoints, destinationPoints, 263, 362, 386, 374);
     }
 
     function buildNeighborMapFromTriangles(triangles, pointCount) {
@@ -1025,13 +1048,13 @@
         if (lockFace) {
           referenceCtx.drawImage(referenceSourceCanvas, 0, 0);
         } else {
-          drawStaticEyeBackground(referenceCtx, referenceSourceCanvas, sourcePoints);
+          drawStaticEyeBackground(referenceCtx, referenceSourceCanvas, sourcePoints, destinationPoints);
         }
       } else {
         if (lockFace) {
           referenceCtx.clearRect(0, 0, referenceCanvas.width, referenceCanvas.height);
           referenceCtx.drawImage(referenceSourceCanvas, 0, 0);
-          drawStaticEyeBackground(referenceCtx, referenceSourceCanvas, sourcePoints);
+          drawStaticEyeBackground(referenceCtx, referenceSourceCanvas, sourcePoints, destinationPoints);
           warpReferenceByTriangles(
             referenceSourceCanvas,
             referenceCtx,
@@ -1042,7 +1065,7 @@
           );
         } else {
           referenceCtx.clearRect(0, 0, referenceCanvas.width, referenceCanvas.height);
-          drawStaticEyeBackground(referenceCtx, referenceSourceCanvas, sourcePoints);
+          drawStaticEyeBackground(referenceCtx, referenceSourceCanvas, sourcePoints, destinationPoints);
           warpReferenceByTriangles(
             referenceSourceCanvas,
             referenceCtx,
