@@ -220,6 +220,7 @@
     const boundaryWeightPower = 1.2;
     const mouthRegionWeight = 1.15;
     const eyeBrowRegionWeight = 0.85;
+    const irisRegionWeight = 1.45;
     const noseRegionWeight = 0.3;
     const defaultRegionWeight = 0.45;
 
@@ -241,6 +242,7 @@
     const leftBrowIndexSet = buildIndexSetFromConnections(typeof FACEMESH_LEFT_EYEBROW !== 'undefined' ? FACEMESH_LEFT_EYEBROW : []);
     const rightBrowIndexSet = buildIndexSetFromConnections(typeof FACEMESH_RIGHT_EYEBROW !== 'undefined' ? FACEMESH_RIGHT_EYEBROW : []);
     const noseIndexSet = buildIndexSetFromConnections(typeof FACEMESH_NOSE !== 'undefined' ? FACEMESH_NOSE : []);
+    const irisIndexSet = buildIndexSetFromConnections(typeof FACEMESH_IRISES !== 'undefined' ? FACEMESH_IRISES : []);
     const faceOvalIndexSet = buildIndexSetFromConnections(typeof FACEMESH_FACE_OVAL !== 'undefined' ? FACEMESH_FACE_OVAL : []);
     const anchorIndexSet = new Set(anchorIndices);
 
@@ -570,6 +572,9 @@
       if (anchorIndexSet.has(index)) {
         return 0.0;
       }
+      if (irisIndexSet.has(index)) {
+        return irisRegionWeight;
+      }
       if (mouthIndexSet.has(index)) {
         return mouthRegionWeight;
       }
@@ -642,6 +647,74 @@
       return triangles;
     }
 
+    function buildEyeInteriorTriangles(pointCount) {
+      const triangles = [];
+      const seen = new Set();
+
+      function addTriangle(a, b, c) {
+        if (
+          a < 0 || b < 0 || c < 0
+          || a >= pointCount || b >= pointCount || c >= pointCount
+          || a === b || b === c || a === c
+        ) {
+          return;
+        }
+
+        const key = [a, b, c].sort((left, right) => left - right).join(':');
+        if (seen.has(key)) {
+          return;
+        }
+        seen.add(key);
+        triangles.push([a, b, c]);
+      }
+
+      function addEye(center, ring, frame) {
+        const ringLength = ring.length;
+        const frameLength = frame.length;
+
+        for (let i = 0; i < ringLength; i += 1) {
+          const ringCurrent = ring[i];
+          const ringNext = ring[(i + 1) % ringLength];
+          const frameCurrent = frame[i % frameLength];
+          const frameNext = frame[(i + 1) % frameLength];
+
+          addTriangle(center, ringCurrent, ringNext);
+          addTriangle(ringCurrent, frameCurrent, frameNext);
+          addTriangle(ringCurrent, frameNext, ringNext);
+          addTriangle(center, frameCurrent, frameNext);
+        }
+      }
+
+      addEye(468, [469, 470, 471, 472], [33, 159, 133, 145]);
+      addEye(473, [474, 475, 476, 477], [362, 386, 263, 374]);
+
+      return triangles;
+    }
+
+    function mergeTriangles(primaryTriangles, extraTriangles) {
+      const merged = [];
+      const seen = new Set();
+
+      function add(triangle) {
+        const [a, b, c] = triangle;
+        const key = [a, b, c].sort((left, right) => left - right).join(':');
+        if (seen.has(key)) {
+          return;
+        }
+        seen.add(key);
+        merged.push(triangle);
+      }
+
+      for (const triangle of primaryTriangles) {
+        add(triangle);
+      }
+      for (const triangle of extraTriangles) {
+        add(triangle);
+      }
+
+      return merged;
+    }
+
     function buildNeighborMapFromTriangles(triangles, pointCount) {
       const neighbors = Array.from({length: pointCount}, () => new Set());
 
@@ -709,7 +782,7 @@
 
       for (let pass = 0; pass < passes; pass += 1) {
         const next = current.map((point, index) => {
-          if (anchorIndexSet.has(index) || faceOvalIndexSet.has(index)) {
+          if (anchorIndexSet.has(index) || faceOvalIndexSet.has(index) || irisIndexSet.has(index)) {
             return point;
           }
 
@@ -1051,7 +1124,9 @@
       smoothedReferencePoints = referenceBaseLandmarks.map((point) => ({x: point.x, y: point.y, z: point.z || 0}));
 
       if (referenceBaseLandmarks.length > 0) {
-        referenceTriangles = buildTrianglesFromEdges(faceMeshTesselation, referenceBaseLandmarks.length);
+        const baseTriangles = buildTrianglesFromEdges(faceMeshTesselation, referenceBaseLandmarks.length);
+        const eyeInteriorTriangles = buildEyeInteriorTriangles(referenceBaseLandmarks.length);
+        referenceTriangles = mergeTriangles(baseTriangles, eyeInteriorTriangles);
         referenceNeighborMap = buildNeighborMapFromTriangles(referenceTriangles, referenceBaseLandmarks.length);
         boundaryFalloffWeights = buildBoundaryFalloffWeights(
           referenceNeighborMap,
