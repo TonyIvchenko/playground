@@ -213,12 +213,13 @@
     const anchorIndices = [234, 454, 1, 10];
     const expressionGain = 0.55;
     const maxExpressionDisplacementNormalized = 0.045;
-    const smoothingFactor = 0.35;
+    const smoothingFactor = 0.5;
     const spatialSmoothingBlend = 0.18;
     const spatialSmoothingPasses = 2;
     const boundaryRampHops = 7;
     const boundaryWeightPower = 1.2;
     const mouthRegionWeight = 1.15;
+    const eyeRegionWeight = 1.2;
     const eyeBrowRegionWeight = 0.85;
     const irisRegionWeight = 1.45;
     const noseRegionWeight = 0.3;
@@ -579,12 +580,10 @@
       if (mouthIndexSet.has(index)) {
         return mouthRegionWeight;
       }
-      if (
-        leftEyeIndexSet.has(index)
-        || rightEyeIndexSet.has(index)
-        || leftBrowIndexSet.has(index)
-        || rightBrowIndexSet.has(index)
-      ) {
+      if (leftEyeIndexSet.has(index) || rightEyeIndexSet.has(index)) {
+        return eyeRegionWeight;
+      }
+      if (leftBrowIndexSet.has(index) || rightBrowIndexSet.has(index)) {
         return eyeBrowRegionWeight;
       }
       if (noseIndexSet.has(index)) {
@@ -716,16 +715,12 @@
       return merged;
     }
 
-    function shouldWarpTriangle(triangle) {
-      const hasIrisPoint = triangle.some((index) => irisIndexSet.has(index));
-      if (hasIrisPoint) {
-        return true;
-      }
+    function isEyeRelatedIndex(index) {
+      return leftEyeIndexSet.has(index) || rightEyeIndexSet.has(index) || irisIndexSet.has(index);
+    }
 
-      const hasEyeExteriorPoint = triangle.some(
-        (index) => leftEyeIndexSet.has(index) || rightEyeIndexSet.has(index),
-      );
-      return !hasEyeExteriorPoint;
+    function shouldWarpTriangle(triangle) {
+      return !triangle.every((index) => isEyeRelatedIndex(index));
     }
 
     function drawEyePatchTransformed(
@@ -754,22 +749,21 @@
         return;
       }
 
-      const matrix = affineFromTriangles(srcOuter, srcInner, srcTop, dstOuter, dstInner, dstTop);
-      if (!matrix) {
-        return;
-      }
-
-      const centerX = (dstOuter.x + dstInner.x) * 0.5;
-      const centerY = (dstOuter.y + dstInner.y) * 0.5;
-      const radiusX = Math.max(2, Math.hypot(dstInner.x - dstOuter.x, dstInner.y - dstOuter.y) * 0.62);
-      const radiusY = Math.max(2, Math.hypot(dstBottom.x - dstTop.x, dstBottom.y - dstTop.y) * 0.95);
-      const rotation = Math.atan2(dstInner.y - dstOuter.y, dstInner.x - dstOuter.x);
+      const srcCenterX = (srcOuter.x + srcInner.x) * 0.5;
+      const srcCenterY = (srcOuter.y + srcInner.y) * 0.5;
+      const dstCenterX = (dstOuter.x + dstInner.x) * 0.5;
+      const dstCenterY = (dstOuter.y + dstInner.y) * 0.5;
+      const deltaX = dstCenterX - srcCenterX;
+      const deltaY = dstCenterY - srcCenterY;
+      const radiusX = Math.max(2, Math.hypot(srcInner.x - srcOuter.x, srcInner.y - srcOuter.y) * 0.62);
+      const radiusY = Math.max(2, Math.hypot(srcBottom.x - srcTop.x, srcBottom.y - srcTop.y) * 0.95);
+      const rotation = Math.atan2(srcInner.y - srcOuter.y, srcInner.x - srcOuter.x);
 
       ctx.save();
       ctx.beginPath();
-      ctx.ellipse(centerX, centerY, radiusX, radiusY, rotation, 0, Math.PI * 2);
+      ctx.ellipse(dstCenterX, dstCenterY, radiusX, radiusY, rotation, 0, Math.PI * 2);
       ctx.clip();
-      ctx.setTransform(matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f);
+      ctx.setTransform(1, 0, 0, 1, deltaX, deltaY);
       ctx.drawImage(sourceCanvas, 0, 0);
       ctx.restore();
     }
@@ -846,7 +840,13 @@
 
       for (let pass = 0; pass < passes; pass += 1) {
         const next = current.map((point, index) => {
-          if (anchorIndexSet.has(index) || faceOvalIndexSet.has(index) || irisIndexSet.has(index)) {
+          if (
+            anchorIndexSet.has(index)
+            || faceOvalIndexSet.has(index)
+            || irisIndexSet.has(index)
+            || leftEyeIndexSet.has(index)
+            || rightEyeIndexSet.has(index)
+          ) {
             return point;
           }
 
