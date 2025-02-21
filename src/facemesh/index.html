@@ -224,9 +224,6 @@
     const irisRegionWeight = 1.45;
     const noseRegionWeight = 0.3;
     const defaultRegionWeight = 0.45;
-    const posePerspectiveStrength = 0.85;
-    const poseTranslationGain = 1.0;
-    const poseDepthTranslationGain = 0.7;
 
     const referenceSourceCanvas = document.createElement('canvas');
     const referenceSourceCtx = referenceSourceCanvas.getContext('2d');
@@ -460,15 +457,6 @@
       return point;
     }
 
-    function normalizePointToBasis(point, basis) {
-      const relative = sub3(toVec3(point), basis.origin);
-      return {
-        x: dot3(relative, basis.xAxis) / basis.scale,
-        y: dot3(relative, basis.yAxis) / basis.scale,
-        z: dot3(relative, basis.zAxis) / basis.scale,
-      };
-    }
-
     function mirrorLandmarksX(landmarks) {
       return landmarks.map((point) => ({
         x: 1 - point.x,
@@ -477,69 +465,26 @@
       }));
     }
 
-    function getLocalRotationMatrix3D(baselineBasis, currentBasis) {
-      return [
-        [
-          dot3(baselineBasis.xAxis, currentBasis.xAxis),
-          dot3(baselineBasis.xAxis, currentBasis.yAxis),
-          dot3(baselineBasis.xAxis, currentBasis.zAxis),
-        ],
-        [
-          dot3(baselineBasis.yAxis, currentBasis.xAxis),
-          dot3(baselineBasis.yAxis, currentBasis.yAxis),
-          dot3(baselineBasis.yAxis, currentBasis.zAxis),
-        ],
-        [
-          dot3(baselineBasis.zAxis, currentBasis.xAxis),
-          dot3(baselineBasis.zAxis, currentBasis.yAxis),
-          dot3(baselineBasis.zAxis, currentBasis.zAxis),
-        ],
-      ];
-    }
-
-    function multiplyMat3Vec3(matrix, vector) {
-      return {
-        x: (matrix[0][0] * vector.x) + (matrix[0][1] * vector.y) + (matrix[0][2] * vector.z),
-        y: (matrix[1][0] * vector.x) + (matrix[1][1] * vector.y) + (matrix[1][2] * vector.z),
-        z: (matrix[2][0] * vector.x) + (matrix[2][1] * vector.y) + (matrix[2][2] * vector.z),
-      };
-    }
-
-    function applyPoseMotion3D(landmarks, referenceBasis, baselineBasis, currentBasis) {
-      if (!landmarks || landmarks.length === 0 || !referenceBasis || !baselineBasis || !currentBasis) {
-        return landmarks;
+    function mapToDrivingLandmarks(templateLandmarks, drivingLandmarks) {
+      if (!templateLandmarks || templateLandmarks.length === 0 || !drivingLandmarks || drivingLandmarks.length === 0) {
+        return templateLandmarks;
       }
 
-      const rotation = getLocalRotationMatrix3D(baselineBasis, currentBasis);
-      const scaleRatio = Math.max(0.72, Math.min(1.42, currentBasis.scale / Math.max(1e-6, baselineBasis.scale)));
-      const deltaWorld = sub3(currentBasis.origin, baselineBasis.origin);
-      const translationLocal = {
-        x: (dot3(deltaWorld, baselineBasis.xAxis) / baselineBasis.scale) * poseTranslationGain,
-        y: (dot3(deltaWorld, baselineBasis.yAxis) / baselineBasis.scale) * poseTranslationGain,
-        z: (dot3(deltaWorld, baselineBasis.zAxis) / baselineBasis.scale) * poseDepthTranslationGain,
-      };
+      const maxIndex = Math.min(templateLandmarks.length, drivingLandmarks.length);
+      return templateLandmarks.map((point, index) => {
+        if (index >= maxIndex || !drivingLandmarks[index]) {
+          return {
+            x: point.x,
+            y: point.y,
+            z: point.z || 0,
+          };
+        }
 
-      return landmarks.map((landmark) => {
-        const local = normalizePointToBasis(landmark, referenceBasis);
-        const rotatedLocal = multiplyMat3Vec3(rotation, local);
-        const posedLocal = {
-          x: (rotatedLocal.x * scaleRatio) + translationLocal.x,
-          y: (rotatedLocal.y * scaleRatio) + translationLocal.y,
-          z: (rotatedLocal.z * scaleRatio) + translationLocal.z,
-        };
-
-        const perspectiveDenominator = Math.max(0.45, 1 + (posedLocal.z * posePerspectiveStrength));
-        const projectedLocal = {
-          x: posedLocal.x / perspectiveDenominator,
-          y: posedLocal.y / perspectiveDenominator,
-          z: posedLocal.z,
-        };
-        const world = denormalizePoint(projectedLocal, referenceBasis);
-
+        const drivingPoint = drivingLandmarks[index];
         return {
-          x: Math.max(-0.25, Math.min(1.25, world.x)),
-          y: Math.max(-0.25, Math.min(1.25, world.y)),
-          z: world.z,
+          x: Math.max(-0.25, Math.min(1.25, drivingPoint.x)),
+          y: Math.max(-0.25, Math.min(1.25, drivingPoint.y)),
+          z: drivingPoint.z || 0,
         };
       });
     }
@@ -1060,11 +1005,20 @@
     }
 
     function computeTransferredReferenceLandmarks() {
-      if (
-        referenceBaseLandmarks.length === 0
-        || cameraBaselineLandmarks.length === 0
-        || cameraCurrentLandmarks.length === 0
-      ) {
+      if (referenceBaseLandmarks.length === 0) {
+        smoothedReferencePoints = referenceBaseLandmarks.map((point) => ({x: point.x, y: point.y, z: point.z || 0}));
+        return smoothedReferencePoints;
+      }
+
+      if (!lockFaceInput.checked) {
+        if (cameraCurrentLandmarks.length === 0) {
+          return referenceBaseLandmarks.map((point) => ({x: point.x, y: point.y, z: point.z || 0}));
+        }
+        const mirroredCurrentLandmarks = mirrorLandmarksX(cameraCurrentLandmarks);
+        return mapToDrivingLandmarks(referenceBaseLandmarks, mirroredCurrentLandmarks);
+      }
+
+      if (cameraBaselineLandmarks.length === 0 || cameraCurrentLandmarks.length === 0) {
         smoothedReferencePoints = referenceBaseLandmarks.map((point) => ({x: point.x, y: point.y, z: point.z || 0}));
         return smoothedReferencePoints;
       }
@@ -1124,25 +1078,7 @@
         spatialSmoothingBlend,
         spatialSmoothingPasses,
       );
-
-      if (lockFaceInput.checked) {
-        return smoothedReferencePoints;
-      }
-
-      const mirroredBaselineLandmarks = mirrorLandmarksX(cameraBaselineLandmarks);
-      const mirroredCurrentLandmarks = mirrorLandmarksX(cameraCurrentLandmarks);
-      const mirroredBaselineBasis = getBasisFromLandmarks(mirroredBaselineLandmarks);
-      const mirroredCurrentBasis = getBasisFromLandmarks(mirroredCurrentLandmarks);
-      if (!mirroredBaselineBasis || !mirroredCurrentBasis) {
-        return smoothedReferencePoints;
-      }
-
-      return applyPoseMotion3D(
-        smoothedReferencePoints,
-        referenceBasis,
-        mirroredBaselineBasis,
-        mirroredCurrentBasis,
-      );
+      return smoothedReferencePoints;
     }
 
     function onResults(results) {
