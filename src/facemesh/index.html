@@ -224,6 +224,9 @@
     const irisRegionWeight = 1.45;
     const noseRegionWeight = 0.3;
     const defaultRegionWeight = 0.45;
+    const poseScaleMin = 0.78;
+    const poseScaleMax = 1.28;
+    const poseTranslationGain = 1.0;
 
     const referenceSourceCanvas = document.createElement('canvas');
     const referenceSourceCtx = referenceSourceCanvas.getContext('2d');
@@ -465,26 +468,61 @@
       }));
     }
 
-    function mapToDrivingLandmarks(templateLandmarks, drivingLandmarks) {
-      if (!templateLandmarks || templateLandmarks.length === 0 || !drivingLandmarks || drivingLandmarks.length === 0) {
-        return templateLandmarks;
+    function rotateVectorBySourcePose(worldVector, sourceBaselineBasis, sourceCurrentBasis, scaleRatio) {
+      const baselineLocal = {
+        x: dot3(worldVector, sourceBaselineBasis.xAxis),
+        y: dot3(worldVector, sourceBaselineBasis.yAxis),
+        z: dot3(worldVector, sourceBaselineBasis.zAxis),
+      };
+
+      const scaledLocal = {
+        x: baselineLocal.x * scaleRatio,
+        y: baselineLocal.y * scaleRatio,
+        z: baselineLocal.z * scaleRatio,
+      };
+
+      let rotated = mul3(sourceCurrentBasis.xAxis, scaledLocal.x);
+      rotated = add3(rotated, mul3(sourceCurrentBasis.yAxis, scaledLocal.y));
+      rotated = add3(rotated, mul3(sourceCurrentBasis.zAxis, scaledLocal.z));
+      return rotated;
+    }
+
+    function applyRelativePoseFromSource(
+      landmarks,
+      referenceBasis,
+      sourceBaselineBasis,
+      sourceCurrentBasis,
+    ) {
+      if (
+        !landmarks || landmarks.length === 0
+        || !referenceBasis || !sourceBaselineBasis || !sourceCurrentBasis
+      ) {
+        return landmarks;
       }
 
-      const maxIndex = Math.min(templateLandmarks.length, drivingLandmarks.length);
-      return templateLandmarks.map((point, index) => {
-        if (index >= maxIndex || !drivingLandmarks[index]) {
-          return {
-            x: point.x,
-            y: point.y,
-            z: point.z || 0,
-          };
-        }
+      const scaleRatio = Math.max(
+        poseScaleMin,
+        Math.min(poseScaleMax, sourceCurrentBasis.scale / Math.max(1e-6, sourceBaselineBasis.scale)),
+      );
+      const deltaOrigin = mul3(
+        sub3(sourceCurrentBasis.origin, sourceBaselineBasis.origin),
+        poseTranslationGain,
+      );
 
-        const drivingPoint = drivingLandmarks[index];
+      return landmarks.map((landmark) => {
+        const offsetFromReferenceOrigin = sub3(toVec3(landmark), referenceBasis.origin);
+        const rotatedOffset = rotateVectorBySourcePose(
+          offsetFromReferenceOrigin,
+          sourceBaselineBasis,
+          sourceCurrentBasis,
+          scaleRatio,
+        );
+        const posed = add3(add3(referenceBasis.origin, rotatedOffset), deltaOrigin);
+
         return {
-          x: Math.max(-0.25, Math.min(1.25, drivingPoint.x)),
-          y: Math.max(-0.25, Math.min(1.25, drivingPoint.y)),
-          z: drivingPoint.z || 0,
+          x: Math.max(-0.25, Math.min(1.25, posed.x)),
+          y: Math.max(-0.25, Math.min(1.25, posed.y)),
+          z: posed.z,
         };
       });
     }
@@ -1010,14 +1048,6 @@
         return smoothedReferencePoints;
       }
 
-      if (!lockFaceInput.checked) {
-        if (cameraCurrentLandmarks.length === 0) {
-          return referenceBaseLandmarks.map((point) => ({x: point.x, y: point.y, z: point.z || 0}));
-        }
-        const mirroredCurrentLandmarks = mirrorLandmarksX(cameraCurrentLandmarks);
-        return mapToDrivingLandmarks(referenceBaseLandmarks, mirroredCurrentLandmarks);
-      }
-
       if (cameraBaselineLandmarks.length === 0 || cameraCurrentLandmarks.length === 0) {
         smoothedReferencePoints = referenceBaseLandmarks.map((point) => ({x: point.x, y: point.y, z: point.z || 0}));
         return smoothedReferencePoints;
@@ -1078,7 +1108,24 @@
         spatialSmoothingBlend,
         spatialSmoothingPasses,
       );
-      return smoothedReferencePoints;
+      if (lockFaceInput.checked) {
+        return smoothedReferencePoints;
+      }
+
+      const mirroredBaselineLandmarks = mirrorLandmarksX(cameraBaselineLandmarks);
+      const mirroredCurrentLandmarks = mirrorLandmarksX(cameraCurrentLandmarks);
+      const mirroredBaselineBasis = getBasisFromLandmarks(mirroredBaselineLandmarks);
+      const mirroredCurrentBasis = getBasisFromLandmarks(mirroredCurrentLandmarks);
+      if (!mirroredBaselineBasis || !mirroredCurrentBasis) {
+        return smoothedReferencePoints;
+      }
+
+      return applyRelativePoseFromSource(
+        smoothedReferencePoints,
+        referenceBasis,
+        mirroredBaselineBasis,
+        mirroredCurrentBasis,
+      );
     }
 
     function onResults(results) {
