@@ -468,26 +468,16 @@
       }));
     }
 
-    function rotateVectorBySourcePose(worldVector, sourceBaselineBasis, sourceCurrentBasis, scaleRatio) {
-      const baselineLocal = {
-        x: dot3(worldVector, sourceBaselineBasis.xAxis),
-        y: dot3(worldVector, sourceBaselineBasis.yAxis),
-        z: dot3(worldVector, sourceBaselineBasis.zAxis),
+    function normalizePointToBasis(point, basis) {
+      const relative = sub3(toVec3(point), basis.origin);
+      return {
+        x: dot3(relative, basis.xAxis) / basis.scale,
+        y: dot3(relative, basis.yAxis) / basis.scale,
+        z: dot3(relative, basis.zAxis) / basis.scale,
       };
-
-      const scaledLocal = {
-        x: baselineLocal.x * scaleRatio,
-        y: baselineLocal.y * scaleRatio,
-        z: baselineLocal.z * scaleRatio,
-      };
-
-      let rotated = mul3(sourceCurrentBasis.xAxis, scaledLocal.x);
-      rotated = add3(rotated, mul3(sourceCurrentBasis.yAxis, scaledLocal.y));
-      rotated = add3(rotated, mul3(sourceCurrentBasis.zAxis, scaledLocal.z));
-      return rotated;
     }
 
-    function applyRelativePoseFromSource(
+    function applyAbsolutePoseFromSource(
       landmarks,
       referenceBasis,
       sourceBaselineBasis,
@@ -510,14 +500,20 @@
       );
 
       return landmarks.map((landmark) => {
-        const offsetFromReferenceOrigin = sub3(toVec3(landmark), referenceBasis.origin);
-        const rotatedOffset = rotateVectorBySourcePose(
-          offsetFromReferenceOrigin,
-          sourceBaselineBasis,
-          sourceCurrentBasis,
-          scaleRatio,
+        const local = normalizePointToBasis(landmark, referenceBasis);
+        let orientedOffset = mul3(
+          sourceCurrentBasis.xAxis,
+          local.x * referenceBasis.scale * scaleRatio,
         );
-        const posed = add3(add3(referenceBasis.origin, rotatedOffset), deltaOrigin);
+        orientedOffset = add3(
+          orientedOffset,
+          mul3(sourceCurrentBasis.yAxis, local.y * referenceBasis.scale * scaleRatio),
+        );
+        orientedOffset = add3(
+          orientedOffset,
+          mul3(sourceCurrentBasis.zAxis, local.z * referenceBasis.scale * scaleRatio),
+        );
+        const posed = add3(add3(referenceBasis.origin, orientedOffset), deltaOrigin);
 
         return {
           x: Math.max(-0.25, Math.min(1.25, posed.x)),
@@ -1120,7 +1116,7 @@
         return smoothedReferencePoints;
       }
 
-      return applyRelativePoseFromSource(
+      return applyAbsolutePoseFromSource(
         smoothedReferencePoints,
         referenceBasis,
         mirroredBaselineBasis,
