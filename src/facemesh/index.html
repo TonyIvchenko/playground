@@ -226,7 +226,6 @@
     const defaultRegionWeight = 0.45;
     const poseScaleMin = 0.78;
     const poseScaleMax = 1.28;
-    const poseTranslationGain = 1.0;
 
     const referenceSourceCanvas = document.createElement('canvas');
     const referenceSourceCtx = referenceSourceCanvas.getContext('2d');
@@ -494,10 +493,6 @@
         poseScaleMin,
         Math.min(poseScaleMax, sourceCurrentBasis.scale / Math.max(1e-6, sourceBaselineBasis.scale)),
       );
-      const deltaOrigin = mul3(
-        sub3(sourceCurrentBasis.origin, sourceBaselineBasis.origin),
-        poseTranslationGain,
-      );
 
       return landmarks.map((landmark) => {
         const local = normalizePointToBasis(landmark, referenceBasis);
@@ -513,7 +508,7 @@
           orientedOffset,
           mul3(sourceCurrentBasis.zAxis, local.z * referenceBasis.scale * scaleRatio),
         );
-        const posed = add3(add3(referenceBasis.origin, orientedOffset), deltaOrigin);
+        const posed = add3(sourceCurrentBasis.origin, orientedOffset);
 
         return {
           x: Math.max(-0.25, Math.min(1.25, posed.x)),
