@@ -224,8 +224,6 @@
     const irisRegionWeight = 1.45;
     const noseRegionWeight = 0.3;
     const defaultRegionWeight = 0.45;
-    const poseScaleMin = 0.78;
-    const poseScaleMax = 1.28;
 
     const referenceSourceCanvas = document.createElement('canvas');
     const referenceSourceCtx = referenceSourceCanvas.getContext('2d');
@@ -479,34 +477,28 @@
     function applyAbsolutePoseFromSource(
       landmarks,
       referenceBasis,
-      sourceBaselineBasis,
       sourceCurrentBasis,
     ) {
       if (
         !landmarks || landmarks.length === 0
-        || !referenceBasis || !sourceBaselineBasis || !sourceCurrentBasis
+        || !referenceBasis || !sourceCurrentBasis
       ) {
         return landmarks;
       }
-
-      const scaleRatio = Math.max(
-        poseScaleMin,
-        Math.min(poseScaleMax, sourceCurrentBasis.scale / Math.max(1e-6, sourceBaselineBasis.scale)),
-      );
 
       return landmarks.map((landmark) => {
         const local = normalizePointToBasis(landmark, referenceBasis);
         let orientedOffset = mul3(
           sourceCurrentBasis.xAxis,
-          local.x * referenceBasis.scale * scaleRatio,
+          local.x * sourceCurrentBasis.scale,
         );
         orientedOffset = add3(
           orientedOffset,
-          mul3(sourceCurrentBasis.yAxis, local.y * referenceBasis.scale * scaleRatio),
+          mul3(sourceCurrentBasis.yAxis, local.y * sourceCurrentBasis.scale),
         );
         orientedOffset = add3(
           orientedOffset,
-          mul3(sourceCurrentBasis.zAxis, local.z * referenceBasis.scale * scaleRatio),
+          mul3(sourceCurrentBasis.zAxis, local.z * sourceCurrentBasis.scale),
         );
         const posed = add3(sourceCurrentBasis.origin, orientedOffset);
 
@@ -1103,18 +1095,15 @@
         return smoothedReferencePoints;
       }
 
-      const mirroredBaselineLandmarks = mirrorLandmarksX(cameraBaselineLandmarks);
       const mirroredCurrentLandmarks = mirrorLandmarksX(cameraCurrentLandmarks);
-      const mirroredBaselineBasis = getBasisFromLandmarks(mirroredBaselineLandmarks);
       const mirroredCurrentBasis = getBasisFromLandmarks(mirroredCurrentLandmarks);
-      if (!mirroredBaselineBasis || !mirroredCurrentBasis) {
+      if (!mirroredCurrentBasis) {
         return smoothedReferencePoints;
       }
 
       return applyAbsolutePoseFromSource(
         smoothedReferencePoints,
         referenceBasis,
-        mirroredBaselineBasis,
         mirroredCurrentBasis,
       );
     }
