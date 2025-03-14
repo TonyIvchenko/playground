@@ -465,90 +465,83 @@
       }));
     }
 
-    function det3(columns) {
-      const [a, b, c] = columns;
-      return (
-        (a.x * ((b.y * c.z) - (b.z * c.y)))
-        - (b.x * ((a.y * c.z) - (a.z * c.y)))
-        + (c.x * ((a.y * b.z) - (a.z * b.y)))
-      );
-    }
+    function computeSimilarityTransform2D(referenceAnchors, sourceAnchors) {
+      const pairs = [];
+      for (const index of anchorIndices) {
+        const ref = referenceAnchors[index];
+        const src = sourceAnchors[index];
+        if (!ref || !src) {
+          continue;
+        }
+        pairs.push({
+          refX: ref.x,
+          refY: ref.y,
+          srcX: src.x,
+          srcY: src.y,
+        });
+      }
 
-    function invert3(columns) {
-      const [a, b, c] = columns;
-      const determinant = det3(columns);
-      if (Math.abs(determinant) < 1e-8) {
+      if (pairs.length < 2) {
         return null;
       }
-      const invDet = 1 / determinant;
-      return [
-        {
-          x: ((b.y * c.z) - (b.z * c.y)) * invDet,
-          y: ((c.y * a.z) - (c.z * a.y)) * invDet,
-          z: ((a.y * b.z) - (a.z * b.y)) * invDet,
-        },
-        {
-          x: ((b.z * c.x) - (b.x * c.z)) * invDet,
-          y: ((c.z * a.x) - (c.x * a.z)) * invDet,
-          z: ((a.z * b.x) - (a.x * b.z)) * invDet,
-        },
-        {
-          x: ((b.x * c.y) - (b.y * c.x)) * invDet,
-          y: ((c.x * a.y) - (c.y * a.x)) * invDet,
-          z: ((a.x * b.y) - (a.y * b.x)) * invDet,
-        },
-      ];
+
+      let refMeanX = 0;
+      let refMeanY = 0;
+      let srcMeanX = 0;
+      let srcMeanY = 0;
+      for (const pair of pairs) {
+        refMeanX += pair.refX;
+        refMeanY += pair.refY;
+        srcMeanX += pair.srcX;
+        srcMeanY += pair.srcY;
+      }
+      const invCount = 1 / pairs.length;
+      refMeanX *= invCount;
+      refMeanY *= invCount;
+      srcMeanX *= invCount;
+      srcMeanY *= invCount;
+
+      let numeratorA = 0;
+      let numeratorB = 0;
+      let denominator = 0;
+      for (const pair of pairs) {
+        const rx = pair.refX - refMeanX;
+        const ry = pair.refY - refMeanY;
+        const sx = pair.srcX - srcMeanX;
+        const sy = pair.srcY - srcMeanY;
+        numeratorA += (rx * sx) + (ry * sy);
+        numeratorB += (rx * sy) - (ry * sx);
+        denominator += (rx * rx) + (ry * ry);
+      }
+
+      if (denominator < 1e-10) {
+        return null;
+      }
+
+      const a = numeratorA / denominator;
+      const b = numeratorB / denominator;
+      const tx = srcMeanX - ((a * refMeanX) - (b * refMeanY));
+      const ty = srcMeanY - ((b * refMeanX) + (a * refMeanY));
+      return {a, b, tx, ty, scale: Math.hypot(a, b)};
     }
 
-    function multiply3x3Vec(matrixColumns, vector) {
-      const [c0, c1, c2] = matrixColumns;
-      return {
-        x: (c0.x * vector.x) + (c1.x * vector.y) + (c2.x * vector.z),
-        y: (c0.y * vector.x) + (c1.y * vector.y) + (c2.y * vector.z),
-        z: (c0.z * vector.x) + (c1.z * vector.y) + (c2.z * vector.z),
-      };
-    }
-
-    function applyAnchorAffinePose(landmarks, referenceAnchors, sourceAnchors) {
+    function applySimilarityPose2D(landmarks, referenceAnchors, sourceAnchors) {
       if (!landmarks || landmarks.length === 0 || !referenceAnchors || !sourceAnchors) {
         return landmarks;
       }
 
-      const refA0 = toVec3(referenceAnchors[anchorIndices[0]]);
-      const refA1 = toVec3(referenceAnchors[anchorIndices[1]]);
-      const refA2 = toVec3(referenceAnchors[anchorIndices[2]]);
-      const refA3 = toVec3(referenceAnchors[anchorIndices[3]]);
-      const srcA0 = toVec3(sourceAnchors[anchorIndices[0]]);
-      const srcA1 = toVec3(sourceAnchors[anchorIndices[1]]);
-      const srcA2 = toVec3(sourceAnchors[anchorIndices[2]]);
-      const srcA3 = toVec3(sourceAnchors[anchorIndices[3]]);
-
-      const refColumns = [
-        sub3(refA1, refA0),
-        sub3(refA2, refA0),
-        sub3(refA3, refA0),
-      ];
-      const srcColumns = [
-        sub3(srcA1, srcA0),
-        sub3(srcA2, srcA0),
-        sub3(srcA3, srcA0),
-      ];
-
-      const refInverse = invert3(refColumns);
-      if (!refInverse) {
+      const transform = computeSimilarityTransform2D(referenceAnchors, sourceAnchors);
+      if (!transform) {
         return landmarks;
       }
 
       return landmarks.map((landmark) => {
-        const relative = sub3(toVec3(landmark), refA0);
-        const local = multiply3x3Vec(refInverse, relative);
-        const mappedRelative = multiply3x3Vec(srcColumns, local);
-        const mapped = add3(srcA0, mappedRelative);
-
+        const x = (transform.a * landmark.x) - (transform.b * landmark.y) + transform.tx;
+        const y = (transform.b * landmark.x) + (transform.a * landmark.y) + transform.ty;
         return {
-          x: Math.max(-0.25, Math.min(1.25, mapped.x)),
-          y: Math.max(-0.25, Math.min(1.25, mapped.y)),
-          z: mapped.z,
+          x: Math.max(-0.25, Math.min(1.25, x)),
+          y: Math.max(-0.25, Math.min(1.25, y)),
+          z: (landmark.z || 0) * transform.scale,
         };
       });
     }
@@ -1143,7 +1136,7 @@
         return smoothedReferencePoints;
       }
 
-      return applyAnchorAffinePose(
+      return applySimilarityPose2D(
         smoothedReferencePoints,
         referenceBaseLandmarks,
         mirroredCurrentLandmarks,
