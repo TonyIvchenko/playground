@@ -465,6 +465,29 @@
       }));
     }
 
+    function remapMirroredLandmarksForPose(landmarks) {
+      if (!landmarks || landmarks.length === 0) {
+        return landmarks;
+      }
+
+      const remapped = landmarks.map((point) => ({
+        x: point.x,
+        y: point.y,
+        z: point.z || 0,
+      }));
+
+      // After mirroring X, semantic left/right indices need swapping for pose anchors.
+      const leftIndex = 234;
+      const rightIndex = 454;
+      if (leftIndex < remapped.length && rightIndex < remapped.length) {
+        const leftPoint = remapped[leftIndex];
+        remapped[leftIndex] = remapped[rightIndex];
+        remapped[rightIndex] = leftPoint;
+      }
+
+      return remapped;
+    }
+
     function computeSimilarityTransform2D(referenceAnchors, sourceAnchors) {
       const pairs = [];
       for (const index of anchorIndices) {
@@ -1135,11 +1158,12 @@
       if (mirroredCurrentLandmarks.length === 0) {
         return smoothedReferencePoints;
       }
+      const poseCurrentLandmarks = remapMirroredLandmarksForPose(mirroredCurrentLandmarks);
 
       return applySimilarityPose2D(
         smoothedReferencePoints,
         referenceBaseLandmarks,
-        mirroredCurrentLandmarks,
+        poseCurrentLandmarks,
       );
     }
 
