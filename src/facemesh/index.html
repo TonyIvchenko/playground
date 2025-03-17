@@ -896,6 +896,8 @@
         destinationCtx.clearRect(0, 0, destinationCtx.canvas.width, destinationCtx.canvas.height);
       }
 
+      const trianglesToDraw = [];
+
       for (const [indexA, indexB, indexC] of triangles) {
         const srcA = sourcePoints[indexA];
         const srcB = sourcePoints[indexB];
@@ -916,6 +918,22 @@
         if (!matrix) {
           continue;
         }
+
+        const centerZ = ((dstA.z || 0) + (dstB.z || 0) + (dstC.z || 0)) / 3;
+        trianglesToDraw.push({
+          matrix,
+          dstA,
+          dstB,
+          dstC,
+          centerZ,
+        });
+      }
+
+      // Painter's algorithm: draw farther triangles first, then nearer on top.
+      trianglesToDraw.sort((left, right) => right.centerZ - left.centerZ);
+
+      for (const triangle of trianglesToDraw) {
+        const {matrix, dstA, dstB, dstC} = triangle;
 
         destinationCtx.save();
         destinationCtx.beginPath();
@@ -980,10 +998,12 @@
       const sourcePoints = referenceBaseLandmarks.map((landmark) => ({
         x: frame.x + (landmark.x * frame.width),
         y: frame.y + (landmark.y * frame.height),
+        z: landmark.z || 0,
       }));
       const destinationPoints = activeLandmarks.map((landmark) => ({
         x: frame.x + (landmark.x * frame.width),
         y: frame.y + (landmark.y * frame.height),
+        z: landmark.z || 0,
       }));
 
       const lockFace = lockFaceInput.checked;
