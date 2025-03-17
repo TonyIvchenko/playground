@@ -224,6 +224,9 @@
     const irisRegionWeight = 1.45;
     const noseRegionWeight = 0.3;
     const defaultRegionWeight = 0.45;
+    const unlockedScaleBlend = 0.35;
+    const unlockedScaleMin = 0.9;
+    const unlockedScaleMax = 1.2;
 
     const referenceSourceCanvas = document.createElement('canvas');
     const referenceSourceCtx = referenceSourceCanvas.getContext('2d');
@@ -465,90 +468,45 @@
       }));
     }
 
-    function det3(columns) {
-      const [a, b, c] = columns;
-      return (
-        (a.x * ((b.y * c.z) - (b.z * c.y)))
-        - (b.x * ((a.y * c.z) - (a.z * c.y)))
-        + (c.x * ((a.y * b.z) - (a.z * b.y)))
+    function applyRelativePose3D(
+      landmarks,
+      referenceBasis,
+      sourceBaselineBasis,
+      sourceCurrentBasis,
+    ) {
+      if (
+        !landmarks || landmarks.length === 0
+        || !referenceBasis
+        || !sourceBaselineBasis
+        || !sourceCurrentBasis
+      ) {
+        return landmarks;
+      }
+
+      const rawScale = sourceCurrentBasis.scale / Math.max(1e-6, sourceBaselineBasis.scale);
+      const blendedScale = Math.max(
+        unlockedScaleMin,
+        Math.min(unlockedScaleMax, lerp(1.0, rawScale, unlockedScaleBlend)),
       );
-    }
-
-    function invert3(columns) {
-      const [a, b, c] = columns;
-      const determinant = det3(columns);
-      if (Math.abs(determinant) < 1e-8) {
-        return null;
-      }
-      const invDet = 1 / determinant;
-      return [
-        {
-          x: ((b.y * c.z) - (b.z * c.y)) * invDet,
-          y: ((c.y * a.z) - (c.z * a.y)) * invDet,
-          z: ((a.y * b.z) - (a.z * b.y)) * invDet,
-        },
-        {
-          x: ((b.z * c.x) - (b.x * c.z)) * invDet,
-          y: ((c.z * a.x) - (c.x * a.z)) * invDet,
-          z: ((a.z * b.x) - (a.x * b.z)) * invDet,
-        },
-        {
-          x: ((b.x * c.y) - (b.y * c.x)) * invDet,
-          y: ((c.x * a.y) - (c.y * a.x)) * invDet,
-          z: ((a.x * b.y) - (a.y * b.x)) * invDet,
-        },
-      ];
-    }
-
-    function multiply3x3Vec(matrixColumns, vector) {
-      const [c0, c1, c2] = matrixColumns;
-      return {
-        x: (c0.x * vector.x) + (c1.x * vector.y) + (c2.x * vector.z),
-        y: (c0.y * vector.x) + (c1.y * vector.y) + (c2.y * vector.z),
-        z: (c0.z * vector.x) + (c1.z * vector.y) + (c2.z * vector.z),
-      };
-    }
-
-    function applyAnchorAffinePose(landmarks, referenceAnchors, sourceAnchors) {
-      if (!landmarks || landmarks.length === 0 || !referenceAnchors || !sourceAnchors) {
-        return landmarks;
-      }
-
-      const refA0 = toVec3(referenceAnchors[anchorIndices[0]]);
-      const refA1 = toVec3(referenceAnchors[anchorIndices[1]]);
-      const refA2 = toVec3(referenceAnchors[anchorIndices[2]]);
-      const refA3 = toVec3(referenceAnchors[anchorIndices[3]]);
-      const srcA0 = toVec3(sourceAnchors[anchorIndices[0]]);
-      const srcA1 = toVec3(sourceAnchors[anchorIndices[1]]);
-      const srcA2 = toVec3(sourceAnchors[anchorIndices[2]]);
-      const srcA3 = toVec3(sourceAnchors[anchorIndices[3]]);
-
-      const refColumns = [
-        sub3(refA1, refA0),
-        sub3(refA2, refA0),
-        sub3(refA3, refA0),
-      ];
-      const srcColumns = [
-        sub3(srcA1, srcA0),
-        sub3(srcA2, srcA0),
-        sub3(srcA3, srcA0),
-      ];
-
-      const refInverse = invert3(refColumns);
-      if (!refInverse) {
-        return landmarks;
-      }
 
       return landmarks.map((landmark) => {
-        const relative = sub3(toVec3(landmark), refA0);
-        const local = multiply3x3Vec(refInverse, relative);
-        const mappedRelative = multiply3x3Vec(srcColumns, local);
-        const mapped = add3(srcA0, mappedRelative);
+        const offset = sub3(toVec3(landmark), referenceBasis.origin);
+        const baselineLocal = {
+          x: dot3(offset, sourceBaselineBasis.xAxis),
+          y: dot3(offset, sourceBaselineBasis.yAxis),
+          z: dot3(offset, sourceBaselineBasis.zAxis),
+        };
 
+        let rotated = mul3(sourceCurrentBasis.xAxis, baselineLocal.x);
+        rotated = add3(rotated, mul3(sourceCurrentBasis.yAxis, baselineLocal.y));
+        rotated = add3(rotated, mul3(sourceCurrentBasis.zAxis, baselineLocal.z));
+        rotated = mul3(rotated, blendedScale);
+
+        const posed = add3(sourceCurrentBasis.origin, rotated);
         return {
-          x: Math.max(-0.25, Math.min(1.25, mapped.x)),
-          y: Math.max(-0.25, Math.min(1.25, mapped.y)),
-          z: mapped.z,
+          x: Math.max(-0.25, Math.min(1.25, posed.x)),
+          y: Math.max(-0.25, Math.min(1.25, posed.y)),
+          z: posed.z,
         };
       });
     }
@@ -1138,15 +1096,22 @@
         return smoothedReferencePoints;
       }
 
+      const mirroredBaselineLandmarks = mirrorLandmarksX(cameraBaselineLandmarks);
       const mirroredCurrentLandmarks = mirrorLandmarksX(cameraCurrentLandmarks);
-      if (mirroredCurrentLandmarks.length === 0) {
+      if (mirroredBaselineLandmarks.length === 0 || mirroredCurrentLandmarks.length === 0) {
+        return smoothedReferencePoints;
+      }
+      const mirroredBaselineBasis = getBasisFromLandmarks(mirroredBaselineLandmarks);
+      const mirroredCurrentBasis = getBasisFromLandmarks(mirroredCurrentLandmarks);
+      if (!mirroredBaselineBasis || !mirroredCurrentBasis) {
         return smoothedReferencePoints;
       }
 
-      return applyAnchorAffinePose(
+      return applyRelativePose3D(
         smoothedReferencePoints,
-        referenceBaseLandmarks,
-        mirroredCurrentLandmarks,
+        referenceBasis,
+        mirroredBaselineBasis,
+        mirroredCurrentBasis,
       );
     }
 
