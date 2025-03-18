@@ -210,10 +210,16 @@
     const faceMeshContours = typeof FACEMESH_CONTOURS !== 'undefined' ? FACEMESH_CONTOURS : [];
     const leftEyeCenterIndex = 468;
     const rightEyeCenterIndex = 473;
+    const leftEyeFrame = {outer: 33, inner: 133, top: 159, bottom: 145};
+    const rightEyeFrame = {outer: 263, inner: 362, top: 386, bottom: 374};
+    const leftIrisIndexSet = new Set([468, 469, 470, 471, 472]);
+    const rightIrisIndexSet = new Set([473, 474, 475, 476, 477]);
     const anchorIndices = [234, 454, 1, 10];
     const expressionGain = 0.55;
     const maxExpressionDisplacementNormalized = 0.045;
+    const eyeClosureMaxDisplacementNormalized = 0.11;
     const smoothingFactor = 0.5;
+    const eyeSmoothingFactor = 0.85;
     const spatialSmoothingBlend = 0.18;
     const spatialSmoothingPasses = 2;
     const boundaryRampHops = 7;
@@ -224,6 +230,11 @@
     const irisRegionWeight = 1.45;
     const noseRegionWeight = 0.3;
     const defaultRegionWeight = 0.45;
+    const eyeClosureResponsePower = 1.2;
+    const eyeClosureVerticalStrength = 0.96;
+    const eyeClosureHorizontalStrength = 0.12;
+    const irisClosureVerticalStrength = 1.05;
+    const irisClosureCenterPull = 0.88;
     const unlockedScaleBlend = 0.35;
     const unlockedScaleMin = 0.9;
     const unlockedScaleMax = 1.2;
@@ -515,6 +526,94 @@
       return (valueA * (1 - t)) + (valueB * t);
     }
 
+    function clamp01(value) {
+      return Math.max(0, Math.min(1, value));
+    }
+
+    function getEyePose(landmarks, eyeFrame) {
+      const outer = landmarks[eyeFrame.outer];
+      const inner = landmarks[eyeFrame.inner];
+      const top = landmarks[eyeFrame.top];
+      const bottom = landmarks[eyeFrame.bottom];
+      if (!outer || !inner || !top || !bottom) {
+        return null;
+      }
+
+      const outerPoint = toVec3(outer);
+      const innerPoint = toVec3(inner);
+      const topPoint = toVec3(top);
+      const bottomPoint = toVec3(bottom);
+
+      const center = mul3(
+        add3(
+          add3(outerPoint, innerPoint),
+          add3(topPoint, bottomPoint),
+        ),
+        0.25,
+      );
+
+      const horizontal = normalize3(sub3(innerPoint, outerPoint), {x: 1, y: 0, z: 0});
+      let verticalRaw = sub3(bottomPoint, topPoint);
+      verticalRaw = sub3(verticalRaw, mul3(horizontal, dot3(verticalRaw, horizontal)));
+      const vertical = normalize3(verticalRaw, {x: 0, y: 1, z: 0});
+      const eyeWidth = Math.max(1e-6, norm3(sub3(innerPoint, outerPoint)));
+      const eyeHeight = Math.max(0, norm3(sub3(bottomPoint, topPoint)));
+
+      return {center, horizontal, vertical, eyeWidth, eyeHeight};
+    }
+
+    function getEyeClosureAmount(baselineLandmarks, currentLandmarks, eyeFrame) {
+      const baselinePose = getEyePose(baselineLandmarks, eyeFrame);
+      const currentPose = getEyePose(currentLandmarks, eyeFrame);
+      if (!baselinePose || !currentPose) {
+        return 0;
+      }
+
+      const baselineOpenness = baselinePose.eyeHeight / baselinePose.eyeWidth;
+      if (baselineOpenness < 1e-6) {
+        return 0;
+      }
+
+      const currentOpenness = currentPose.eyeHeight / currentPose.eyeWidth;
+      const opennessRatio = currentOpenness / baselineOpenness;
+      const closureLinear = clamp01(1 - opennessRatio);
+      return Math.pow(closureLinear, eyeClosureResponsePower);
+    }
+
+    function applyEyeClosureWarp(point, eyePose, closure, isIrisPoint) {
+      if (!eyePose || closure <= 1e-5) {
+        return point;
+      }
+
+      const offset = sub3(point, eyePose.center);
+      const verticalAmount = dot3(offset, eyePose.vertical);
+      const horizontalAmount = dot3(offset, eyePose.horizontal);
+      const lateral = sub3(
+        offset,
+        add3(
+          mul3(eyePose.vertical, verticalAmount),
+          mul3(eyePose.horizontal, horizontalAmount),
+        ),
+      );
+
+      const verticalScale = Math.max(
+        0,
+        1 - (closure * (isIrisPoint ? irisClosureVerticalStrength : eyeClosureVerticalStrength)),
+      );
+      const horizontalScale = Math.max(0.65, 1 - (closure * eyeClosureHorizontalStrength));
+      const lateralScale = isIrisPoint ? Math.max(0.05, 1 - (closure * irisClosureCenterPull)) : 1.0;
+
+      const warpedOffset = add3(
+        add3(
+          mul3(eyePose.vertical, verticalAmount * verticalScale),
+          mul3(eyePose.horizontal, horizontalAmount * horizontalScale),
+        ),
+        mul3(lateral, lateralScale),
+      );
+
+      return add3(eyePose.center, warpedOffset);
+    }
+
     function getExpressionWeightForIndex(index) {
       if (anchorIndexSet.has(index)) {
         return 0.0;
@@ -543,9 +642,11 @@
       }
       return nextPoints.map((point, index) => {
         const prev = previousPoints[index];
+        const isEyePoint = leftEyeIndexSet.has(index) || rightEyeIndexSet.has(index) || irisIndexSet.has(index);
+        const blendFactor = isEyePoint ? eyeSmoothingFactor : factor;
         return {
-          x: lerp(prev.x, point.x, factor),
-          y: lerp(prev.y, point.y, factor),
+          x: lerp(prev.x, point.x, blendFactor),
+          y: lerp(prev.y, point.y, blendFactor),
         };
       });
     }
@@ -1068,6 +1169,10 @@
       const referenceNormalized = normalizeLandmarks(referenceBaseLandmarks, referenceBasis);
       const cameraBaselineNormalized = normalizeLandmarks(cameraBaselineLandmarks, cameraBaselineBasis);
       const cameraCurrentNormalized = normalizeLandmarks(cameraCurrentLandmarks, cameraCurrentBasis);
+      const leftEyeClosure = getEyeClosureAmount(cameraBaselineNormalized, cameraCurrentNormalized, leftEyeFrame);
+      const rightEyeClosure = getEyeClosureAmount(cameraBaselineNormalized, cameraCurrentNormalized, rightEyeFrame);
+      const referenceLeftEyePose = getEyePose(referenceNormalized, leftEyeFrame);
+      const referenceRightEyePose = getEyePose(referenceNormalized, rightEyeFrame);
 
       const transferred = referenceNormalized.map((referencePoint, index) => {
         const baselinePoint = cameraBaselineNormalized[index];
@@ -1084,13 +1189,35 @@
           y: (currentPoint.y - baselinePoint.y) * expressionGain * combinedWeight,
           z: (currentPoint.z - baselinePoint.z) * expressionGain * combinedWeight,
         };
-        const expressionDelta = clampMagnitude3(rawExpressionDelta, maxExpressionDisplacementNormalized);
+        const isEyePoint = leftEyeIndexSet.has(index) || rightEyeIndexSet.has(index) || irisIndexSet.has(index);
+        const expressionDelta = clampMagnitude3(
+          rawExpressionDelta,
+          isEyePoint ? eyeClosureMaxDisplacementNormalized : maxExpressionDisplacementNormalized,
+        );
 
-        const targetNormalized = {
+        let targetNormalized = {
           x: referencePoint.x + expressionDelta.x,
           y: referencePoint.y + expressionDelta.y,
           z: referencePoint.z + expressionDelta.z,
         };
+
+        if (leftEyeIndexSet.has(index) || leftIrisIndexSet.has(index)) {
+          const warped = applyEyeClosureWarp(
+            toVec3(targetNormalized),
+            referenceLeftEyePose,
+            leftEyeClosure,
+            leftIrisIndexSet.has(index),
+          );
+          targetNormalized = {x: warped.x, y: warped.y, z: warped.z};
+        } else if (rightEyeIndexSet.has(index) || rightIrisIndexSet.has(index)) {
+          const warped = applyEyeClosureWarp(
+            toVec3(targetNormalized),
+            referenceRightEyePose,
+            rightEyeClosure,
+            rightIrisIndexSet.has(index),
+          );
+          targetNormalized = {x: warped.x, y: warped.y, z: warped.z};
+        }
 
         const world = denormalizePoint(targetNormalized, referenceBasis);
         return {
