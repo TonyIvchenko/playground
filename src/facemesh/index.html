@@ -1007,13 +1007,13 @@
       }));
 
       const lockFace = lockFaceInput.checked;
-      const warpTriangles = referenceWarpTriangles.length > 0 ? referenceWarpTriangles : referenceTriangles;
+      const warpTriangles = lockFace
+        ? (referenceWarpTriangles.length > 0 ? referenceWarpTriangles : referenceTriangles)
+        : referenceTriangles;
       if (warpTriangles.length === 0 || sourcePoints.length === 0 || destinationPoints.length === 0) {
         referenceCtx.clearRect(0, 0, referenceCanvas.width, referenceCanvas.height);
         if (lockFace) {
           referenceCtx.drawImage(referenceSourceCanvas, 0, 0);
-        } else {
-          drawStaticEyeBackground(referenceCtx, referenceSourceCanvas, sourcePoints, destinationPoints);
         }
       } else {
         if (lockFace) {
@@ -1030,7 +1030,6 @@
           );
         } else {
           referenceCtx.clearRect(0, 0, referenceCanvas.width, referenceCanvas.height);
-          drawStaticEyeBackground(referenceCtx, referenceSourceCanvas, sourcePoints, destinationPoints);
           warpReferenceByTriangles(
             referenceSourceCanvas,
             referenceCtx,
