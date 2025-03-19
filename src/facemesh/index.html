@@ -210,37 +210,18 @@
     const faceMeshContours = typeof FACEMESH_CONTOURS !== 'undefined' ? FACEMESH_CONTOURS : [];
     const leftEyeCenterIndex = 468;
     const rightEyeCenterIndex = 473;
-    const leftEyeFrame = {outer: 33, inner: 133, top: 159, bottom: 145};
-    const rightEyeFrame = {outer: 263, inner: 362, top: 386, bottom: 374};
-    const leftIrisIndexSet = new Set([468, 469, 470, 471, 472]);
-    const rightIrisIndexSet = new Set([473, 474, 475, 476, 477]);
     const anchorIndices = [234, 454, 1, 10];
-    const expressionGain = 0.55;
-    const maxExpressionDisplacementNormalized = 0.045;
-    const eyeClosureMaxDisplacementNormalized = 0.11;
-    const smoothingFactor = 0.5;
-    const eyeSmoothingFactor = 0.85;
-    const spatialSmoothingBlend = 0.18;
-    const spatialSmoothingPasses = 2;
-    const boundaryRampHops = 7;
-    const boundaryWeightPower = 1.2;
-    const mouthRegionWeight = 1.15;
-    const eyeRegionWeight = 1.2;
-    const eyeBrowRegionWeight = 0.85;
-    const irisRegionWeight = 1.45;
-    const noseRegionWeight = 0.3;
-    const defaultRegionWeight = 0.45;
-    const eyeClosureResponsePower = 1.2;
-    const eyeClosureVerticalStrength = 0.96;
-    const eyeClosureHorizontalStrength = 0.12;
-    const irisClosureVerticalStrength = 1.05;
-    const irisClosureCenterPull = 0.88;
-    const eyeClosureDeadzone = 0.12;
-    const eyeBilateralClosureMin = 0.45;
-    const eyeCrossSuppressionFactor = 0.8;
+    const expressionGain = 1.0;
+    const maxExpressionDisplacementNormalized = 0.24;
+    const smoothingFactor = 1.0;
+    const spatialSmoothingBlend = 0.0;
+    const spatialSmoothingPasses = 0;
     const unlockedScaleBlend = 0.35;
     const unlockedScaleMin = 0.9;
     const unlockedScaleMax = 1.2;
+    const leftEyeMaskIndices = [33, 159, 133, 145];
+    const rightEyeMaskIndices = [263, 386, 362, 374];
+    const mouthMaskIndices = [78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308, 415];
 
     const referenceSourceCanvas = document.createElement('canvas');
     const referenceSourceCtx = referenceSourceCanvas.getContext('2d');
@@ -299,7 +280,6 @@
     let referenceTriangles = [];
     let referenceWarpTriangles = [];
     let referenceNeighborMap = [];
-    let boundaryFalloffWeights = [];
     let smoothedReferencePoints = [];
 
     function drawEyeDot(ctx, frame, landmarks, index) {
@@ -529,135 +509,47 @@
       return (valueA * (1 - t)) + (valueB * t);
     }
 
-    function clamp01(value) {
-      return Math.max(0, Math.min(1, value));
-    }
-
-    function getEyePose(landmarks, eyeFrame) {
-      const outer = landmarks[eyeFrame.outer];
-      const inner = landmarks[eyeFrame.inner];
-      const top = landmarks[eyeFrame.top];
-      const bottom = landmarks[eyeFrame.bottom];
-      if (!outer || !inner || !top || !bottom) {
-        return null;
+    function fillPolygonByIndices(ctx, points, indices, fillStyle) {
+      if (!points || points.length === 0 || !indices || indices.length < 3) {
+        return;
+      }
+      const polygon = indices.map((index) => points[index]).filter(Boolean);
+      if (polygon.length < 3) {
+        return;
       }
 
-      const outerPoint = toVec3(outer);
-      const innerPoint = toVec3(inner);
-      const topPoint = toVec3(top);
-      const bottomPoint = toVec3(bottom);
-
-      const center = mul3(
-        add3(
-          add3(outerPoint, innerPoint),
-          add3(topPoint, bottomPoint),
-        ),
-        0.25,
-      );
-
-      const horizontal = normalize3(sub3(innerPoint, outerPoint), {x: 1, y: 0, z: 0});
-      let verticalRaw = sub3(bottomPoint, topPoint);
-      verticalRaw = sub3(verticalRaw, mul3(horizontal, dot3(verticalRaw, horizontal)));
-      const vertical = normalize3(verticalRaw, {x: 0, y: 1, z: 0});
-      const eyeWidth = Math.max(1e-6, norm3(sub3(innerPoint, outerPoint)));
-      const eyeHeight = Math.max(0, norm3(sub3(bottomPoint, topPoint)));
-
-      return {center, horizontal, vertical, eyeWidth, eyeHeight};
+      ctx.save();
+      ctx.fillStyle = fillStyle;
+      ctx.beginPath();
+      ctx.moveTo(polygon[0].x, polygon[0].y);
+      for (let index = 1; index < polygon.length; index += 1) {
+        ctx.lineTo(polygon[index].x, polygon[index].y);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
     }
 
-    function getEyeClosureAmount(baselineLandmarks, currentLandmarks, eyeFrame) {
-      const baselinePose = getEyePose(baselineLandmarks, eyeFrame);
-      const currentPose = getEyePose(currentLandmarks, eyeFrame);
-      if (!baselinePose || !currentPose) {
-        return 0;
+    function getPageBackgroundColor() {
+      const rootBackground = getComputedStyle(document.documentElement).backgroundColor;
+      if (rootBackground && rootBackground !== 'rgba(0, 0, 0, 0)' && rootBackground !== 'transparent') {
+        return rootBackground;
       }
-
-      const baselineOpenness = baselinePose.eyeHeight / baselinePose.eyeWidth;
-      if (baselineOpenness < 1e-6) {
-        return 0;
-      }
-
-      const currentOpenness = currentPose.eyeHeight / currentPose.eyeWidth;
-      const opennessRatio = currentOpenness / baselineOpenness;
-      const closureLinear = clamp01(1 - opennessRatio);
-      return Math.pow(closureLinear, eyeClosureResponsePower);
+      return '#f5f7fb';
     }
 
-    function normalizeEyeClosureSignal(value) {
-      if (value <= eyeClosureDeadzone) {
-        return 0;
-      }
-      return clamp01((value - eyeClosureDeadzone) / Math.max(1e-6, 1 - eyeClosureDeadzone));
-    }
-
-    function decoupleEyeClosureSignals(leftClosure, rightClosure) {
-      const left = normalizeEyeClosureSignal(leftClosure);
-      const right = normalizeEyeClosureSignal(rightClosure);
-
-      const bilateral = Math.min(left, right) >= eyeBilateralClosureMin ? Math.min(left, right) : 0;
-      const leftUnique = Math.max(0, left - (right * eyeCrossSuppressionFactor));
-      const rightUnique = Math.max(0, right - (left * eyeCrossSuppressionFactor));
-
-      return {
-        left: clamp01(Math.max(leftUnique, bilateral)),
-        right: clamp01(Math.max(rightUnique, bilateral)),
-      };
-    }
-
-    function applyEyeClosureWarp(point, eyePose, closure, isIrisPoint) {
-      if (!eyePose || closure <= 1e-5) {
-        return point;
-      }
-
-      const offset = sub3(point, eyePose.center);
-      const verticalAmount = dot3(offset, eyePose.vertical);
-      const horizontalAmount = dot3(offset, eyePose.horizontal);
-      const lateral = sub3(
-        offset,
-        add3(
-          mul3(eyePose.vertical, verticalAmount),
-          mul3(eyePose.horizontal, horizontalAmount),
-        ),
-      );
-
-      const verticalScale = Math.max(
-        0,
-        1 - (closure * (isIrisPoint ? irisClosureVerticalStrength : eyeClosureVerticalStrength)),
-      );
-      const horizontalScale = Math.max(0.65, 1 - (closure * eyeClosureHorizontalStrength));
-      const lateralScale = isIrisPoint ? Math.max(0.05, 1 - (closure * irisClosureCenterPull)) : 1.0;
-
-      const warpedOffset = add3(
-        add3(
-          mul3(eyePose.vertical, verticalAmount * verticalScale),
-          mul3(eyePose.horizontal, horizontalAmount * horizontalScale),
-        ),
-        mul3(lateral, lateralScale),
-      );
-
-      return add3(eyePose.center, warpedOffset);
+    function drawFaceCutouts(ctx, destinationPoints) {
+      const cutoutColor = getPageBackgroundColor();
+      fillPolygonByIndices(ctx, destinationPoints, leftEyeMaskIndices, cutoutColor);
+      fillPolygonByIndices(ctx, destinationPoints, rightEyeMaskIndices, cutoutColor);
+      fillPolygonByIndices(ctx, destinationPoints, mouthMaskIndices, cutoutColor);
     }
 
     function getExpressionWeightForIndex(index) {
       if (anchorIndexSet.has(index)) {
         return 0.0;
       }
-      if (irisIndexSet.has(index)) {
-        return irisRegionWeight;
-      }
-      if (mouthIndexSet.has(index)) {
-        return mouthRegionWeight;
-      }
-      if (leftEyeIndexSet.has(index) || rightEyeIndexSet.has(index)) {
-        return eyeRegionWeight;
-      }
-      if (leftBrowIndexSet.has(index) || rightBrowIndexSet.has(index)) {
-        return eyeBrowRegionWeight;
-      }
-      if (noseIndexSet.has(index)) {
-        return noseRegionWeight;
-      }
-      return defaultRegionWeight;
+      return 1.0;
     }
 
     function blendPoints(previousPoints, nextPoints, factor) {
@@ -666,11 +558,9 @@
       }
       return nextPoints.map((point, index) => {
         const prev = previousPoints[index];
-        const isEyePoint = leftEyeIndexSet.has(index) || rightEyeIndexSet.has(index) || irisIndexSet.has(index);
-        const blendFactor = isEyePoint ? eyeSmoothingFactor : factor;
         return {
-          x: lerp(prev.x, point.x, blendFactor),
-          y: lerp(prev.y, point.y, blendFactor),
+          x: lerp(prev.x, point.x, factor),
+          y: lerp(prev.y, point.y, factor),
         };
       });
     }
@@ -859,46 +749,6 @@
       }
 
       return neighbors.map((neighborSet) => [...neighborSet]);
-    }
-
-    function buildBoundaryFalloffWeights(neighborMap, pointCount, boundaryIndexSet, rampHops, power) {
-      const distances = Array(pointCount).fill(Infinity);
-      const queue = [];
-
-      for (const index of boundaryIndexSet) {
-        if (index < 0 || index >= pointCount) {
-          continue;
-        }
-        distances[index] = 0;
-        queue.push(index);
-      }
-
-      let cursor = 0;
-      while (cursor < queue.length) {
-        const current = queue[cursor];
-        cursor += 1;
-        const currentDistance = distances[current];
-        const neighbors = neighborMap[current] || [];
-
-        for (const neighbor of neighbors) {
-          if (neighbor < 0 || neighbor >= pointCount) {
-            continue;
-          }
-          const nextDistance = currentDistance + 1;
-          if (nextDistance < distances[neighbor]) {
-            distances[neighbor] = nextDistance;
-            queue.push(neighbor);
-          }
-        }
-      }
-
-      return distances.map((distance) => {
-        if (!Number.isFinite(distance)) {
-          return 1.0;
-        }
-        const linear = Math.min(1, distance / Math.max(1, rampHops));
-        return Math.pow(linear, power);
-      });
     }
 
     function spatialSmoothPoints(points, neighborMap, blend, passes) {
@@ -1166,6 +1016,10 @@
         }
       }
 
+      if (destinationPoints.length > 0) {
+        drawFaceCutouts(referenceCtx, destinationPoints);
+      }
+
       latestTransferredReferenceLandmarks = [activeLandmarks];
       drawMesh(referenceCtx, referenceCanvas.width, referenceCanvas.height, latestTransferredReferenceLandmarks, frame);
     }
@@ -1193,13 +1047,6 @@
       const referenceNormalized = normalizeLandmarks(referenceBaseLandmarks, referenceBasis);
       const cameraBaselineNormalized = normalizeLandmarks(cameraBaselineLandmarks, cameraBaselineBasis);
       const cameraCurrentNormalized = normalizeLandmarks(cameraCurrentLandmarks, cameraCurrentBasis);
-      const rawLeftEyeClosure = getEyeClosureAmount(cameraBaselineNormalized, cameraCurrentNormalized, leftEyeFrame);
-      const rawRightEyeClosure = getEyeClosureAmount(cameraBaselineNormalized, cameraCurrentNormalized, rightEyeFrame);
-      const closureSignals = decoupleEyeClosureSignals(rawLeftEyeClosure, rawRightEyeClosure);
-      const leftEyeClosure = closureSignals.left;
-      const rightEyeClosure = closureSignals.right;
-      const referenceLeftEyePose = getEyePose(referenceNormalized, leftEyeFrame);
-      const referenceRightEyePose = getEyePose(referenceNormalized, rightEyeFrame);
 
       const transferred = referenceNormalized.map((referencePoint, index) => {
         const baselinePoint = cameraBaselineNormalized[index];
@@ -1208,43 +1055,20 @@
           return {x: referenceBaseLandmarks[index].x, y: referenceBaseLandmarks[index].y, z: referenceBaseLandmarks[index].z || 0};
         }
         const regionWeight = getExpressionWeightForIndex(index);
-        const boundaryWeight = boundaryFalloffWeights[index] ?? 1.0;
-        const combinedWeight = regionWeight * boundaryWeight;
+        const combinedWeight = regionWeight;
 
         const rawExpressionDelta = {
           x: (currentPoint.x - baselinePoint.x) * expressionGain * combinedWeight,
           y: (currentPoint.y - baselinePoint.y) * expressionGain * combinedWeight,
           z: (currentPoint.z - baselinePoint.z) * expressionGain * combinedWeight,
         };
-        const isEyePoint = leftEyeIndexSet.has(index) || rightEyeIndexSet.has(index) || irisIndexSet.has(index);
-        const expressionDelta = clampMagnitude3(
-          rawExpressionDelta,
-          isEyePoint ? eyeClosureMaxDisplacementNormalized : maxExpressionDisplacementNormalized,
-        );
+        const expressionDelta = clampMagnitude3(rawExpressionDelta, maxExpressionDisplacementNormalized);
 
         let targetNormalized = {
           x: referencePoint.x + expressionDelta.x,
           y: referencePoint.y + expressionDelta.y,
           z: referencePoint.z + expressionDelta.z,
         };
-
-        if (leftEyeIndexSet.has(index) || leftIrisIndexSet.has(index)) {
-          const warped = applyEyeClosureWarp(
-            toVec3(targetNormalized),
-            referenceLeftEyePose,
-            leftEyeClosure,
-            leftIrisIndexSet.has(index),
-          );
-          targetNormalized = {x: warped.x, y: warped.y, z: warped.z};
-        } else if (rightEyeIndexSet.has(index) || rightIrisIndexSet.has(index)) {
-          const warped = applyEyeClosureWarp(
-            toVec3(targetNormalized),
-            referenceRightEyePose,
-            rightEyeClosure,
-            rightIrisIndexSet.has(index),
-          );
-          targetNormalized = {x: warped.x, y: warped.y, z: warped.z};
-        }
 
         const world = denormalizePoint(targetNormalized, referenceBasis);
         return {
@@ -1328,18 +1152,10 @@
         referenceTriangles = mergeTriangles(baseTriangles, eyeInteriorTriangles);
         referenceWarpTriangles = referenceTriangles.filter(shouldWarpTriangle);
         referenceNeighborMap = buildNeighborMapFromTriangles(referenceTriangles, referenceBaseLandmarks.length);
-        boundaryFalloffWeights = buildBoundaryFalloffWeights(
-          referenceNeighborMap,
-          referenceBaseLandmarks.length,
-          faceOvalIndexSet,
-          boundaryRampHops,
-          boundaryWeightPower,
-        );
       } else {
         referenceTriangles = [];
         referenceWarpTriangles = [];
         referenceNeighborMap = [];
-        boundaryFalloffWeights = [];
       }
 
       drawReferenceOverlay();
