@@ -235,6 +235,9 @@
     const eyeClosureHorizontalStrength = 0.12;
     const irisClosureVerticalStrength = 1.05;
     const irisClosureCenterPull = 0.88;
+    const eyeClosureDeadzone = 0.08;
+    const eyeClosureSuppressionStart = 0.12;
+    const eyeClosureSuppressionGain = 2.4;
     const unlockedScaleBlend = 0.35;
     const unlockedScaleMin = 0.9;
     const unlockedScaleMax = 1.2;
@@ -578,6 +581,32 @@
       const opennessRatio = currentOpenness / baselineOpenness;
       const closureLinear = clamp01(1 - opennessRatio);
       return Math.pow(closureLinear, eyeClosureResponsePower);
+    }
+
+    function normalizeEyeClosureSignal(value) {
+      if (value <= eyeClosureDeadzone) {
+        return 0;
+      }
+      return clamp01((value - eyeClosureDeadzone) / Math.max(1e-6, 1 - eyeClosureDeadzone));
+    }
+
+    function decoupleEyeClosureSignals(leftClosure, rightClosure) {
+      let left = normalizeEyeClosureSignal(leftClosure);
+      let right = normalizeEyeClosureSignal(rightClosure);
+
+      const delta = Math.abs(left - right);
+      if (delta <= eyeClosureSuppressionStart) {
+        return {left, right};
+      }
+
+      const suppression = clamp01((delta - eyeClosureSuppressionStart) * eyeClosureSuppressionGain);
+      if (left > right) {
+        right *= (1 - suppression);
+      } else if (right > left) {
+        left *= (1 - suppression);
+      }
+
+      return {left, right};
     }
 
     function applyEyeClosureWarp(point, eyePose, closure, isIrisPoint) {
@@ -1169,8 +1198,11 @@
       const referenceNormalized = normalizeLandmarks(referenceBaseLandmarks, referenceBasis);
       const cameraBaselineNormalized = normalizeLandmarks(cameraBaselineLandmarks, cameraBaselineBasis);
       const cameraCurrentNormalized = normalizeLandmarks(cameraCurrentLandmarks, cameraCurrentBasis);
-      const leftEyeClosure = getEyeClosureAmount(cameraBaselineNormalized, cameraCurrentNormalized, leftEyeFrame);
-      const rightEyeClosure = getEyeClosureAmount(cameraBaselineNormalized, cameraCurrentNormalized, rightEyeFrame);
+      const rawLeftEyeClosure = getEyeClosureAmount(cameraBaselineNormalized, cameraCurrentNormalized, leftEyeFrame);
+      const rawRightEyeClosure = getEyeClosureAmount(cameraBaselineNormalized, cameraCurrentNormalized, rightEyeFrame);
+      const closureSignals = decoupleEyeClosureSignals(rawLeftEyeClosure, rawRightEyeClosure);
+      const leftEyeClosure = closureSignals.left;
+      const rightEyeClosure = closureSignals.right;
       const referenceLeftEyePose = getEyePose(referenceNormalized, leftEyeFrame);
       const referenceRightEyePose = getEyePose(referenceNormalized, rightEyeFrame);
 
