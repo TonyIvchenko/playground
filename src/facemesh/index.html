@@ -235,9 +235,9 @@
     const eyeClosureHorizontalStrength = 0.12;
     const irisClosureVerticalStrength = 1.05;
     const irisClosureCenterPull = 0.88;
-    const eyeClosureDeadzone = 0.08;
-    const eyeClosureSuppressionStart = 0.12;
-    const eyeClosureSuppressionGain = 2.4;
+    const eyeClosureDeadzone = 0.12;
+    const eyeBilateralClosureMin = 0.45;
+    const eyeCrossSuppressionFactor = 0.8;
     const unlockedScaleBlend = 0.35;
     const unlockedScaleMin = 0.9;
     const unlockedScaleMax = 1.2;
@@ -591,22 +591,17 @@
     }
 
     function decoupleEyeClosureSignals(leftClosure, rightClosure) {
-      let left = normalizeEyeClosureSignal(leftClosure);
-      let right = normalizeEyeClosureSignal(rightClosure);
+      const left = normalizeEyeClosureSignal(leftClosure);
+      const right = normalizeEyeClosureSignal(rightClosure);
 
-      const delta = Math.abs(left - right);
-      if (delta <= eyeClosureSuppressionStart) {
-        return {left, right};
-      }
+      const bilateral = Math.min(left, right) >= eyeBilateralClosureMin ? Math.min(left, right) : 0;
+      const leftUnique = Math.max(0, left - (right * eyeCrossSuppressionFactor));
+      const rightUnique = Math.max(0, right - (left * eyeCrossSuppressionFactor));
 
-      const suppression = clamp01((delta - eyeClosureSuppressionStart) * eyeClosureSuppressionGain);
-      if (left > right) {
-        right *= (1 - suppression);
-      } else if (right > left) {
-        left *= (1 - suppression);
-      }
-
-      return {left, right};
+      return {
+        left: clamp01(Math.max(leftUnique, bilateral)),
+        right: clamp01(Math.max(rightUnique, bilateral)),
+      };
     }
 
     function applyEyeClosureWarp(point, eyePose, closure, isIrisPoint) {
