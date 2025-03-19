@@ -216,6 +216,14 @@
     const smoothingFactor = 1.0;
     const spatialSmoothingBlend = 0.0;
     const spatialSmoothingPasses = 0;
+    const boundaryRampHops = 8;
+    const boundaryWeightPower = 1.15;
+    const mouthRegionWeight = 1.0;
+    const eyeRegionWeight = 1.0;
+    const irisRegionWeight = 1.0;
+    const browRegionWeight = 0.65;
+    const noseRegionWeight = 0.5;
+    const defaultRegionWeight = 0.35;
     const unlockedScaleBlend = 0.35;
     const unlockedScaleMin = 0.9;
     const unlockedScaleMax = 1.2;
@@ -280,6 +288,7 @@
     let referenceTriangles = [];
     let referenceWarpTriangles = [];
     let referenceNeighborMap = [];
+    let boundaryFalloffWeights = [];
     let smoothedReferencePoints = [];
 
     function drawEyeDot(ctx, frame, landmarks, index) {
@@ -485,15 +494,15 @@
 
       return landmarks.map((landmark) => {
         const offset = sub3(toVec3(landmark), referenceBasis.origin);
-        const baselineLocal = {
-          x: dot3(offset, sourceBaselineBasis.xAxis),
-          y: dot3(offset, sourceBaselineBasis.yAxis),
-          z: dot3(offset, sourceBaselineBasis.zAxis),
+        const referenceLocal = {
+          x: dot3(offset, referenceBasis.xAxis),
+          y: dot3(offset, referenceBasis.yAxis),
+          z: dot3(offset, referenceBasis.zAxis),
         };
 
-        let rotated = mul3(sourceCurrentBasis.xAxis, baselineLocal.x);
-        rotated = add3(rotated, mul3(sourceCurrentBasis.yAxis, baselineLocal.y));
-        rotated = add3(rotated, mul3(sourceCurrentBasis.zAxis, baselineLocal.z));
+        let rotated = mul3(sourceCurrentBasis.xAxis, referenceLocal.x);
+        rotated = add3(rotated, mul3(sourceCurrentBasis.yAxis, referenceLocal.y));
+        rotated = add3(rotated, mul3(sourceCurrentBasis.zAxis, referenceLocal.z));
         rotated = mul3(rotated, blendedScale);
 
         const posed = add3(sourceCurrentBasis.origin, rotated);
@@ -545,11 +554,62 @@
       fillPolygonByIndices(ctx, destinationPoints, mouthMaskIndices, cutoutColor);
     }
 
+    function buildBoundaryFalloffWeights(neighborMap, pointCount, boundaryIndexSet, rampHops, power) {
+      const distances = Array(pointCount).fill(Infinity);
+      const queue = [];
+
+      for (const index of boundaryIndexSet) {
+        if (index < 0 || index >= pointCount) {
+          continue;
+        }
+        distances[index] = 0;
+        queue.push(index);
+      }
+
+      let cursor = 0;
+      while (cursor < queue.length) {
+        const current = queue[cursor];
+        cursor += 1;
+        const nextDistance = distances[current] + 1;
+
+        for (const neighbor of neighborMap[current] || []) {
+          if (neighbor < 0 || neighbor >= pointCount || nextDistance >= distances[neighbor]) {
+            continue;
+          }
+          distances[neighbor] = nextDistance;
+          queue.push(neighbor);
+        }
+      }
+
+      return distances.map((distance) => {
+        if (!Number.isFinite(distance)) {
+          return 1.0;
+        }
+        const linear = Math.min(1, distance / Math.max(1, rampHops));
+        return Math.pow(linear, power);
+      });
+    }
+
     function getExpressionWeightForIndex(index) {
-      if (anchorIndexSet.has(index)) {
+      if (anchorIndexSet.has(index) || faceOvalIndexSet.has(index)) {
         return 0.0;
       }
-      return 1.0;
+      if (mouthIndexSet.has(index)) {
+        return mouthRegionWeight;
+      }
+      if (leftEyeIndexSet.has(index) || rightEyeIndexSet.has(index)) {
+        return eyeRegionWeight;
+      }
+      if (irisIndexSet.has(index)) {
+        return irisRegionWeight;
+      }
+      if (leftBrowIndexSet.has(index) || rightBrowIndexSet.has(index)) {
+        return browRegionWeight;
+      }
+      if (noseIndexSet.has(index)) {
+        return noseRegionWeight;
+      }
+      return defaultRegionWeight;
     }
 
     function blendPoints(previousPoints, nextPoints, factor) {
@@ -1055,7 +1115,13 @@
           return {x: referenceBaseLandmarks[index].x, y: referenceBaseLandmarks[index].y, z: referenceBaseLandmarks[index].z || 0};
         }
         const regionWeight = getExpressionWeightForIndex(index);
-        const combinedWeight = regionWeight;
+        const isFullTransferRegion =
+          mouthIndexSet.has(index)
+          || leftEyeIndexSet.has(index)
+          || rightEyeIndexSet.has(index)
+          || irisIndexSet.has(index);
+        const boundaryWeight = isFullTransferRegion ? 1.0 : (boundaryFalloffWeights[index] ?? 1.0);
+        const combinedWeight = regionWeight * boundaryWeight;
 
         const rawExpressionDelta = {
           x: (currentPoint.x - baselinePoint.x) * expressionGain * combinedWeight,
@@ -1152,10 +1218,18 @@
         referenceTriangles = mergeTriangles(baseTriangles, eyeInteriorTriangles);
         referenceWarpTriangles = referenceTriangles.filter(shouldWarpTriangle);
         referenceNeighborMap = buildNeighborMapFromTriangles(referenceTriangles, referenceBaseLandmarks.length);
+        boundaryFalloffWeights = buildBoundaryFalloffWeights(
+          referenceNeighborMap,
+          referenceBaseLandmarks.length,
+          faceOvalIndexSet,
+          boundaryRampHops,
+          boundaryWeightPower,
+        );
       } else {
         referenceTriangles = [];
         referenceWarpTriangles = [];
         referenceNeighborMap = [];
+        boundaryFalloffWeights = [];
       }
 
       drawReferenceOverlay();
