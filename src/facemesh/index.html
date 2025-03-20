@@ -550,51 +550,6 @@
       };
     }
 
-    function getOrthogonalUnit(vector) {
-      const axisHint = Math.abs(vector.x) < 0.75 ? {x: 1, y: 0, z: 0} : {x: 0, y: 1, z: 0};
-      return normalize3(cross3(vector, axisHint), {x: 0, y: 0, z: 1});
-    }
-
-    function rotateAroundAxis(vector, axis, angle) {
-      const cosAngle = Math.cos(angle);
-      const sinAngle = Math.sin(angle);
-      const termA = mul3(vector, cosAngle);
-      const termB = mul3(cross3(axis, vector), sinAngle);
-      const termC = mul3(axis, dot3(axis, vector) * (1 - cosAngle));
-      return add3(add3(termA, termB), termC);
-    }
-
-    function transformVectorRelativeToBaseline(targetVector, sourceBaselineVector, sourceCurrentVector) {
-      const baselineLength = norm3(sourceBaselineVector);
-      const currentLength = norm3(sourceCurrentVector);
-      const targetLength = norm3(targetVector);
-      if (baselineLength < 1e-6 || currentLength < 1e-6 || targetLength < 1e-6) {
-        return targetVector;
-      }
-
-      const baselineDirection = normalize3(sourceBaselineVector, {x: 1, y: 0, z: 0});
-      const currentDirection = normalize3(sourceCurrentVector, baselineDirection);
-      const alignment = Math.max(-1, Math.min(1, dot3(baselineDirection, currentDirection)));
-      let rotatedVector = targetVector;
-
-      if (alignment < 0.999999) {
-        let rotationAxis = cross3(baselineDirection, currentDirection);
-        const axisLength = norm3(rotationAxis);
-        if (axisLength < 1e-6) {
-          if (alignment < -0.999999) {
-            rotationAxis = getOrthogonalUnit(baselineDirection);
-            rotatedVector = rotateAroundAxis(targetVector, rotationAxis, Math.PI);
-          }
-        } else {
-          rotationAxis = mul3(rotationAxis, 1 / axisLength);
-          rotatedVector = rotateAroundAxis(targetVector, rotationAxis, Math.acos(alignment));
-        }
-      }
-
-      const radialScale = Math.max(0.65, Math.min(1.55, currentLength / baselineLength));
-      return mul3(rotatedVector, radialScale);
-    }
-
     function getRelativeVectorBlendWeight(index) {
       const regionWeight = getExpressionWeightForIndex(index);
       const isFullTransferRegion =
@@ -606,33 +561,27 @@
       return regionWeight * boundaryWeight;
     }
 
-    function applyRelativeVectorTransfer(targetBaselineLandmarks, sourceBaselineLandmarks, sourceCurrentLandmarks) {
-      const targetCenter = getContourCenter(targetBaselineLandmarks);
-      const sourceBaselineCenter = getContourCenter(sourceBaselineLandmarks);
+    function applyRelativeVectorDeltaTransfer(targetRigidLandmarks, sourceRigidLandmarks, sourceCurrentLandmarks) {
+      const targetCenter = getContourCenter(targetRigidLandmarks);
+      const sourceRigidCenter = getContourCenter(sourceRigidLandmarks);
       const sourceCurrentCenter = getContourCenter(sourceCurrentLandmarks);
-      if (!targetCenter || !sourceBaselineCenter || !sourceCurrentCenter) {
-        return targetBaselineLandmarks;
+      if (!targetCenter || !sourceRigidCenter || !sourceCurrentCenter) {
+        return targetRigidLandmarks;
       }
 
-      const centerDelta = sub3(sourceCurrentCenter, sourceBaselineCenter);
-      const targetCurrentCenter = add3(targetCenter, centerDelta);
-
-      return targetBaselineLandmarks.map((targetPoint, index) => {
-        const sourceBaselinePoint = sourceBaselineLandmarks[index];
+      return targetRigidLandmarks.map((targetPoint, index) => {
+        const sourceRigidPoint = sourceRigidLandmarks[index];
         const sourceCurrentPoint = sourceCurrentLandmarks[index];
-        if (!targetPoint || !sourceBaselinePoint || !sourceCurrentPoint) {
+        if (!targetPoint || !sourceRigidPoint || !sourceCurrentPoint) {
           return targetPoint;
         }
 
-        const targetVector = sub3(toVec3(targetPoint), targetCenter);
-        const sourceBaselineVector = sub3(toVec3(sourceBaselinePoint), sourceBaselineCenter);
         const sourceCurrentVector = sub3(toVec3(sourceCurrentPoint), sourceCurrentCenter);
-        const transformedVector = transformVectorRelativeToBaseline(
-          targetVector,
-          sourceBaselineVector,
-          sourceCurrentVector,
-        );
-        const posedPoint = add3(targetCurrentCenter, transformedVector);
+        const sourceRigidVector = sub3(toVec3(sourceRigidPoint), sourceRigidCenter);
+        const vectorDelta = sub3(sourceCurrentVector, sourceRigidVector);
+        const blendWeight = getRelativeVectorBlendWeight(index);
+        const targetRigidVector = sub3(toVec3(targetPoint), targetCenter);
+        const posedPoint = add3(targetCenter, add3(targetRigidVector, mul3(vectorDelta, blendWeight)));
 
         return {
           x: Math.max(-0.25, Math.min(1.25, posedPoint.x)),
@@ -1304,25 +1253,18 @@
         mirroredBaselineBasis,
         mirroredCurrentBasis,
       );
-      const relativeVectorLandmarks = applyRelativeVectorTransfer(
-        referenceBaseLandmarks,
+      const sourceRigidLandmarks = applyRelativePose3D(
         mirroredBaselineLandmarks,
-        mirroredCurrentLandmarks,
+        mirroredBaselineBasis,
+        mirroredBaselineBasis,
+        mirroredCurrentBasis,
       );
 
-      return rigidPoseLandmarks.map((rigidPoint, index) => {
-        const relativePoint = relativeVectorLandmarks[index];
-        if (!rigidPoint || !relativePoint) {
-          return rigidPoint || relativePoint;
-        }
-
-        const blendWeight = getRelativeVectorBlendWeight(index);
-        return {
-          x: lerp(rigidPoint.x, relativePoint.x, blendWeight),
-          y: lerp(rigidPoint.y, relativePoint.y, blendWeight),
-          z: lerp(rigidPoint.z || 0, relativePoint.z || 0, blendWeight),
-        };
-      });
+      return applyRelativeVectorDeltaTransfer(
+        rigidPoseLandmarks,
+        sourceRigidLandmarks,
+        mirroredCurrentLandmarks,
+      );
     }
 
     function onResults(results) {
