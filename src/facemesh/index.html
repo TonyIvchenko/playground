@@ -494,15 +494,15 @@
 
       return landmarks.map((landmark) => {
         const offset = sub3(toVec3(landmark), referenceBasis.origin);
-        const referenceLocal = {
-          x: dot3(offset, referenceBasis.xAxis),
-          y: dot3(offset, referenceBasis.yAxis),
-          z: dot3(offset, referenceBasis.zAxis),
+        const baselineLocal = {
+          x: dot3(offset, sourceBaselineBasis.xAxis),
+          y: dot3(offset, sourceBaselineBasis.yAxis),
+          z: dot3(offset, sourceBaselineBasis.zAxis),
         };
 
-        let rotated = mul3(sourceCurrentBasis.xAxis, referenceLocal.x);
-        rotated = add3(rotated, mul3(sourceCurrentBasis.yAxis, referenceLocal.y));
-        rotated = add3(rotated, mul3(sourceCurrentBasis.zAxis, referenceLocal.z));
+        let rotated = mul3(sourceCurrentBasis.xAxis, baselineLocal.x);
+        rotated = add3(rotated, mul3(sourceCurrentBasis.yAxis, baselineLocal.y));
+        rotated = add3(rotated, mul3(sourceCurrentBasis.zAxis, baselineLocal.z));
         rotated = mul3(rotated, blendedScale);
 
         const posed = add3(sourceCurrentBasis.origin, rotated);
