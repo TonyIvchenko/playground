@@ -227,9 +227,9 @@
     const unlockedScaleBlend = 0.35;
     const unlockedScaleMin = 0.9;
     const unlockedScaleMax = 1.2;
-    const leftEyeMaskIndices = [33, 159, 133, 145];
-    const rightEyeMaskIndices = [263, 386, 362, 374];
-    const mouthMaskIndices = [78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308, 415];
+    const leftEyeMaskIndices = [33, 246, 161, 160, 159, 158, 157, 173, 133, 155, 154, 153, 145, 144, 163, 7];
+    const rightEyeMaskIndices = [263, 466, 388, 387, 386, 385, 384, 398, 362, 382, 381, 380, 374, 373, 390, 249];
+    const mouthMaskIndices = [78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 308, 324, 318, 402, 317, 14, 87, 178, 88, 95];
 
     const referenceSourceCanvas = document.createElement('canvas');
     const referenceSourceCtx = referenceSourceCanvas.getContext('2d');
@@ -617,6 +617,11 @@
     }
 
     function getPageBackgroundColor() {
+      const stageBackground = getComputedStyle(referenceStage).backgroundColor;
+      if (stageBackground && stageBackground !== 'rgba(0, 0, 0, 0)' && stageBackground !== 'transparent') {
+        return stageBackground;
+      }
+
       const rootBackground = getComputedStyle(document.documentElement).backgroundColor;
       if (rootBackground && rootBackground !== 'rgba(0, 0, 0, 0)' && rootBackground !== 'transparent') {
         return rootBackground;
