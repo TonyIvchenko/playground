@@ -227,6 +227,8 @@
     const unlockedScaleBlend = 0.35;
     const unlockedScaleMin = 0.9;
     const unlockedScaleMax = 1.2;
+    const eyeCutoutInset = 0.52;
+    const mouthCutoutInset = 0.32;
     const leftEyeMaskIndices = [33, 246, 161, 160, 159, 158, 157, 173, 133, 155, 154, 153, 145, 144, 163, 7];
     const rightEyeMaskIndices = [263, 466, 388, 387, 386, 385, 384, 398, 362, 382, 381, 380, 374, 373, 390, 249];
     const mouthMaskIndices = [78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 308, 324, 318, 402, 317, 14, 87, 178, 88, 95];
@@ -595,12 +597,50 @@
       return (valueA * (1 - t)) + (valueB * t);
     }
 
-    function fillPolygonByIndices(ctx, points, indices, fillStyle) {
+    function getPolygonByIndices(points, indices) {
       if (!points || points.length === 0 || !indices || indices.length < 3) {
-        return;
+        return [];
       }
-      const polygon = indices.map((index) => points[index]).filter(Boolean);
-      if (polygon.length < 3) {
+      return indices.map((index) => points[index]).filter(Boolean);
+    }
+
+    function getPolygonCenter(polygon) {
+      if (!polygon || polygon.length === 0) {
+        return null;
+      }
+
+      let sumX = 0;
+      let sumY = 0;
+      for (const point of polygon) {
+        sumX += point.x;
+        sumY += point.y;
+      }
+
+      return {
+        x: sumX / polygon.length,
+        y: sumY / polygon.length,
+      };
+    }
+
+    function insetPolygon(polygon, insetAmount) {
+      if (!polygon || polygon.length < 3) {
+        return polygon;
+      }
+
+      const center = getPolygonCenter(polygon);
+      if (!center) {
+        return polygon;
+      }
+
+      const scale = Math.max(0.08, Math.min(1, 1 - insetAmount));
+      return polygon.map((point) => ({
+        x: center.x + ((point.x - center.x) * scale),
+        y: center.y + ((point.y - center.y) * scale),
+      }));
+    }
+
+    function fillPolygon(ctx, polygon, fillStyle) {
+      if (!polygon || polygon.length < 3) {
         return;
       }
 
@@ -614,6 +654,15 @@
       ctx.closePath();
       ctx.fill();
       ctx.restore();
+    }
+
+    function fillPolygonByIndices(ctx, points, indices, fillStyle, insetAmount = 0) {
+      const polygon = getPolygonByIndices(points, indices);
+      if (polygon.length < 3) {
+        return;
+      }
+      const adjustedPolygon = insetAmount > 0 ? insetPolygon(polygon, insetAmount) : polygon;
+      fillPolygon(ctx, adjustedPolygon, fillStyle);
     }
 
     function getPageBackgroundColor() {
@@ -631,9 +680,9 @@
 
     function drawFaceCutouts(ctx, destinationPoints) {
       const cutoutColor = getPageBackgroundColor();
-      fillPolygonByIndices(ctx, destinationPoints, leftEyeMaskIndices, cutoutColor);
-      fillPolygonByIndices(ctx, destinationPoints, rightEyeMaskIndices, cutoutColor);
-      fillPolygonByIndices(ctx, destinationPoints, mouthMaskIndices, cutoutColor);
+      fillPolygonByIndices(ctx, destinationPoints, leftEyeMaskIndices, cutoutColor, eyeCutoutInset);
+      fillPolygonByIndices(ctx, destinationPoints, rightEyeMaskIndices, cutoutColor, eyeCutoutInset);
+      fillPolygonByIndices(ctx, destinationPoints, mouthMaskIndices, cutoutColor, mouthCutoutInset);
     }
 
     function buildBoundaryFalloffWeights(neighborMap, pointCount, boundaryIndexSet, rampHops, power) {
