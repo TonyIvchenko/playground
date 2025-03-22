@@ -228,6 +228,8 @@
     const unlockedScaleMin = 0.9;
     const unlockedScaleMax = 1.2;
     const meshColorMaxDisplacementNormalized = 0.08;
+    const meshColorNeighborBlend = 0.58;
+    const meshColorSmoothingPasses = 3;
     const eyeCutoutInset = 0.52;
     const mouthCutoutInset = 0.32;
     const leftEyeMaskIndices = [33, 246, 161, 160, 159, 158, 157, 173, 133, 155, 154, 153, 145, 144, 163, 7];
@@ -346,9 +348,11 @@
     }
 
     function getMeshColor(intensity, alpha) {
-      const clamped = Math.max(0, Math.min(1, intensity));
-      const channel = Math.round(255 - (175 * clamped));
-      return `rgba(${channel}, 255, ${channel}, ${alpha})`;
+      const clamped = Math.pow(Math.max(0, Math.min(1, intensity)), 0.78);
+      const red = Math.round(255 - (92 * clamped));
+      const green = 255;
+      const blue = Math.round(255 - (128 * clamped));
+      return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
     }
 
     function drawConnections(ctx, frame, landmarks, connections, lineWidth, intensityMap = null, alpha = 0.72) {
@@ -401,7 +405,43 @@
       ctx.stroke();
     }
 
-    function buildTransferIntensityMap(baseLandmarks, activeLandmarks) {
+    function smoothIntensityMap(intensities, neighborMap, blend, passes) {
+      if (!intensities || intensities.length === 0 || !neighborMap || neighborMap.length === 0) {
+        return intensities;
+      }
+
+      let current = [...intensities];
+      for (let pass = 0; pass < passes; pass += 1) {
+        const next = current.map((value, index) => {
+          const neighbors = neighborMap[index] || [];
+          if (neighbors.length === 0) {
+            return value;
+          }
+
+          let sum = 0;
+          let count = 0;
+          for (const neighborIndex of neighbors) {
+            const neighborValue = current[neighborIndex];
+            if (!Number.isFinite(neighborValue)) {
+              continue;
+            }
+            sum += neighborValue;
+            count += 1;
+          }
+
+          if (count === 0) {
+            return value;
+          }
+          const neighborAverage = sum / count;
+          return lerp(value, neighborAverage, blend);
+        });
+        current = next;
+      }
+
+      return current;
+    }
+
+    function buildTransferIntensityMap(baseLandmarks, activeLandmarks, neighborMap = null) {
       if (
         !baseLandmarks || !activeLandmarks
         || baseLandmarks.length === 0
@@ -410,7 +450,7 @@
         return [];
       }
 
-      return activeLandmarks.map((point, index) => {
+      const rawIntensities = activeLandmarks.map((point, index) => {
         const basePoint = baseLandmarks[index];
         if (!point || !basePoint) {
           return 0;
@@ -422,6 +462,13 @@
         const displacement = Math.sqrt((dx * dx) + (dy * dy) + (dz * dz));
         return Math.max(0, Math.min(1, displacement / meshColorMaxDisplacementNormalized));
       });
+
+      return smoothIntensityMap(
+        rawIntensities,
+        neighborMap,
+        meshColorNeighborBlend,
+        meshColorSmoothingPasses,
+      );
     }
 
     function drawMesh(
@@ -440,22 +487,10 @@
         for (let landmarkIndex = 0; landmarkIndex < landmarksList.length; landmarkIndex += 1) {
           const landmarks = landmarksList[landmarkIndex];
           const intensityMap = intensityMaps[landmarkIndex] || null;
-          drawConnections(ctx, frame, landmarks, faceMeshTesselation, 0.5, intensityMap, 0.72);
-          drawConnections(ctx, frame, landmarks, faceMeshContours, 0.8, intensityMap, 0.84);
-          drawEyeDot(
-            ctx,
-            frame,
-            landmarks,
-            leftEyeCenterIndex,
-            intensityMap ? getMeshColor(intensityMap[leftEyeCenterIndex] ?? 0, 0.92) : null,
-          );
-          drawEyeDot(
-            ctx,
-            frame,
-            landmarks,
-            rightEyeCenterIndex,
-            intensityMap ? getMeshColor(intensityMap[rightEyeCenterIndex] ?? 0, 0.92) : null,
-          );
+          drawConnections(ctx, frame, landmarks, faceMeshTesselation, 0.5, intensityMap, 0.56);
+          drawConnections(ctx, frame, landmarks, faceMeshContours, 0.72, null, 0.58);
+          drawEyeDot(ctx, frame, landmarks, leftEyeCenterIndex);
+          drawEyeDot(ctx, frame, landmarks, rightEyeCenterIndex);
           for (const anchorIndex of anchorIndices) {
             drawAnchorDot(ctx, frame, landmarks, anchorIndex);
           }
@@ -1297,7 +1332,11 @@
         drawFaceCutouts(referenceCtx, destinationPoints);
       }
 
-      const referenceTransferIntensityMap = buildTransferIntensityMap(referenceBaseLandmarks, activeLandmarks);
+      const referenceTransferIntensityMap = buildTransferIntensityMap(
+        referenceBaseLandmarks,
+        activeLandmarks,
+        referenceNeighborMap,
+      );
       latestTransferredReferenceLandmarks = [activeLandmarks];
       drawMesh(
         referenceCtx,
