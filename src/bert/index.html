@@ -49,7 +49,7 @@
 
     textarea {
       width: 100%;
-      min-height: 180px;
+      min-height: 220px;
       padding: 14px 16px;
       border: 1px solid #d8e0ea;
       border-radius: 14px;
@@ -57,23 +57,52 @@
       font: inherit;
       color: inherit;
       background: #fff;
+      transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
     }
 
-    button {
-      margin-top: 16px;
-      padding: 12px 16px;
-      border: 0;
-      border-radius: 12px;
-      background: #18202a;
-      color: #fff;
-      font: inherit;
-      cursor: pointer;
+    textarea:focus {
+      outline: none;
+      border-color: #7aa8ff;
+      box-shadow: 0 0 0 4px rgba(76, 132, 255, 0.12);
+    }
+
+    textarea:disabled {
+      background: #f4f6fa;
+      color: #7d8896;
+      cursor: wait;
     }
 
     .status {
-      margin-top: 16px;
+      margin-top: 14px;
       min-height: 24px;
       color: #5f6d7b;
+    }
+
+    .result {
+      display: none;
+      margin-top: 16px;
+      padding: 14px 16px;
+      border: 1px solid #d8e0ea;
+      border-radius: 14px;
+      background: #f8fafc;
+      line-height: 1.45;
+    }
+
+    .result.toxic {
+      color: #b91c1c;
+      background: #fee2e2;
+      border-color: #fca5a5;
+    }
+
+    .result.not_toxic {
+      color: #166534;
+      background: #dcfce7;
+      border-color: #86efac;
+    }
+
+    .label {
+      font-weight: 700;
+      text-transform: capitalize;
     }
   </style>
 </head>
@@ -81,23 +110,90 @@
   <main>
     <section class="panel">
       <h1>BERT</h1>
-      <p>Minimal in-browser toxicity analyzer scaffold.</p>
-      <textarea id="text-input" placeholder="Type text here."></textarea>
-      <button id="analyze-button" type="button">Analyze</button>
-      <div class="status" id="status">Model wiring will go here.</div>
+      <p>In-browser toxicity analyzer powered by a multilingual BERT classifier.</p>
+      <textarea id="text-input" placeholder="Loading model..." disabled></textarea>
+      <div class="status" id="status">Loading model…</div>
+      <div class="result" id="result"></div>
     </section>
   </main>
-  <script>
-    const button = document.getElementById("analyze-button");
+  <script type="module">
+    import { env, pipeline } from "https://cdn.jsdelivr.net/npm/@xenova/transformers";
+
+    env.allowLocalModels = true;
+    env.localModelPath = "./models/";
+
     const input = document.getElementById("text-input");
     const status = document.getElementById("status");
+    const result = document.getElementById("result");
 
-    button.addEventListener("click", () => {
-      const hasText = input.value.trim().length > 0;
-      status.textContent = hasText
-        ? "Toxicity model is not connected yet."
-        : "Enter text to analyze.";
-    });
+    let classifier = null;
+    let requestId = 0;
+    let debounceTimer = null;
+
+    function setStatus(message) {
+      status.textContent = message;
+    }
+
+    function renderResult(prediction) {
+      const label = prediction.label.toLowerCase();
+      const scorePercent = (prediction.score * 100).toFixed(1);
+      result.className = `result ${label}`;
+      result.innerHTML =
+        `<span class="label">${label.replace("_", " ")}</span> with confidence ${scorePercent}%`;
+      result.style.display = "block";
+    }
+
+    async function analyzeText(text, currentRequestId) {
+      if (!classifier) {
+        return;
+      }
+      const prediction = await classifier(text);
+      if (currentRequestId !== requestId) {
+        return;
+      }
+      renderResult(prediction[0]);
+      setStatus("Analysis complete.");
+    }
+
+    function queueAnalysis() {
+      const text = input.value.trim();
+      requestId += 1;
+      const currentRequestId = requestId;
+
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+      }
+
+      if (!text) {
+        result.style.display = "none";
+        setStatus("Enter text to analyze.");
+        return;
+      }
+
+      setStatus("Analyzing…");
+      debounceTimer = setTimeout(() => {
+        analyzeText(text, currentRequestId).catch((error) => {
+          console.error(error);
+          setStatus("Analysis failed.");
+        });
+      }, 200);
+    }
+
+    try {
+      classifier = await pipeline(
+        "text-classification",
+        "citizenlab/distilbert-base-multilingual-cased-toxicity",
+      );
+      input.disabled = false;
+      input.placeholder = "Enter text here...";
+      setStatus("Model ready.");
+    } catch (error) {
+      console.error(error);
+      setStatus("Failed to load model.");
+      input.placeholder = "Model failed to load.";
+    }
+
+    input.addEventListener("input", queueAnalysis);
   </script>
 </body>
 </html>
