@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BERT Toxicity Analyzer</title>
+  <link rel="icon" href="data:,">
   <style>
     :root {
       color-scheme: light;
@@ -104,13 +105,20 @@
       font-weight: 700;
       text-transform: capitalize;
     }
+
+    .details {
+      margin-top: 8px;
+      color: inherit;
+      opacity: 0.88;
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
   <main>
     <section class="panel">
       <h1>BERT</h1>
-      <p>In-browser toxicity analyzer powered by a multilingual BERT classifier.</p>
+      <p>In-browser toxicity analyzer powered by a browser-ready BERT classifier.</p>
       <textarea id="text-input" placeholder="Loading model..." disabled></textarea>
       <div class="status" id="status">Loading model…</div>
       <div class="result" id="result"></div>
@@ -119,8 +127,8 @@
   <script type="module">
     import { env, pipeline } from "https://cdn.jsdelivr.net/npm/@xenova/transformers";
 
-    env.allowLocalModels = true;
-    env.localModelPath = "./models/";
+    env.allowLocalModels = false;
+    env.allowRemoteModels = true;
 
     const input = document.getElementById("text-input");
     const status = document.getElementById("status");
@@ -134,12 +142,21 @@
       status.textContent = message;
     }
 
-    function renderResult(prediction) {
-      const label = prediction.label.toLowerCase();
-      const scorePercent = (prediction.score * 100).toFixed(1);
-      result.className = `result ${label}`;
-      result.innerHTML =
-        `<span class="label">${label.replace("_", " ")}</span> with confidence ${scorePercent}%`;
+    function renderResult(predictions) {
+      const rows = Array.isArray(predictions[0]) ? predictions[0] : predictions;
+      const sorted = [...rows].sort((left, right) => right.score - left.score);
+      const top = sorted[0];
+      const isToxic = top.score >= 0.5;
+      const topScorePercent = (top.score * 100).toFixed(1);
+      const detailText = sorted
+        .slice(0, 3)
+        .map((item) => `${item.label.replaceAll("_", " ")} ${(item.score * 100).toFixed(1)}%`)
+        .join(" · ");
+
+      result.className = `result ${isToxic ? "toxic" : "not_toxic"}`;
+      result.innerHTML = isToxic
+        ? `<span class="label">Toxic</span> strongest signal: ${top.label.replaceAll("_", " ")} (${topScorePercent}%)<div class="details">${detailText}</div>`
+        : `<span class="label">Not toxic</span> strongest signal stayed low: ${top.label.replaceAll("_", " ")} (${topScorePercent}%)<div class="details">${detailText}</div>`;
       result.style.display = "block";
     }
 
@@ -147,11 +164,11 @@
       if (!classifier) {
         return;
       }
-      const prediction = await classifier(text);
+      const prediction = await classifier(text, { top_k: null });
       if (currentRequestId !== requestId) {
         return;
       }
-      renderResult(prediction[0]);
+      renderResult(prediction);
       setStatus("Analysis complete.");
     }
 
@@ -182,7 +199,7 @@
     try {
       classifier = await pipeline(
         "text-classification",
-        "citizenlab/distilbert-base-multilingual-cased-toxicity",
+        "Xenova/toxic-bert",
       );
       input.disabled = false;
       input.placeholder = "Enter text here...";
