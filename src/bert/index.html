@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BERT Toxicity Analyzer</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Arial, sans-serif;
+      background: #f5f7fb;
+      color: #18202a;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at top, #ffffff 0%, #eef3fa 58%);
+    }
+
+    main {
+      width: min(100vw, 860px);
+      padding: 24px;
+    }
+
+    .panel {
+      padding: 24px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.78);
+      box-shadow: 0 14px 36px rgba(34, 52, 76, 0.10);
+      backdrop-filter: blur(10px);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 32px;
+    }
+
+    p {
+      margin: 0 0 16px;
+      color: #5f6d7b;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 180px;
+      padding: 14px 16px;
+      border: 1px solid #d8e0ea;
+      border-radius: 14px;
+      resize: vertical;
+      font: inherit;
+      color: inherit;
+      background: #fff;
+    }
+
+    button {
+      margin-top: 16px;
+      padding: 12px 16px;
+      border: 0;
+      border-radius: 12px;
+      background: #18202a;
+      color: #fff;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .status {
+      margin-top: 16px;
+      min-height: 24px;
+      color: #5f6d7b;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="panel">
+      <h1>BERT</h1>
+      <p>Minimal in-browser toxicity analyzer scaffold.</p>
+      <textarea id="text-input" placeholder="Type text here."></textarea>
+      <button id="analyze-button" type="button">Analyze</button>
+      <div class="status" id="status">Model wiring will go here.</div>
+    </section>
+  </main>
+  <script>
+    const button = document.getElementById("analyze-button");
+    const input = document.getElementById("text-input");
+    const status = document.getElementById("status");
+
+    button.addEventListener("click", () => {
+      const hasText = input.value.trim().length > 0;
+      status.textContent = hasText
+        ? "Toxicity model is not connected yet."
+        : "Enter text to analyze.";
+    });
+  </script>
+</body>
+</html>
