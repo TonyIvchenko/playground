@@ -397,6 +397,7 @@
 
     const IMAGE_MODEL_ID = "LPX55/detection-model-1-ONNX";
     const TEXT_MODEL_ID = "nicoamoretti/roberta-openai-detector-onnx";
+    const HAS_WEBGPU = typeof navigator !== "undefined" && "gpu" in navigator;
 
     const textInput = document.getElementById("text-input");
     const textStatus = document.getElementById("text-status");
@@ -427,6 +428,8 @@
     let textClassifier = null;
     let imageClassifier = null;
     let imageClassifierLoad = null;
+    let imageModelError = null;
+    let imageModelVariant = null;
     let currentImageSource = null;
     let currentImageObjectUrl = null;
     let currentVideoSource = null;
@@ -445,6 +448,11 @@
 
     function clamp(value, min, max) {
       return Math.max(min, Math.min(max, value));
+    }
+
+    function formatErrorMessage(error) {
+      const raw = String(error?.message || error || "unknown error");
+      return raw.length > 180 ? `${raw.slice(0, 177)}...` : raw;
     }
 
     function classifyBucket(score) {
@@ -672,19 +680,41 @@
       if (!imageClassifierLoad) {
         imageStatus.textContent = "Loading browser image model…";
         videoStatus.textContent = "Loading browser image model…";
-        imageClassifierLoad = pipeline("image-classification", IMAGE_MODEL_ID)
-          .then((classifier) => {
-            imageClassifier = classifier;
-            imageStatus.textContent = "Image model ready.";
-            videoStatus.textContent = "Video analysis will use the image model on sampled frames.";
-            return classifier;
-          })
-          .catch((error) => {
-            console.error(error);
-            imageStatus.textContent = "Image model failed to load. Falling back to heuristics.";
-            videoStatus.textContent = "Image model failed to load. Video analysis will fall back to heuristics.";
-            return null;
-          });
+        imageClassifierLoad = (async () => {
+          const attempts = HAS_WEBGPU
+            ? [
+                { device: "webgpu", dtype: "q4f16", label: "webgpu/q4f16" },
+                { device: "wasm", dtype: "q4", label: "wasm/q4" },
+              ]
+            : [
+                { device: "wasm", dtype: "q4", label: "wasm/q4" },
+              ];
+
+          let lastError = null;
+          for (const attempt of attempts) {
+            try {
+              const classifier = await pipeline("image-classification", IMAGE_MODEL_ID, {
+                device: attempt.device,
+                dtype: attempt.dtype,
+              });
+              imageClassifier = classifier;
+              imageModelVariant = attempt.label;
+              imageModelError = null;
+              imageStatus.textContent = `Image model ready (${attempt.label}).`;
+              videoStatus.textContent = `Video analysis will use the image model on sampled frames (${attempt.label}).`;
+              return classifier;
+            } catch (error) {
+              console.error(`Image model load failed for ${attempt.label}`, error);
+              lastError = error;
+            }
+          }
+
+          imageModelError = formatErrorMessage(lastError);
+          imageModelVariant = null;
+          imageStatus.textContent = `Image model failed to load (${imageModelError}). Falling back to heuristics.`;
+          videoStatus.textContent = `Image model failed to load (${imageModelError}). Video analysis will fall back to heuristics.`;
+          return null;
+        })();
       }
       return imageClassifierLoad;
     }
@@ -696,8 +726,10 @@
         return {
           score: fallback.score,
           label: fallback.score >= 0.5 ? "Likely AI-generated" : "Likely natural image",
-          summary: "The image model was unavailable for this run, so the browser fell back to heuristics.",
-          reasons: fallback.reasons,
+          summary: "The browser could not initialize the image model for this run, so it fell back to heuristics.",
+          reasons: imageModelError
+            ? [`Image model load error: ${imageModelError}.`, ...fallback.reasons]
+            : fallback.reasons,
           usedFallback: true,
         };
       }
@@ -718,7 +750,7 @@
       }
 
       const reasons = [
-        `Model: ${IMAGE_MODEL_ID}.`,
+        `Model: ${IMAGE_MODEL_ID}${imageModelVariant ? ` (${imageModelVariant})` : ""}.`,
         `Top label: ${topRow.label} ${(topRow.score * 100).toFixed(1)}%.`,
       ];
       const topLabels = sorted.slice(0, 3).map((row) => `${row.label} ${(row.score * 100).toFixed(1)}%`);
@@ -825,7 +857,9 @@
         `Frames sampled: ${frameScores.length}.`,
         `Average frame AI-likelihood: ${(averageScore * 100).toFixed(1)}%.`,
         `Highest frame AI-likelihood: ${(highestScore * 100).toFixed(1)}%.`,
-        usedFallback ? "This video run used heuristic fallback because the image model was unavailable." : `Per-frame model: ${IMAGE_MODEL_ID}.`,
+        usedFallback
+          ? `This video run used heuristic fallback because the image model was unavailable${imageModelError ? `: ${imageModelError}` : ""}.`
+          : `Per-frame model: ${IMAGE_MODEL_ID}${imageModelVariant ? ` (${imageModelVariant})` : ""}.`,
       ];
 
       setCard(
