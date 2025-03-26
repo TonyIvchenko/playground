@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RealityMix</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #eef4fb;
+      --ink: #112031;
+      --muted: #607080;
+      --panel: rgba(255, 255, 255, 0.78);
+      --line: rgba(17, 32, 49, 0.12);
+      --accent: #0f1720;
+      --highlight: #d74c2f;
+      font-family: Georgia, "Times New Roman", serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(215, 76, 47, 0.14), transparent 30%),
+        radial-gradient(circle at top right, rgba(37, 99, 235, 0.12), transparent 34%),
+        linear-gradient(180deg, #ffffff 0%, var(--bg) 58%, #dde8f7 100%);
+    }
+
+    main {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      padding: 28px 20px 32px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      box-shadow: 0 22px 60px rgba(52, 71, 103, 0.14);
+      backdrop-filter: blur(14px);
+    }
+
+    .hero {
+      padding: 26px 28px;
+      display: grid;
+      gap: 8px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(42px, 6vw, 72px);
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+    }
+
+    .subtitle {
+      margin: 0;
+      max-width: 760px;
+      font-size: 18px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .panel {
+      padding: 20px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .toolbar {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      align-items: end;
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    select,
+    input[type="range"] {
+      width: 100%;
+    }
+
+    select,
+    button {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 14px;
+      font: inherit;
+      background: rgba(255, 255, 255, 0.92);
+      color: var(--ink);
+    }
+
+    input[type="range"] {
+      accent-color: var(--highlight);
+    }
+
+    button {
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .viewer-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: 280px minmax(0, 1fr);
+      align-items: start;
+    }
+
+    .meta {
+      display: grid;
+      gap: 14px;
+      align-content: start;
+    }
+
+    .card {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.7);
+      display: grid;
+      gap: 10px;
+    }
+
+    .card h2,
+    .card h3 {
+      margin: 0;
+      font-size: 15px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .modes {
+      display: grid;
+      gap: 8px;
+      font-size: 15px;
+      color: var(--muted);
+    }
+
+    .mode-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .mode-row strong {
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    .status {
+      font-size: 15px;
+      color: var(--muted);
+      line-height: 1.45;
+      min-height: 46px;
+    }
+
+    .canvas-wrap {
+      position: relative;
+      overflow: hidden;
+      border-radius: 24px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, #0d1320 0%, #131f33 100%);
+      aspect-ratio: 16 / 10;
+      min-height: 380px;
+      display: grid;
+      place-items: center;
+    }
+
+    .canvas-wrap::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 24%),
+        radial-gradient(circle at center, transparent 45%, rgba(0, 0, 0, 0.22) 100%);
+      mix-blend-mode: screen;
+    }
+
+    canvas,
+    video {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+
+    video {
+      display: none;
+    }
+
+    .footer-note {
+      font-size: 13px;
+      color: var(--muted);
+      letter-spacing: 0.03em;
+    }
+
+    @media (max-width: 900px) {
+      .toolbar,
+      .viewer-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .canvas-wrap {
+        min-height: 300px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <h1>RealityMix</h1>
+      <p class="subtitle">Live webcam remixing in the browser. Switch visual worlds on the fly: noir, anime, propaganda poster, horror, and dream mode.</p>
+    </section>
+
+    <section class="panel">
+      <div class="toolbar">
+        <label>
+          Mode
+          <select id="mode-select">
+            <option value="noir">Noir</option>
+            <option value="anime">Anime</option>
+            <option value="propaganda">Propaganda</option>
+            <option value="horror">Horror</option>
+            <option value="dream">Dream</option>
+          </select>
+        </label>
+
+        <label>
+          Intensity
+          <input id="intensity-range" type="range" min="0" max="100" value="72">
+        </label>
+
+        <label>
+          Resolution
+          <select id="resolution-select">
+            <option value="320">Fast</option>
+            <option value="480" selected>Balanced</option>
+            <option value="640">Sharp</option>
+          </select>
+        </label>
+
+        <button id="start-button" type="button">Start Camera</button>
+      </div>
+
+      <div class="viewer-grid">
+        <aside class="meta">
+          <section class="card">
+            <h2>Current Mix</h2>
+            <div class="status" id="status-text">Camera is idle. Start the webcam to begin remixing.</div>
+          </section>
+
+          <section class="card">
+            <h3>Modes</h3>
+            <div class="modes">
+              <div class="mode-row"><strong>Noir</strong><span>grain, contrast, film shadows</span></div>
+              <div class="mode-row"><strong>Anime</strong><span>posterized color, edge ink</span></div>
+              <div class="mode-row"><strong>Propaganda</strong><span>red-black-beige print palette</span></div>
+              <div class="mode-row"><strong>Horror</strong><span>cold tint, channel split, vignette</span></div>
+              <div class="mode-row"><strong>Dream</strong><span>soft glow, pastel drift, bloom</span></div>
+            </div>
+          </section>
+
+          <section class="card">
+            <h3>Notes</h3>
+            <div class="footer-note">Everything runs locally in your browser. No frame upload, no backend inference.</div>
+          </section>
+        </aside>
+
+        <div class="canvas-wrap">
+          <video id="source-video" autoplay playsinline muted></video>
+          <canvas id="output-canvas"></canvas>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const startButton = document.getElementById("start-button");
+    const modeSelect = document.getElementById("mode-select");
+    const intensityRange = document.getElementById("intensity-range");
+    const resolutionSelect = document.getElementById("resolution-select");
+    const statusText = document.getElementById("status-text");
+    const video = document.getElementById("source-video");
+    const canvas = document.getElementById("output-canvas");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    const workingCanvas = document.createElement("canvas");
+    const workingCtx = workingCanvas.getContext("2d", { willReadFrequently: true });
+    const edgeCanvas = document.createElement("canvas");
+    const edgeCtx = edgeCanvas.getContext("2d", { willReadFrequently: true });
+
+    let animationFrameId = 0;
+    let stream = null;
+
+    const MODE_DESCRIPTIONS = {
+      noir: "Noir mix active: monochrome film shadows with grain and hard contrast.",
+      anime: "Anime mix active: flattened color with heavy comic-style edges.",
+      propaganda: "Propaganda mix active: limited print palette with poster-style thresholding.",
+      horror: "Horror mix active: split-channel panic, cold shadows, and a dark vignette.",
+      dream: "Dream mix active: bloom, pastel drift, and softened highlights.",
+    };
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function mix(a, b, amount) {
+      return a + (b - a) * amount;
+    }
+
+    function getIntensity() {
+      return Number(intensityRange.value) / 100;
+    }
+
+    function updateStatus(message) {
+      statusText.textContent = message;
+    }
+
+    function configureWorkingSurface() {
+      const targetWidth = Number(resolutionSelect.value);
+      const aspectRatio = video.videoWidth && video.videoHeight ? (video.videoHeight / video.videoWidth) : (10 / 16);
+      const targetHeight = Math.max(180, Math.round(targetWidth * aspectRatio));
+      workingCanvas.width = targetWidth;
+      workingCanvas.height = targetHeight;
+      edgeCanvas.width = targetWidth;
+      edgeCanvas.height = targetHeight;
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+    }
+
+    function computeEdges(basePixels, width, height) {
+      const src = basePixels.data;
+      const edgeImage = edgeCtx.createImageData(width, height);
+      const dst = edgeImage.data;
+
+      for (let y = 1; y < height - 1; y += 1) {
+        for (let x = 1; x < width - 1; x += 1) {
+          const i = (y * width + x) * 4;
+          const left = i - 4;
+          const right = i + 4;
+          const up = i - width * 4;
+          const down = i + width * 4;
+
+          const gray = (src[i] + src[i + 1] + src[i + 2]) / 3;
+          const gx = ((src[right] + src[right + 1] + src[right + 2]) / 3) - ((src[left] + src[left + 1] + src[left + 2]) / 3);
+          const gy = ((src[down] + src[down + 1] + src[down + 2]) / 3) - ((src[up] + src[up + 1] + src[up + 2]) / 3);
+          const edge = clamp(Math.sqrt(gx * gx + gy * gy) * 1.35, 0, 255);
+          const value = clamp(255 - edge, 0, 255);
+
+          dst[i] = value;
+          dst[i + 1] = value;
+          dst[i + 2] = value;
+          dst[i + 3] = 255;
+        }
+      }
+
+      return edgeImage;
+    }
+
+    function applyNoir(pixels, intensity) {
+      const data = pixels.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = (0.299 * data[i]) + (0.587 * data[i + 1]) + (0.114 * data[i + 2]);
+        const contrast = clamp((gray - 128) * (1.2 + intensity * 1.2) + 128, 0, 255);
+        const grain = (Math.random() - 0.5) * (18 + intensity * 36);
+        const lifted = clamp(contrast + grain, 0, 255);
+        data[i] = lifted * 0.95;
+        data[i + 1] = lifted * 0.96;
+        data[i + 2] = lifted * 1.02;
+      }
+      return pixels;
+    }
+
+    function posterizeChannel(value, levels) {
+      const step = 255 / Math.max(1, levels - 1);
+      return Math.round(value / step) * step;
+    }
+
+    function applyAnime(pixels, edges, intensity) {
+      const data = pixels.data;
+      const edgeData = edges.data;
+      const levels = intensity > 0.66 ? 5 : 4;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const edge = 1 - (edgeData[i] / 255);
+        const r = posterizeChannel(data[i], levels);
+        const g = posterizeChannel(data[i + 1], levels);
+        const b = posterizeChannel(data[i + 2], levels);
+        const edgeInk = clamp(edge * 255 * (0.9 + intensity * 0.5), 0, 255);
+
+        data[i] = clamp(r - edgeInk, 0, 255);
+        data[i + 1] = clamp(g - edgeInk, 0, 255);
+        data[i + 2] = clamp(b - edgeInk, 0, 255);
+      }
+      return pixels;
+    }
+
+    function applyPropaganda(pixels, intensity) {
+      const data = pixels.data;
+      const palette = [
+        [20, 18, 16],
+        [234, 216, 188],
+        [194, 46, 33],
+        [120, 20, 18],
+      ];
+
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = (0.299 * data[i]) + (0.587 * data[i + 1]) + (0.114 * data[i + 2]);
+        const boosted = clamp(gray * (1.08 + intensity * 0.32), 0, 255);
+        let color;
+        if (boosted < 70) {
+          color = palette[0];
+        } else if (boosted < 138) {
+          color = palette[3];
+        } else if (boosted < 196) {
+          color = palette[2];
+        } else {
+          color = palette[1];
+        }
+        data[i] = color[0];
+        data[i + 1] = color[1];
+        data[i + 2] = color[2];
+      }
+      return pixels;
+    }
+
+    function applyHorror(pixels, intensity) {
+      const data = pixels.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const gray = (r + g + b) / 3;
+        data[i] = clamp(mix(r, gray * 0.85, 0.6) + intensity * 18, 0, 255);
+        data[i + 1] = clamp(mix(g, gray * 1.05, 0.4) + intensity * 8, 0, 255);
+        data[i + 2] = clamp(mix(b, gray * 1.25, 0.75) + intensity * 28, 0, 255);
+      }
+      return pixels;
+    }
+
+    function applyDream(pixels, intensity) {
+      const data = pixels.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const avg = (r + g + b) / 3;
+        data[i] = clamp(mix(r, avg + 55, 0.22 + intensity * 0.25), 0, 255);
+        data[i + 1] = clamp(mix(g, avg + 30, 0.18 + intensity * 0.18), 0, 255);
+        data[i + 2] = clamp(mix(b, avg + 75, 0.28 + intensity * 0.24), 0, 255);
+      }
+      return pixels;
+    }
+
+    function drawVignette(width, height, alpha) {
+      const gradient = ctx.createRadialGradient(
+        width * 0.5,
+        height * 0.5,
+        width * 0.12,
+        width * 0.5,
+        height * 0.5,
+        width * 0.72,
+      );
+      gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
+      gradient.addColorStop(1, `rgba(0, 0, 0, ${alpha})`);
+      ctx.save();
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+      ctx.restore();
+    }
+
+    function drawGlow(sourceCanvas, opacity, blur) {
+      ctx.save();
+      ctx.filter = `blur(${blur}px) saturate(1.15)`;
+      ctx.globalAlpha = opacity;
+      ctx.drawImage(sourceCanvas, 0, 0);
+      ctx.restore();
+    }
+
+    function drawHorrorSplit(sourceCanvas, intensity) {
+      const offset = Math.max(1, Math.round(4 + intensity * 10));
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      ctx.globalAlpha = 0.22 + intensity * 0.1;
+      ctx.filter = "none";
+      ctx.drawImage(sourceCanvas, offset, 0);
+      ctx.globalAlpha = 0.16 + intensity * 0.08;
+      ctx.drawImage(sourceCanvas, -offset, 0);
+      ctx.restore();
+    }
+
+    function renderFrame() {
+      if (!stream || video.readyState < 2) {
+        animationFrameId = requestAnimationFrame(renderFrame);
+        return;
+      }
+
+      const mode = modeSelect.value;
+      const intensity = getIntensity();
+      const width = workingCanvas.width;
+      const height = workingCanvas.height;
+
+      workingCtx.save();
+      workingCtx.translate(width, 0);
+      workingCtx.scale(-1, 1);
+      workingCtx.drawImage(video, 0, 0, width, height);
+      workingCtx.restore();
+
+      let pixels = workingCtx.getImageData(0, 0, width, height);
+      const edges = computeEdges(pixels, width, height);
+
+      if (mode === "noir") {
+        pixels = applyNoir(pixels, intensity);
+      } else if (mode === "anime") {
+        pixels = applyAnime(pixels, edges, intensity);
+      } else if (mode === "propaganda") {
+        pixels = applyPropaganda(pixels, intensity);
+      } else if (mode === "horror") {
+        pixels = applyHorror(pixels, intensity);
+      } else if (mode === "dream") {
+        pixels = applyDream(pixels, intensity);
+      }
+
+      ctx.putImageData(pixels, 0, 0);
+      workingCtx.putImageData(pixels, 0, 0);
+
+      if (mode === "anime") {
+        edgeCtx.putImageData(edges, 0, 0);
+        ctx.save();
+        ctx.globalAlpha = 0.58 + intensity * 0.22;
+        ctx.globalCompositeOperation = "multiply";
+        ctx.drawImage(edgeCanvas, 0, 0);
+        ctx.restore();
+      }
+
+      if (mode === "dream") {
+        drawGlow(workingCanvas, 0.28 + intensity * 0.18, 6 + intensity * 10);
+        ctx.save();
+        ctx.globalCompositeOperation = "screen";
+        ctx.fillStyle = `rgba(255, 210, 240, ${0.05 + intensity * 0.1})`;
+        ctx.fillRect(0, 0, width, height);
+        ctx.restore();
+      }
+
+      if (mode === "horror") {
+        drawHorrorSplit(workingCanvas, intensity);
+        drawVignette(width, height, 0.38 + intensity * 0.18);
+      }
+
+      if (mode === "noir") {
+        drawVignette(width, height, 0.28 + intensity * 0.16);
+      }
+
+      if (mode === "propaganda") {
+        ctx.save();
+        ctx.globalAlpha = 0.16 + intensity * 0.12;
+        ctx.fillStyle = "rgba(255, 244, 214, 0.7)";
+        ctx.fillRect(0, 0, width, height);
+        ctx.restore();
+      }
+
+      animationFrameId = requestAnimationFrame(renderFrame);
+    }
+
+    async function startCamera() {
+      startButton.disabled = true;
+      updateStatus("Requesting webcam access…");
+
+      try {
+        if (stream) {
+          stream.getTracks().forEach((track) => track.stop());
+        }
+
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: "user",
+          },
+          audio: false,
+        });
+
+        video.srcObject = stream;
+        await video.play();
+        configureWorkingSurface();
+        cancelAnimationFrame(animationFrameId);
+        animationFrameId = requestAnimationFrame(renderFrame);
+        updateStatus(MODE_DESCRIPTIONS[modeSelect.value]);
+      } catch (error) {
+        console.error(error);
+        updateStatus(`Camera start failed: ${String(error.message || error)}`);
+      } finally {
+        startButton.disabled = false;
+      }
+    }
+
+    modeSelect.addEventListener("change", () => {
+      updateStatus(MODE_DESCRIPTIONS[modeSelect.value]);
+    });
+
+    intensityRange.addEventListener("input", () => {
+      updateStatus(`${MODE_DESCRIPTIONS[modeSelect.value]} Intensity ${intensityRange.value}%.`);
+    });
+
+    resolutionSelect.addEventListener("change", () => {
+      if (video.videoWidth && video.videoHeight) {
+        configureWorkingSurface();
+      }
+      updateStatus(`${MODE_DESCRIPTIONS[modeSelect.value]} Resolution ${resolutionSelect.options[resolutionSelect.selectedIndex].text.toLowerCase()}.`);
+    });
+
+    startButton.addEventListener("click", startCamera);
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      updateStatus("This browser does not support webcam capture.");
+      startButton.disabled = true;
+    }
+  </script>
+</body>
+</html>
