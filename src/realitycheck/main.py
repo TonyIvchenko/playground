@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from html.parser import HTMLParser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from mimetypes import guess_type
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
@@ -13,6 +14,14 @@ import re
 ROOT = Path(__file__).resolve().parent
 PORT = int(os.environ.get("PORT", "8080"))
 USER_AGENT = "RealityCheck/1.0 (+http://127.0.0.1)"
+
+
+def infer_media_content_type(url: str, declared_type: str) -> str:
+    if declared_type and declared_type != "application/octet-stream":
+        return declared_type
+
+    guessed_type, _ = guess_type(url)
+    return (guessed_type or declared_type or "").lower()
 
 
 class VisibleTextParser(HTMLParser):
@@ -66,6 +75,9 @@ class Handler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/fetch":
             self.handle_fetch(parsed.query)
             return
+        if parsed.path == "/api/media":
+            self.handle_media(parsed.query)
+            return
         super().do_GET()
 
     def handle_fetch(self, query: str) -> None:
@@ -117,6 +129,45 @@ class Handler(SimpleHTTPRequestHandler):
                 "text": parsed_content["text"],
             }
         )
+
+    def handle_media(self, query: str) -> None:
+        params = parse_qs(query)
+        target = (params.get("url") or [""])[0].strip()
+        if not target:
+            self.send_json({"error": "Missing url parameter."}, status=400)
+            return
+
+        parsed = urlparse(target)
+        if parsed.scheme not in {"http", "https"}:
+            self.send_json({"error": "Only http and https URLs are supported."}, status=400)
+            return
+
+        try:
+            request = Request(target, headers={"User-Agent": USER_AGENT})
+            with urlopen(request, timeout=20) as response:
+                declared_type = response.headers.get("Content-Type", "").split(";")[0].strip().lower()
+                content_type = infer_media_content_type(target, declared_type)
+                body = response.read()
+        except Exception as exc:
+            self.send_json({"error": f"Failed to fetch media URL: {exc}"}, status=502)
+            return
+
+        if not (content_type.startswith("image/") or content_type.startswith("video/")):
+            self.send_json(
+                {
+                    "error": f"Unsupported media content type: {content_type or 'unknown'}",
+                    "content_type": content_type,
+                },
+                status=415,
+            )
+            return
+
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
 
     def send_json(self, payload: dict, status: int = 200) -> None:
         body = json.dumps(payload).encode("utf-8")

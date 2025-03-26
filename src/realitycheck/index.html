@@ -113,6 +113,18 @@
       gap: 12px;
     }
 
+    .source-stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    .divider {
+      color: var(--muted);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
     textarea,
     input[type="url"],
     input[type="text"] {
@@ -305,12 +317,19 @@
         <section class="panel view" id="image-view">
           <div class="row">
             <div class="stack">
-              <input id="image-input" type="file" accept="image/*">
-              <div class="preview" id="image-preview">Upload an image.</div>
+              <div class="source-stack">
+                <input id="image-input" type="file" accept="image/*">
+                <div class="divider">or</div>
+                <input id="image-url-input" type="url" placeholder="https://example.com/image.jpg">
+                <div class="actions">
+                  <button id="load-image-url-button" class="secondary" type="button">Load Image URL</button>
+                </div>
+              </div>
+              <div class="preview" id="image-preview">Upload an image or paste a direct image URL.</div>
               <div class="actions">
                 <button id="analyze-image-button" type="button" disabled>Analyze Image</button>
               </div>
-              <div class="help" id="image-status">Image analysis uses browser-side heuristics.</div>
+              <div class="help" id="image-status">Image model will load on the first image analysis.</div>
             </div>
             <div class="score-card" id="image-card">
               <div class="score-pill neutral" id="image-pill">Waiting for image</div>
@@ -324,12 +343,19 @@
         <section class="panel view" id="video-view">
           <div class="row">
             <div class="stack">
-              <input id="video-input" type="file" accept="video/*">
-              <div class="preview" id="video-preview">Upload a video.</div>
+              <div class="source-stack">
+                <input id="video-input" type="file" accept="video/*">
+                <div class="divider">or</div>
+                <input id="video-url-input" type="url" placeholder="https://example.com/video.mp4">
+                <div class="actions">
+                  <button id="load-video-url-button" class="secondary" type="button">Load Video URL</button>
+                </div>
+              </div>
+              <div class="preview" id="video-preview">Upload a video or paste a direct video URL.</div>
               <div class="actions">
                 <button id="analyze-video-button" type="button" disabled>Analyze Video</button>
               </div>
-              <div class="help" id="video-status">Video analysis samples a handful of frames and scores them heuristically.</div>
+              <div class="help" id="video-status">Video analysis samples frames and runs the browser image model on them.</div>
               <video id="hidden-video" class="hidden-video" playsinline muted></video>
               <canvas id="hidden-canvas" class="hidden-canvas"></canvas>
             </div>
@@ -369,17 +395,24 @@
     env.allowLocalModels = false;
     env.allowRemoteModels = true;
 
+    const IMAGE_MODEL_ID = "LPX55/detection-model-1-ONNX";
+    const TEXT_MODEL_ID = "nicoamoretti/roberta-openai-detector-onnx";
+
     const textInput = document.getElementById("text-input");
     const textStatus = document.getElementById("text-status");
     const analyzeTextButton = document.getElementById("analyze-text-button");
     const clearTextButton = document.getElementById("clear-text-button");
 
     const imageInput = document.getElementById("image-input");
+    const imageUrlInput = document.getElementById("image-url-input");
+    const loadImageUrlButton = document.getElementById("load-image-url-button");
     const imagePreview = document.getElementById("image-preview");
     const imageStatus = document.getElementById("image-status");
     const analyzeImageButton = document.getElementById("analyze-image-button");
 
     const videoInput = document.getElementById("video-input");
+    const videoUrlInput = document.getElementById("video-url-input");
+    const loadVideoUrlButton = document.getElementById("load-video-url-button");
     const videoPreview = document.getElementById("video-preview");
     const videoStatus = document.getElementById("video-status");
     const analyzeVideoButton = document.getElementById("analyze-video-button");
@@ -392,8 +425,12 @@
     const analyzeUrlButton = document.getElementById("analyze-url-button");
 
     let textClassifier = null;
-    let currentImageDataUrl = null;
-    let currentVideoUrl = null;
+    let imageClassifier = null;
+    let imageClassifierLoad = null;
+    let currentImageSource = null;
+    let currentImageObjectUrl = null;
+    let currentVideoSource = null;
+    let currentVideoObjectUrl = null;
 
     document.getElementById("tabs").addEventListener("click", (event) => {
       const button = event.target.closest(".tab");
@@ -491,7 +528,7 @@
       }
 
       const predictions = await textClassifier(trimmed, { top_k: null });
-      const rows = Array.isArray(predictions[0]) ? predictions[0] : predictions;
+      const rows = normalizePredictions(predictions);
       const realRow = rows.find((row) => row.label.toLowerCase() === "real") || rows[0];
       const fakeRow = rows.find((row) => row.label.toLowerCase() === "fake") || rows[0];
       const fakeScore = fakeRow.label.toLowerCase() === "fake" ? fakeRow.score : 1 - realRow.score;
@@ -524,16 +561,57 @@
       }
     }
 
-    function loadImageElementFromUrl(dataUrl) {
+    function normalizePredictions(predictions) {
+      if (Array.isArray(predictions)) {
+        if (predictions.length > 0 && Array.isArray(predictions[0])) {
+          return predictions[0];
+        }
+        return predictions;
+      }
+      return [predictions];
+    }
+
+    function labelLooksAI(label) {
+      const normalized = label.toLowerCase();
+      return ["artificial", "fake", "synthetic", "generated", "ai"].some((token) => normalized.includes(token));
+    }
+
+    function labelLooksHuman(label) {
+      const normalized = label.toLowerCase();
+      return ["real", "human", "natural", "authentic", "original"].some((token) => normalized.includes(token));
+    }
+
+    function proxyMediaUrl(targetUrl) {
+      return `/api/media?url=${encodeURIComponent(targetUrl)}`;
+    }
+
+    function revokeObjectUrl(refName) {
+      const url = refName === "image" ? currentImageObjectUrl : currentVideoObjectUrl;
+      if (url) {
+        URL.revokeObjectURL(url);
+      }
+      if (refName === "image") {
+        currentImageObjectUrl = null;
+      } else {
+        currentVideoObjectUrl = null;
+      }
+    }
+
+    function setPreviewContent(container, element) {
+      container.innerHTML = "";
+      container.appendChild(element);
+    }
+
+    function loadImageElementFromUrl(sourceUrl) {
       return new Promise((resolve, reject) => {
         const image = new Image();
         image.onload = () => resolve(image);
         image.onerror = () => reject(new Error("Failed to decode image."));
-        image.src = dataUrl;
+        image.src = sourceUrl;
       });
     }
 
-    function scoreImageFromImageElement(image) {
+    function scoreImageHeuristics(image) {
       const sampleSize = 256;
       const width = sampleSize;
       const height = Math.max(1, Math.round(sampleSize * (image.naturalHeight / Math.max(1, image.naturalWidth))));
@@ -582,30 +660,90 @@
       return {
         score,
         reasons: [
-          `Dimensions: ${image.naturalWidth}×${image.naturalHeight}.`,
-          `Average edge strength: ${averageGradient.toFixed(2)}.`,
-          `Average saturation: ${(averageSaturation * 100).toFixed(1)}%.`,
-          "Image mode is heuristic-only. It looks for smooth synthetic surfaces and generator-style size patterns.",
+          `Fallback heuristics: ${image.naturalWidth}×${image.naturalHeight}, edge strength ${averageGradient.toFixed(2)}, saturation ${(averageSaturation * 100).toFixed(1)}%.`,
         ],
       };
     }
 
+    async function ensureImageClassifier() {
+      if (imageClassifier) {
+        return imageClassifier;
+      }
+      if (!imageClassifierLoad) {
+        imageStatus.textContent = "Loading browser image model…";
+        videoStatus.textContent = "Loading browser image model…";
+        imageClassifierLoad = pipeline("image-classification", IMAGE_MODEL_ID)
+          .then((classifier) => {
+            imageClassifier = classifier;
+            imageStatus.textContent = "Image model ready.";
+            videoStatus.textContent = "Video analysis will use the image model on sampled frames.";
+            return classifier;
+          })
+          .catch((error) => {
+            console.error(error);
+            imageStatus.textContent = "Image model failed to load. Falling back to heuristics.";
+            videoStatus.textContent = "Image model failed to load. Video analysis will fall back to heuristics.";
+            return null;
+          });
+      }
+      return imageClassifierLoad;
+    }
+
+    async function classifyImageElement(image) {
+      const classifier = await ensureImageClassifier();
+      if (!classifier) {
+        const fallback = scoreImageHeuristics(image);
+        return {
+          score: fallback.score,
+          label: fallback.score >= 0.5 ? "Likely AI-generated" : "Likely natural image",
+          summary: "The image model was unavailable for this run, so the browser fell back to heuristics.",
+          reasons: fallback.reasons,
+          usedFallback: true,
+        };
+      }
+
+      const predictions = normalizePredictions(await classifier(image, { top_k: 5 }));
+      const sorted = [...predictions].sort((left, right) => right.score - left.score);
+      const artificialRow = sorted.find((row) => labelLooksAI(row.label));
+      const humanRow = sorted.find((row) => labelLooksHuman(row.label));
+      const topRow = sorted[0];
+
+      let aiScore;
+      if (artificialRow) {
+        aiScore = artificialRow.score;
+      } else if (humanRow) {
+        aiScore = 1 - humanRow.score;
+      } else {
+        aiScore = labelLooksAI(topRow.label) ? topRow.score : 1 - topRow.score;
+      }
+
+      const reasons = [
+        `Model: ${IMAGE_MODEL_ID}.`,
+        `Top label: ${topRow.label} ${(topRow.score * 100).toFixed(1)}%.`,
+      ];
+      const topLabels = sorted.slice(0, 3).map((row) => `${row.label} ${(row.score * 100).toFixed(1)}%`);
+      reasons.push(`Top classes: ${topLabels.join(", ")}.`);
+
+      return {
+        score: aiScore,
+        label: aiScore >= 0.5 ? "Likely AI-generated" : "Likely natural image",
+        summary: "Image classification used a browser-side ONNX model. Treat this as an authenticity signal, not proof.",
+        reasons,
+        usedFallback: false,
+      };
+    }
+
     async function analyzeCurrentImage() {
-      if (!currentImageDataUrl) {
-        clearCard("image", "Waiting for image", "Upload an image first.");
+      if (!currentImageSource) {
+        clearCard("image", "Waiting for image", "Upload or load an image first.");
         return;
       }
+
       imageStatus.textContent = "Analyzing image…";
-      const image = await loadImageElementFromUrl(currentImageDataUrl);
-      const result = scoreImageFromImageElement(image);
-      setCard(
-        "image",
-        result.score,
-        result.score >= 0.5 ? "Likely AI-generated" : "Likely natural image",
-        "Image detection is heuristic-only in this browser build.",
-        result.reasons,
-      );
-      imageStatus.textContent = "Image analysis complete.";
+      const image = await loadImageElementFromUrl(currentImageSource);
+      const result = await classifyImageElement(image);
+      setCard("image", result.score, result.label, result.summary, result.reasons);
+      imageStatus.textContent = result.usedFallback ? "Image analysis complete with heuristic fallback." : "Image analysis complete.";
     }
 
     function waitForVideoEvent(element, eventName) {
@@ -618,104 +756,202 @@
       });
     }
 
+    function loadVideoElementFromUrl(sourceUrl) {
+      return new Promise((resolve, reject) => {
+        const video = document.createElement("video");
+        video.src = sourceUrl;
+        video.controls = true;
+        video.muted = true;
+        video.playsInline = true;
+        video.addEventListener("loadedmetadata", () => resolve(video), { once: true });
+        video.addEventListener("error", () => reject(new Error("Failed to load video.")), { once: true });
+        video.load();
+      });
+    }
+
+    function buildSampleTimes(duration) {
+      if (!Number.isFinite(duration) || duration <= 0) {
+        return [0];
+      }
+      const sampleCount = Math.max(3, Math.min(6, Math.floor(duration) || 4));
+      return Array.from({ length: sampleCount }, (_, index) => ((index + 0.5) / sampleCount) * duration);
+    }
+
+    async function seekVideoTo(video, time) {
+      const safeTime = Math.max(0, Math.min(video.duration || time, time));
+      if (Math.abs((video.currentTime || 0) - safeTime) < 0.02) {
+        return;
+      }
+      video.currentTime = safeTime;
+      await waitForVideoEvent(video, "seeked");
+    }
+
     async function analyzeCurrentVideo() {
-      if (!currentVideoUrl) {
-        clearCard("video", "Waiting for video", "Upload a video first.");
+      if (!currentVideoSource) {
+        clearCard("video", "Waiting for video", "Upload or load a video first.");
         return;
       }
 
-      videoStatus.textContent = "Sampling video frames…";
-      hiddenVideo.src = currentVideoUrl;
+      videoStatus.textContent = "Loading video…";
+      hiddenVideo.src = currentVideoSource;
       hiddenVideo.load();
       await waitForVideoEvent(hiddenVideo, "loadedmetadata");
+      if (hiddenVideo.readyState < 2) {
+        await waitForVideoEvent(hiddenVideo, "loadeddata");
+      }
 
-      const duration = hiddenVideo.duration || 0;
-      const sampleCount = Math.max(3, Math.min(8, Math.floor(duration) || 5));
+      const times = buildSampleTimes(hiddenVideo.duration || 0);
       const frameScores = [];
+      let usedFallback = false;
 
-      for (let index = 0; index < sampleCount; index += 1) {
-        const time = duration > 0 ? ((index + 0.5) / sampleCount) * duration : 0;
-        hiddenVideo.currentTime = Math.min(duration || 0, time);
-        await waitForVideoEvent(hiddenVideo, "seeked");
-
+      videoStatus.textContent = "Sampling frames and running the image model…";
+      for (const time of times) {
+        await seekVideoTo(hiddenVideo, time);
         hiddenCanvas.width = hiddenVideo.videoWidth || 320;
         hiddenCanvas.height = hiddenVideo.videoHeight || 240;
+        hiddenCanvasCtx.clearRect(0, 0, hiddenCanvas.width, hiddenCanvas.height);
         hiddenCanvasCtx.drawImage(hiddenVideo, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
-        const frameDataUrl = hiddenCanvas.toDataURL("image/jpeg", 0.92);
+
+        const frameDataUrl = hiddenCanvas.toDataURL("image/jpeg", 0.9);
         const frameImage = await loadImageElementFromUrl(frameDataUrl);
-        frameScores.push(scoreImageFromImageElement(frameImage).score);
+        const frameResult = await classifyImageElement(frameImage);
+        frameScores.push(frameResult.score);
+        usedFallback = usedFallback || frameResult.usedFallback;
       }
 
       const averageScore = frameScores.reduce((sum, value) => sum + value, 0) / Math.max(1, frameScores.length);
+      const highestScore = Math.max(...frameScores);
       const reasons = [
         `Frames sampled: ${frameScores.length}.`,
         `Average frame AI-likelihood: ${(averageScore * 100).toFixed(1)}%.`,
-        `Highest frame score: ${(Math.max(...frameScores) * 100).toFixed(1)}%.`,
-        "Video mode inherits the image heuristics and is best treated as an early warning, not a verdict.",
+        `Highest frame AI-likelihood: ${(highestScore * 100).toFixed(1)}%.`,
+        usedFallback ? "This video run used heuristic fallback because the image model was unavailable." : `Per-frame model: ${IMAGE_MODEL_ID}.`,
       ];
 
       setCard(
         "video",
         averageScore,
         averageScore >= 0.5 ? "Likely AI-generated video" : "Likely natural video",
-        "Video scoring is aggregated from sampled frames.",
+        usedFallback
+          ? "Video scoring fell back to sampled-frame heuristics."
+          : "Video scoring samples frames and runs the browser image model on each one.",
         reasons,
       );
-      videoStatus.textContent = "Video analysis complete.";
+      videoStatus.textContent = usedFallback ? "Video analysis complete with heuristic fallback." : "Video analysis complete.";
+    }
+
+    async function loadImageSource(sourceUrl, label, { revokeExistingObjectUrl = true } = {}) {
+      if (revokeExistingObjectUrl) {
+        revokeObjectUrl("image");
+      }
+      const image = await loadImageElementFromUrl(sourceUrl);
+      currentImageSource = sourceUrl;
+      setPreviewContent(imagePreview, image);
+      analyzeImageButton.disabled = false;
+      imageStatus.textContent = "Image ready.";
+      clearCard("image", "Ready to analyze", label);
+    }
+
+    async function loadVideoSource(sourceUrl, label, { revokeExistingObjectUrl = true } = {}) {
+      if (revokeExistingObjectUrl) {
+        revokeObjectUrl("video");
+      }
+      const video = await loadVideoElementFromUrl(sourceUrl);
+      currentVideoSource = sourceUrl;
+      setPreviewContent(videoPreview, video);
+      analyzeVideoButton.disabled = false;
+      videoStatus.textContent = "Video ready.";
+      clearCard("video", "Ready to analyze", label);
     }
 
     imageInput.addEventListener("change", async () => {
       const file = imageInput.files?.[0];
-      currentImageDataUrl = null;
+      currentImageSource = null;
       analyzeImageButton.disabled = true;
 
       if (!file) {
-        imagePreview.textContent = "Upload an image.";
+        imagePreview.textContent = "Upload an image or paste a direct image URL.";
         clearCard("image", "Waiting for image", "No image loaded.");
         return;
       }
 
-      currentImageDataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(new Error("Failed to read file."));
-        reader.readAsDataURL(file);
-      });
-
-      imagePreview.innerHTML = "";
-      const img = document.createElement("img");
-      img.src = currentImageDataUrl;
-      imagePreview.appendChild(img);
-      analyzeImageButton.disabled = false;
-      imageStatus.textContent = "Image ready.";
-      clearCard("image", "Ready to analyze", `${file.name}`);
+      try {
+        revokeObjectUrl("image");
+        currentImageObjectUrl = URL.createObjectURL(file);
+        await loadImageSource(currentImageObjectUrl, file.name, { revokeExistingObjectUrl: false });
+      } catch (error) {
+        console.error(error);
+        imageStatus.textContent = "Failed to load image.";
+        clearCard("image", "Load failed", String(error.message || error));
+      }
     });
 
-    videoInput.addEventListener("change", () => {
-      const file = videoInput.files?.[0];
-      if (currentVideoUrl) {
-        URL.revokeObjectURL(currentVideoUrl);
-        currentVideoUrl = null;
+    loadImageUrlButton.addEventListener("click", async () => {
+      const targetUrl = imageUrlInput.value.trim();
+      if (!targetUrl) {
+        clearCard("image", "Waiting for image", "Enter a direct image URL first.");
+        return;
       }
+
+      try {
+        imageStatus.textContent = "Fetching image URL through the local proxy…";
+        await loadImageSource(proxyMediaUrl(targetUrl), targetUrl);
+      } catch (error) {
+        console.error(error);
+        imageStatus.textContent = "Failed to load image URL.";
+        clearCard("image", "Load failed", String(error.message || error));
+      }
+    });
+
+    videoInput.addEventListener("change", async () => {
+      const file = videoInput.files?.[0];
+      currentVideoSource = null;
       analyzeVideoButton.disabled = true;
 
       if (!file) {
-        videoPreview.textContent = "Upload a video.";
+        videoPreview.textContent = "Upload a video or paste a direct video URL.";
         clearCard("video", "Waiting for video", "No video loaded.");
         return;
       }
 
-      currentVideoUrl = URL.createObjectURL(file);
-      videoPreview.innerHTML = "";
-      const video = document.createElement("video");
-      video.src = currentVideoUrl;
-      video.controls = true;
-      video.muted = true;
-      video.playsInline = true;
-      videoPreview.appendChild(video);
-      analyzeVideoButton.disabled = false;
-      videoStatus.textContent = "Video ready.";
-      clearCard("video", "Ready to analyze", `${file.name}`);
+      try {
+        revokeObjectUrl("video");
+        currentVideoObjectUrl = URL.createObjectURL(file);
+        await loadVideoSource(currentVideoObjectUrl, file.name, { revokeExistingObjectUrl: false });
+      } catch (error) {
+        console.error(error);
+        videoStatus.textContent = "Failed to load video.";
+        clearCard("video", "Load failed", String(error.message || error));
+      }
+    });
+
+    loadVideoUrlButton.addEventListener("click", async () => {
+      const targetUrl = videoUrlInput.value.trim();
+      if (!targetUrl) {
+        clearCard("video", "Waiting for video", "Enter a direct video URL first.");
+        return;
+      }
+
+      try {
+        videoStatus.textContent = "Fetching video URL through the local proxy…";
+        await loadVideoSource(proxyMediaUrl(targetUrl), targetUrl);
+      } catch (error) {
+        console.error(error);
+        videoStatus.textContent = "Failed to load video URL.";
+        clearCard("video", "Load failed", String(error.message || error));
+      }
+    });
+
+    imageUrlInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        loadImageUrlButton.click();
+      }
+    });
+
+    videoUrlInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        loadVideoUrlButton.click();
+      }
     });
 
     analyzeImageButton.addEventListener("click", () => {
@@ -769,7 +1005,7 @@
     });
 
     try {
-      textClassifier = await pipeline("text-classification", "nicoamoretti/roberta-openai-detector-onnx");
+      textClassifier = await pipeline("text-classification", TEXT_MODEL_ID);
       textInput.disabled = false;
       textInput.placeholder = "Paste text here.";
       analyzeTextButton.disabled = false;
