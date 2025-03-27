@@ -1,6 +1,6 @@
 # RealityMix
 
-Browser-based webcam style remixer.
+Browser-based live neural style transfer.
 
 ## Local Run
 
@@ -12,10 +12,15 @@ python main.py
 
 Then open `http://127.0.0.1:8080` and allow camera access.
 
-## Modes
+## What It Does
 
-- `Noir`: monochrome, contrasty, film-grain feel
-- `Anime`: posterized color with edge emphasis
-- `Propaganda`: limited red/beige/black palette
-- `Horror`: cold shadows, channel split, vignette
-- `Dream`: pastel glow with softened highlights
+- Uses the webcam as the live content source.
+- Lets you upload a style reference image.
+- Runs arbitrary neural style transfer in the browser.
+- Uses reduced internal resolution and throttled inference to keep live updates usable.
+
+## Notes
+
+- First run needs to download the browser model.
+- Lower internal resolution is faster.
+- Higher update rate is smoother but heavier.

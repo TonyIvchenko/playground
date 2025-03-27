@@ -5,16 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>RealityMix</title>
   <link rel="icon" href="data:,">
+  <script src="https://cdn.jsdelivr.net/npm/@magenta/image@0.2.1"></script>
   <style>
     :root {
       color-scheme: light;
-      --bg: #eef4fb;
-      --ink: #112031;
-      --muted: #607080;
-      --panel: rgba(255, 255, 255, 0.78);
-      --line: rgba(17, 32, 49, 0.12);
+      --bg: #edf4ff;
+      --ink: #122133;
+      --muted: #66768a;
+      --panel: rgba(255, 255, 255, 0.82);
+      --line: rgba(18, 33, 51, 0.12);
       --accent: #0f1720;
-      --highlight: #d74c2f;
+      --accent-2: #d45536;
       font-family: Georgia, "Times New Roman", serif;
     }
 
@@ -27,13 +28,13 @@
       min-height: 100vh;
       color: var(--ink);
       background:
-        radial-gradient(circle at top left, rgba(215, 76, 47, 0.14), transparent 30%),
-        radial-gradient(circle at top right, rgba(37, 99, 235, 0.12), transparent 34%),
-        linear-gradient(180deg, #ffffff 0%, var(--bg) 58%, #dde8f7 100%);
+        radial-gradient(circle at top left, rgba(212, 85, 54, 0.16), transparent 26%),
+        radial-gradient(circle at top right, rgba(37, 99, 235, 0.12), transparent 30%),
+        linear-gradient(180deg, #ffffff 0%, var(--bg) 55%, #dbe8fb 100%);
     }
 
     main {
-      width: min(1180px, 100%);
+      width: min(1240px, 100%);
       margin: 0 auto;
       padding: 28px 20px 32px;
       display: grid;
@@ -44,7 +45,7 @@
     .panel {
       background: var(--panel);
       border: 1px solid var(--line);
-      border-radius: 26px;
+      border-radius: 28px;
       box-shadow: 0 22px 60px rgba(52, 71, 103, 0.14);
       backdrop-filter: blur(14px);
     }
@@ -57,9 +58,9 @@
 
     h1 {
       margin: 0;
-      font-size: clamp(42px, 6vw, 72px);
-      line-height: 0.95;
-      letter-spacing: -0.04em;
+      font-size: clamp(42px, 6vw, 74px);
+      line-height: 0.94;
+      letter-spacing: -0.05em;
     }
 
     .subtitle {
@@ -79,7 +80,7 @@
     .toolbar {
       display: grid;
       gap: 14px;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       align-items: end;
     }
 
@@ -93,22 +94,29 @@
     }
 
     select,
-    input[type="range"] {
+    input[type="file"],
+    input[type="range"],
+    button {
       width: 100%;
+      font: inherit;
     }
 
     select,
+    input[type="file"],
     button {
       border: 1px solid var(--line);
       border-radius: 14px;
       padding: 12px 14px;
-      font: inherit;
-      background: rgba(255, 255, 255, 0.92);
+      background: rgba(255, 255, 255, 0.94);
       color: var(--ink);
     }
 
+    input[type="file"] {
+      padding: 10px 12px;
+    }
+
     input[type="range"] {
-      accent-color: var(--highlight);
+      accent-color: var(--accent-2);
     }
 
     button {
@@ -117,10 +125,15 @@
       color: #fff;
     }
 
+    button:disabled {
+      opacity: 0.58;
+      cursor: not-allowed;
+    }
+
     .viewer-grid {
       display: grid;
       gap: 16px;
-      grid-template-columns: 280px minmax(0, 1fr);
+      grid-template-columns: 300px minmax(0, 1fr);
       align-items: start;
     }
 
@@ -134,9 +147,9 @@
       padding: 16px;
       border: 1px solid var(--line);
       border-radius: 18px;
-      background: rgba(255, 255, 255, 0.7);
+      background: rgba(255, 255, 255, 0.72);
       display: grid;
-      gap: 10px;
+      gap: 12px;
     }
 
     .card h2,
@@ -147,29 +160,45 @@
       text-transform: uppercase;
     }
 
-    .modes {
+    .status {
+      min-height: 48px;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 15px;
+    }
+
+    .metrics {
       display: grid;
       gap: 8px;
-      font-size: 15px;
       color: var(--muted);
+      font-size: 14px;
     }
 
-    .mode-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-    }
-
-    .mode-row strong {
+    .metrics strong {
       color: var(--ink);
       font-weight: 600;
     }
 
-    .status {
-      font-size: 15px;
+    .style-preview {
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 18px;
+      border: 1px dashed var(--line);
+      background: linear-gradient(180deg, rgba(18, 33, 51, 0.04), rgba(18, 33, 51, 0.1));
+      display: grid;
+      place-items: center;
+      overflow: hidden;
       color: var(--muted);
-      line-height: 1.45;
-      min-height: 46px;
+      font-size: 14px;
+      text-align: center;
+      padding: 12px;
+    }
+
+    .style-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
     }
 
     .canvas-wrap {
@@ -177,7 +206,7 @@
       overflow: hidden;
       border-radius: 24px;
       border: 1px solid var(--line);
-      background: linear-gradient(180deg, #0d1320 0%, #131f33 100%);
+      background: linear-gradient(180deg, #0f1720 0%, #18263b 100%);
       aspect-ratio: 16 / 10;
       min-height: 380px;
       display: grid;
@@ -190,8 +219,8 @@
       inset: 0;
       pointer-events: none;
       background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 24%),
-        radial-gradient(circle at center, transparent 45%, rgba(0, 0, 0, 0.22) 100%);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 22%),
+        radial-gradient(circle at center, transparent 46%, rgba(0, 0, 0, 0.22) 100%);
       mix-blend-mode: screen;
     }
 
@@ -203,17 +232,19 @@
       object-fit: cover;
     }
 
-    video {
+    video,
+    img.hidden,
+    canvas.hidden {
       display: none;
     }
 
-    .footer-note {
+    .note {
       font-size: 13px;
       color: var(--muted);
-      letter-spacing: 0.03em;
+      line-height: 1.5;
     }
 
-    @media (max-width: 900px) {
+    @media (max-width: 980px) {
       .toolbar,
       .viewer-grid {
         grid-template-columns: 1fr;
@@ -229,33 +260,36 @@
   <main>
     <section class="hero">
       <h1>RealityMix</h1>
-      <p class="subtitle">Live webcam remixing in the browser. Switch visual worlds on the fly: noir, anime, propaganda poster, horror, and dream mode.</p>
+      <p class="subtitle">Live neural style transfer in the browser. Your webcam is the content stream. Your uploaded image becomes the style reference.</p>
     </section>
 
     <section class="panel">
       <div class="toolbar">
         <label>
-          Mode
-          <select id="mode-select">
-            <option value="noir">Noir</option>
-            <option value="anime">Anime</option>
-            <option value="propaganda">Propaganda</option>
-            <option value="horror">Horror</option>
-            <option value="dream">Dream</option>
+          Style image
+          <input id="style-input" type="file" accept="image/*">
+        </label>
+
+        <label>
+          Style strength
+          <input id="strength-range" type="range" min="0" max="100" value="82">
+        </label>
+
+        <label>
+          Internal size
+          <select id="resolution-select">
+            <option value="128">Fastest</option>
+            <option value="192" selected>Balanced</option>
+            <option value="256">Sharper</option>
           </select>
         </label>
 
         <label>
-          Intensity
-          <input id="intensity-range" type="range" min="0" max="100" value="72">
-        </label>
-
-        <label>
-          Resolution
-          <select id="resolution-select">
-            <option value="320">Fast</option>
-            <option value="480" selected>Balanced</option>
-            <option value="640">Sharp</option>
+          Update rate
+          <select id="fps-select">
+            <option value="1">1 fps</option>
+            <option value="2" selected>2 fps</option>
+            <option value="4">4 fps</option>
           </select>
         </label>
 
@@ -265,24 +299,28 @@
       <div class="viewer-grid">
         <aside class="meta">
           <section class="card">
-            <h2>Current Mix</h2>
-            <div class="status" id="status-text">Camera is idle. Start the webcam to begin remixing.</div>
+            <h2>Status</h2>
+            <div class="status" id="status-text">Load a style image, then start the camera. The style model will download on first use.</div>
           </section>
 
           <section class="card">
-            <h3>Modes</h3>
-            <div class="modes">
-              <div class="mode-row"><strong>Noir</strong><span>grain, contrast, film shadows</span></div>
-              <div class="mode-row"><strong>Anime</strong><span>posterized color, edge ink</span></div>
-              <div class="mode-row"><strong>Propaganda</strong><span>red-black-beige print palette</span></div>
-              <div class="mode-row"><strong>Horror</strong><span>cold tint, channel split, vignette</span></div>
-              <div class="mode-row"><strong>Dream</strong><span>soft glow, pastel drift, bloom</span></div>
+            <h3>Style Reference</h3>
+            <div class="style-preview" id="style-preview">Upload an image to define the live style.</div>
+          </section>
+
+          <section class="card">
+            <h3>Session</h3>
+            <div class="metrics">
+              <div><strong>Model:</strong> Magenta arbitrary style transfer</div>
+              <div><strong>Backend:</strong> <span id="backend-text">waiting</span></div>
+              <div><strong>Resolution:</strong> <span id="resolution-text">192 px</span></div>
+              <div><strong>Update rate:</strong> <span id="fps-text">2 fps</span></div>
             </div>
           </section>
 
           <section class="card">
             <h3>Notes</h3>
-            <div class="footer-note">Everything runs locally in your browser. No frame upload, no backend inference.</div>
+            <div class="note">Lower internal size is much faster. The last stylized frame stays on screen while the next frame is being inferred.</div>
           </section>
         </aside>
 
@@ -292,293 +330,214 @@
         </div>
       </div>
     </section>
+
+    <img id="style-image" class="hidden" alt="style source">
+    <canvas id="content-canvas" class="hidden"></canvas>
+    <canvas id="style-canvas" class="hidden"></canvas>
   </main>
 
   <script>
     const startButton = document.getElementById("start-button");
-    const modeSelect = document.getElementById("mode-select");
-    const intensityRange = document.getElementById("intensity-range");
+    const styleInput = document.getElementById("style-input");
+    const strengthRange = document.getElementById("strength-range");
     const resolutionSelect = document.getElementById("resolution-select");
+    const fpsSelect = document.getElementById("fps-select");
     const statusText = document.getElementById("status-text");
+    const backendText = document.getElementById("backend-text");
+    const resolutionText = document.getElementById("resolution-text");
+    const fpsText = document.getElementById("fps-text");
+    const stylePreview = document.getElementById("style-preview");
+    const styleImage = document.getElementById("style-image");
     const video = document.getElementById("source-video");
-    const canvas = document.getElementById("output-canvas");
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    const workingCanvas = document.createElement("canvas");
-    const workingCtx = workingCanvas.getContext("2d", { willReadFrequently: true });
-    const edgeCanvas = document.createElement("canvas");
-    const edgeCtx = edgeCanvas.getContext("2d", { willReadFrequently: true });
+    const outputCanvas = document.getElementById("output-canvas");
+    const outputCtx = outputCanvas.getContext("2d");
+    const contentCanvas = document.getElementById("content-canvas");
+    const contentCtx = contentCanvas.getContext("2d");
+    const styleCanvas = document.getElementById("style-canvas");
+    const styleCtx = styleCanvas.getContext("2d");
 
-    let animationFrameId = 0;
     let stream = null;
-
-    const MODE_DESCRIPTIONS = {
-      noir: "Noir mix active: monochrome film shadows with grain and hard contrast.",
-      anime: "Anime mix active: flattened color with heavy comic-style edges.",
-      propaganda: "Propaganda mix active: limited print palette with poster-style thresholding.",
-      horror: "Horror mix active: split-channel panic, cold shadows, and a dark vignette.",
-      dream: "Dream mix active: bloom, pastel drift, and softened highlights.",
-    };
-
-    function clamp(value, min, max) {
-      return Math.max(min, Math.min(max, value));
-    }
-
-    function mix(a, b, amount) {
-      return a + (b - a) * amount;
-    }
-
-    function getIntensity() {
-      return Number(intensityRange.value) / 100;
-    }
+    let model = null;
+    let modelReady = false;
+    let modelLoading = null;
+    let stylizeBusy = false;
+    let animationFrameId = 0;
+    let lastStylizeAt = 0;
+    let styleObjectUrl = null;
 
     function updateStatus(message) {
       statusText.textContent = message;
     }
 
-    function configureWorkingSurface() {
-      const targetWidth = Number(resolutionSelect.value);
-      const aspectRatio = video.videoWidth && video.videoHeight ? (video.videoHeight / video.videoWidth) : (10 / 16);
-      const targetHeight = Math.max(180, Math.round(targetWidth * aspectRatio));
-      workingCanvas.width = targetWidth;
-      workingCanvas.height = targetHeight;
-      edgeCanvas.width = targetWidth;
-      edgeCanvas.height = targetHeight;
-      canvas.width = targetWidth;
-      canvas.height = targetHeight;
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
     }
 
-    function computeEdges(basePixels, width, height) {
-      const src = basePixels.data;
-      const edgeImage = edgeCtx.createImageData(width, height);
-      const dst = edgeImage.data;
-
-      for (let y = 1; y < height - 1; y += 1) {
-        for (let x = 1; x < width - 1; x += 1) {
-          const i = (y * width + x) * 4;
-          const left = i - 4;
-          const right = i + 4;
-          const up = i - width * 4;
-          const down = i + width * 4;
-
-          const gray = (src[i] + src[i + 1] + src[i + 2]) / 3;
-          const gx = ((src[right] + src[right + 1] + src[right + 2]) / 3) - ((src[left] + src[left + 1] + src[left + 2]) / 3);
-          const gy = ((src[down] + src[down + 1] + src[down + 2]) / 3) - ((src[up] + src[up + 1] + src[up + 2]) / 3);
-          const edge = clamp(Math.sqrt(gx * gx + gy * gy) * 1.35, 0, 255);
-          const value = clamp(255 - edge, 0, 255);
-
-          dst[i] = value;
-          dst[i + 1] = value;
-          dst[i + 2] = value;
-          dst[i + 3] = 255;
-        }
-      }
-
-      return edgeImage;
+    function getStrength() {
+      return Number(strengthRange.value) / 100;
     }
 
-    function applyNoir(pixels, intensity) {
-      const data = pixels.data;
-      for (let i = 0; i < data.length; i += 4) {
-        const gray = (0.299 * data[i]) + (0.587 * data[i + 1]) + (0.114 * data[i + 2]);
-        const contrast = clamp((gray - 128) * (1.2 + intensity * 1.2) + 128, 0, 255);
-        const grain = (Math.random() - 0.5) * (18 + intensity * 36);
-        const lifted = clamp(contrast + grain, 0, 255);
-        data[i] = lifted * 0.95;
-        data[i + 1] = lifted * 0.96;
-        data[i + 2] = lifted * 1.02;
-      }
-      return pixels;
+    function getInternalSize() {
+      return Number(resolutionSelect.value);
     }
 
-    function posterizeChannel(value, levels) {
-      const step = 255 / Math.max(1, levels - 1);
-      return Math.round(value / step) * step;
+    function getUpdateIntervalMs() {
+      return 1000 / Number(fpsSelect.value);
     }
 
-    function applyAnime(pixels, edges, intensity) {
-      const data = pixels.data;
-      const edgeData = edges.data;
-      const levels = intensity > 0.66 ? 5 : 4;
-
-      for (let i = 0; i < data.length; i += 4) {
-        const edge = 1 - (edgeData[i] / 255);
-        const r = posterizeChannel(data[i], levels);
-        const g = posterizeChannel(data[i + 1], levels);
-        const b = posterizeChannel(data[i + 2], levels);
-        const edgeInk = clamp(edge * 255 * (0.9 + intensity * 0.5), 0, 255);
-
-        data[i] = clamp(r - edgeInk, 0, 255);
-        data[i + 1] = clamp(g - edgeInk, 0, 255);
-        data[i + 2] = clamp(b - edgeInk, 0, 255);
-      }
-      return pixels;
+    function syncUiMetrics() {
+      resolutionText.textContent = `${getInternalSize()} px`;
+      fpsText.textContent = `${fpsSelect.value} fps`;
     }
 
-    function applyPropaganda(pixels, intensity) {
-      const data = pixels.data;
-      const palette = [
-        [20, 18, 16],
-        [234, 216, 188],
-        [194, 46, 33],
-        [120, 20, 18],
-      ];
-
-      for (let i = 0; i < data.length; i += 4) {
-        const gray = (0.299 * data[i]) + (0.587 * data[i + 1]) + (0.114 * data[i + 2]);
-        const boosted = clamp(gray * (1.08 + intensity * 0.32), 0, 255);
-        let color;
-        if (boosted < 70) {
-          color = palette[0];
-        } else if (boosted < 138) {
-          color = palette[3];
-        } else if (boosted < 196) {
-          color = palette[2];
-        } else {
-          color = palette[1];
-        }
-        data[i] = color[0];
-        data[i + 1] = color[1];
-        data[i + 2] = color[2];
-      }
-      return pixels;
-    }
-
-    function applyHorror(pixels, intensity) {
-      const data = pixels.data;
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const gray = (r + g + b) / 3;
-        data[i] = clamp(mix(r, gray * 0.85, 0.6) + intensity * 18, 0, 255);
-        data[i + 1] = clamp(mix(g, gray * 1.05, 0.4) + intensity * 8, 0, 255);
-        data[i + 2] = clamp(mix(b, gray * 1.25, 0.75) + intensity * 28, 0, 255);
-      }
-      return pixels;
-    }
-
-    function applyDream(pixels, intensity) {
-      const data = pixels.data;
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const avg = (r + g + b) / 3;
-        data[i] = clamp(mix(r, avg + 55, 0.22 + intensity * 0.25), 0, 255);
-        data[i + 1] = clamp(mix(g, avg + 30, 0.18 + intensity * 0.18), 0, 255);
-        data[i + 2] = clamp(mix(b, avg + 75, 0.28 + intensity * 0.24), 0, 255);
-      }
-      return pixels;
-    }
-
-    function drawVignette(width, height, alpha) {
-      const gradient = ctx.createRadialGradient(
-        width * 0.5,
-        height * 0.5,
-        width * 0.12,
-        width * 0.5,
-        height * 0.5,
-        width * 0.72,
-      );
-      gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
-      gradient.addColorStop(1, `rgba(0, 0, 0, ${alpha})`);
-      ctx.save();
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, width, height);
-      ctx.restore();
-    }
-
-    function drawGlow(sourceCanvas, opacity, blur) {
-      ctx.save();
-      ctx.filter = `blur(${blur}px) saturate(1.15)`;
-      ctx.globalAlpha = opacity;
-      ctx.drawImage(sourceCanvas, 0, 0);
-      ctx.restore();
-    }
-
-    function drawHorrorSplit(sourceCanvas, intensity) {
-      const offset = Math.max(1, Math.round(4 + intensity * 10));
-      ctx.save();
-      ctx.globalCompositeOperation = "screen";
-      ctx.globalAlpha = 0.22 + intensity * 0.1;
-      ctx.filter = "none";
-      ctx.drawImage(sourceCanvas, offset, 0);
-      ctx.globalAlpha = 0.16 + intensity * 0.08;
-      ctx.drawImage(sourceCanvas, -offset, 0);
-      ctx.restore();
-    }
-
-    function renderFrame() {
-      if (!stream || video.readyState < 2) {
-        animationFrameId = requestAnimationFrame(renderFrame);
+    async function ensureBackend() {
+      if (!window.tf) {
+        backendText.textContent = "unknown";
         return;
       }
 
-      const mode = modeSelect.value;
-      const intensity = getIntensity();
-      const width = workingCanvas.width;
-      const height = workingCanvas.height;
+      try {
+        const preferred = ["webgl", "wasm", "cpu"];
+        for (const backend of preferred) {
+          try {
+            await tf.setBackend(backend);
+            await tf.ready();
+            backendText.textContent = tf.getBackend();
+            return;
+          } catch (error) {
+          }
+        }
+        backendText.textContent = tf.getBackend() || "unknown";
+      } catch (error) {
+        backendText.textContent = "unknown";
+      }
+    }
 
-      workingCtx.save();
-      workingCtx.translate(width, 0);
-      workingCtx.scale(-1, 1);
-      workingCtx.drawImage(video, 0, 0, width, height);
-      workingCtx.restore();
+    async function ensureModel() {
+      if (modelReady) {
+        return model;
+      }
+      if (modelLoading) {
+        return modelLoading;
+      }
+      modelLoading = (async () => {
+        updateStatus("Loading neural style transfer model…");
+        await ensureBackend();
+        model = new mi.ArbitraryStyleTransferNetwork();
+        await model.initialize();
+        modelReady = true;
+        updateStatus("Model ready. Start the camera or adjust style settings.");
+        return model;
+      })().catch((error) => {
+        console.error(error);
+        modelLoading = null;
+        modelReady = false;
+        throw error;
+      });
+      return modelLoading;
+    }
 
-      let pixels = workingCtx.getImageData(0, 0, width, height);
-      const edges = computeEdges(pixels, width, height);
+    function fitCanvasToVideo() {
+      const targetWidth = getInternalSize();
+      const aspect = video.videoWidth && video.videoHeight ? (video.videoHeight / video.videoWidth) : (10 / 16);
+      const targetHeight = Math.max(128, Math.round(targetWidth * aspect));
+      contentCanvas.width = targetWidth;
+      contentCanvas.height = targetHeight;
+      outputCanvas.width = targetWidth;
+      outputCanvas.height = targetHeight;
+    }
 
-      if (mode === "noir") {
-        pixels = applyNoir(pixels, intensity);
-      } else if (mode === "anime") {
-        pixels = applyAnime(pixels, edges, intensity);
-      } else if (mode === "propaganda") {
-        pixels = applyPropaganda(pixels, intensity);
-      } else if (mode === "horror") {
-        pixels = applyHorror(pixels, intensity);
-      } else if (mode === "dream") {
-        pixels = applyDream(pixels, intensity);
+    function fitStyleCanvas() {
+      const targetSize = 256;
+      styleCanvas.width = targetSize;
+      styleCanvas.height = targetSize;
+      styleCtx.clearRect(0, 0, targetSize, targetSize);
+
+      const imageWidth = styleImage.naturalWidth || 1;
+      const imageHeight = styleImage.naturalHeight || 1;
+      const scale = Math.max(targetSize / imageWidth, targetSize / imageHeight);
+      const drawWidth = imageWidth * scale;
+      const drawHeight = imageHeight * scale;
+      const offsetX = (targetSize - drawWidth) / 2;
+      const offsetY = (targetSize - drawHeight) / 2;
+
+      styleCtx.drawImage(styleImage, offsetX, offsetY, drawWidth, drawHeight);
+    }
+
+    function drawRawCameraFrame() {
+      const width = contentCanvas.width;
+      const height = contentCanvas.height;
+      contentCtx.save();
+      contentCtx.clearRect(0, 0, width, height);
+      contentCtx.translate(width, 0);
+      contentCtx.scale(-1, 1);
+      contentCtx.drawImage(video, 0, 0, width, height);
+      contentCtx.restore();
+    }
+
+    function revokeStyleUrl() {
+      if (styleObjectUrl) {
+        URL.revokeObjectURL(styleObjectUrl);
+        styleObjectUrl = null;
+      }
+    }
+
+    async function loadStyleFile(file) {
+      revokeStyleUrl();
+      styleObjectUrl = URL.createObjectURL(file);
+      await new Promise((resolve, reject) => {
+        styleImage.onload = resolve;
+        styleImage.onerror = () => reject(new Error("Failed to decode style image."));
+        styleImage.src = styleObjectUrl;
+      });
+      fitStyleCanvas();
+      stylePreview.innerHTML = "";
+      const previewImage = document.createElement("img");
+      previewImage.src = styleObjectUrl;
+      stylePreview.appendChild(previewImage);
+      updateStatus(`Style image ready: ${file.name}.`);
+      await ensureModel();
+    }
+
+    async function stylizeFrame(now) {
+      if (!stream || video.readyState < 2 || !styleImage.src || !modelReady || stylizeBusy) {
+        return;
+      }
+      if (now - lastStylizeAt < getUpdateIntervalMs()) {
+        return;
       }
 
-      ctx.putImageData(pixels, 0, 0);
-      workingCtx.putImageData(pixels, 0, 0);
+      stylizeBusy = true;
+      lastStylizeAt = now;
 
-      if (mode === "anime") {
-        edgeCtx.putImageData(edges, 0, 0);
-        ctx.save();
-        ctx.globalAlpha = 0.58 + intensity * 0.22;
-        ctx.globalCompositeOperation = "multiply";
-        ctx.drawImage(edgeCanvas, 0, 0);
-        ctx.restore();
+      try {
+        drawRawCameraFrame();
+        const imageData = await model.stylize(contentCanvas, styleCanvas, getStrength());
+        outputCtx.putImageData(imageData, 0, 0);
+        updateStatus(`Stylizing live camera feed at ${fpsSelect.value} fps.`);
+      } catch (error) {
+        console.error(error);
+        updateStatus(`Stylization failed: ${String(error.message || error)}`);
+      } finally {
+        stylizeBusy = false;
       }
+    }
 
-      if (mode === "dream") {
-        drawGlow(workingCanvas, 0.28 + intensity * 0.18, 6 + intensity * 10);
-        ctx.save();
-        ctx.globalCompositeOperation = "screen";
-        ctx.fillStyle = `rgba(255, 210, 240, ${0.05 + intensity * 0.1})`;
-        ctx.fillRect(0, 0, width, height);
-        ctx.restore();
+    function drawLivePreview() {
+      if (!stream || video.readyState < 2) {
+        return;
       }
+      drawRawCameraFrame();
+      outputCtx.drawImage(contentCanvas, 0, 0);
+    }
 
-      if (mode === "horror") {
-        drawHorrorSplit(workingCanvas, intensity);
-        drawVignette(width, height, 0.38 + intensity * 0.18);
+    async function renderLoop(now) {
+      if (!styleImage.src || !modelReady) {
+        drawLivePreview();
+      } else {
+        await stylizeFrame(now);
       }
-
-      if (mode === "noir") {
-        drawVignette(width, height, 0.28 + intensity * 0.16);
-      }
-
-      if (mode === "propaganda") {
-        ctx.save();
-        ctx.globalAlpha = 0.16 + intensity * 0.12;
-        ctx.fillStyle = "rgba(255, 244, 214, 0.7)";
-        ctx.fillRect(0, 0, width, height);
-        ctx.restore();
-      }
-
-      animationFrameId = requestAnimationFrame(renderFrame);
+      animationFrameId = requestAnimationFrame(renderLoop);
     }
 
     async function startCamera() {
@@ -601,10 +560,20 @@
 
         video.srcObject = stream;
         await video.play();
-        configureWorkingSurface();
+        fitCanvasToVideo();
+        drawLivePreview();
         cancelAnimationFrame(animationFrameId);
-        animationFrameId = requestAnimationFrame(renderFrame);
-        updateStatus(MODE_DESCRIPTIONS[modeSelect.value]);
+        animationFrameId = requestAnimationFrame(renderLoop);
+
+        if (!styleImage.src) {
+          updateStatus("Camera live. Upload a style image to start stylizing.");
+        } else {
+          ensureModel().catch((error) => {
+            console.error(error);
+            updateStatus(`Model load failed: ${String(error.message || error)}`);
+          });
+          updateStatus("Camera live. Loading the style model for neural transfer.");
+        }
       } catch (error) {
         console.error(error);
         updateStatus(`Camera start failed: ${String(error.message || error)}`);
@@ -613,22 +582,47 @@
       }
     }
 
-    modeSelect.addEventListener("change", () => {
-      updateStatus(MODE_DESCRIPTIONS[modeSelect.value]);
+    styleInput.addEventListener("change", async () => {
+      const file = styleInput.files?.[0];
+      if (!file) {
+        return;
+      }
+      updateStatus("Loading style image…");
+      try {
+        await loadStyleFile(file);
+      } catch (error) {
+        console.error(error);
+        updateStatus(`Style image failed to load: ${String(error.message || error)}`);
+      }
     });
 
-    intensityRange.addEventListener("input", () => {
-      updateStatus(`${MODE_DESCRIPTIONS[modeSelect.value]} Intensity ${intensityRange.value}%.`);
+    strengthRange.addEventListener("input", () => {
+      if (styleImage.src) {
+        updateStatus(`Style strength ${strengthRange.value}%.`);
+      }
     });
 
     resolutionSelect.addEventListener("change", () => {
+      syncUiMetrics();
       if (video.videoWidth && video.videoHeight) {
-        configureWorkingSurface();
+        fitCanvasToVideo();
+        drawRawCameraFrame();
+        outputCtx.drawImage(contentCanvas, 0, 0);
       }
-      updateStatus(`${MODE_DESCRIPTIONS[modeSelect.value]} Resolution ${resolutionSelect.options[resolutionSelect.selectedIndex].text.toLowerCase()}.`);
+      if (styleImage.src) {
+        updateStatus(`Internal size set to ${resolutionSelect.value}px.`);
+      }
+    });
+
+    fpsSelect.addEventListener("change", () => {
+      syncUiMetrics();
+      if (styleImage.src) {
+        updateStatus(`Update rate set to ${fpsSelect.value} fps.`);
+      }
     });
 
     startButton.addEventListener("click", startCamera);
+    syncUiMetrics();
 
     if (!navigator.mediaDevices?.getUserMedia) {
       updateStatus("This browser does not support webcam capture.");
