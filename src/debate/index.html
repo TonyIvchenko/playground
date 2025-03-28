@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Debate</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #eef3fb;
+      --ink: #16202b;
+      --muted: #647384;
+      --panel: rgba(255, 255, 255, 0.84);
+      --line: #dbe3ef;
+      --accent: #17212c;
+      --prosecution: #b42318;
+      --defense: #1d4ed8;
+      --judge: #6d28d9;
+      font-family: Georgia, "Times New Roman", serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(180, 35, 24, 0.09), transparent 28%),
+        radial-gradient(circle at top right, rgba(29, 78, 216, 0.08), transparent 28%),
+        linear-gradient(180deg, #ffffff 0%, var(--bg) 62%, #dbe7f7 100%);
+    }
+
+    main {
+      width: min(1240px, 100%);
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero,
+    .panel {
+      border-radius: 24px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      box-shadow: 0 16px 44px rgba(36, 50, 70, 0.1);
+      backdrop-filter: blur(10px);
+    }
+
+    .hero {
+      padding: 24px;
+      display: grid;
+      gap: 8px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(38px, 5vw, 62px);
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+    }
+
+    .hero p,
+    .status,
+    .hint,
+    .summary {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .panel {
+      padding: 20px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .controls {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      align-items: end;
+    }
+
+    .workspace {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: 1fr 1fr 320px;
+      align-items: start;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    select,
+    textarea,
+    button {
+      font: inherit;
+      color: inherit;
+    }
+
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fff;
+    }
+
+    select {
+      padding: 12px 14px;
+    }
+
+    textarea {
+      min-height: 300px;
+      padding: 14px 16px;
+      resize: vertical;
+      line-height: 1.55;
+    }
+
+    textarea:focus,
+    select:focus {
+      outline: none;
+      border-color: #7aa8ff;
+      box-shadow: 0 0 0 4px rgba(76, 132, 255, 0.12);
+    }
+
+    button {
+      padding: 12px 16px;
+      border: 0;
+      border-radius: 16px;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+    }
+
+    button.secondary {
+      background: #eff4fa;
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+
+    button:disabled {
+      opacity: 0.62;
+      cursor: not-allowed;
+    }
+
+    .doc-card,
+    .meta-card,
+    .transcript-card {
+      padding: 16px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.9);
+      display: grid;
+      gap: 10px;
+    }
+
+    .doc-card h2,
+    .meta-card h2,
+    .transcript-card h2 {
+      margin: 0;
+      font-size: 15px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .transcript-card {
+      max-height: 760px;
+      overflow: auto;
+    }
+
+    .status {
+      min-height: 24px;
+    }
+
+    .upload-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .upload-row input[type="file"] {
+      max-width: 100%;
+      font: inherit;
+      color: var(--muted);
+    }
+
+    .metrics {
+      display: grid;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .pill {
+      display: inline-flex;
+      width: fit-content;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      font-weight: 700;
+      background: #eef4fb;
+      color: #1d4ed8;
+    }
+
+    .speaker {
+      display: grid;
+      gap: 8px;
+      padding: 14px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .speaker.prosecution {
+      border-left: 5px solid var(--prosecution);
+    }
+
+    .speaker.defense {
+      border-left: 5px solid var(--defense);
+    }
+
+    .speaker.judge {
+      border-left: 5px solid var(--judge);
+      background: #faf5ff;
+    }
+
+    .speaker-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .speaker-name {
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .speaker-body {
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .points {
+      display: grid;
+      gap: 8px;
+    }
+
+    .point {
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: #f7fafe;
+      border: 1px solid var(--line);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 1040px) {
+      .controls,
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <h1>Debate</h1>
+      <p>Drop in two competing documents and watch a browser-generated courtroom exchange unfold: prosecutor, defense, rebuttals, and a judge-style synthesis at the end.</p>
+    </section>
+
+    <section class="panel">
+      <div class="controls">
+        <label>
+          Case Type
+          <select id="case-type">
+            <option value="contract">Contract dispute</option>
+            <option value="fraud">Fraud claim</option>
+            <option value="employment">Employment conflict</option>
+            <option value="policy">Policy / public argument</option>
+          </select>
+        </label>
+
+        <label>
+          Rounds
+          <select id="rounds-select">
+            <option value="4">Short</option>
+            <option value="6" selected>Balanced</option>
+            <option value="8">Long</option>
+          </select>
+        </label>
+
+        <button id="run-button" type="button" disabled>Run Debate</button>
+        <button id="clear-button" class="secondary" type="button">Clear</button>
+      </div>
+
+      <div class="workspace">
+        <section class="doc-card">
+          <h2>Document A</h2>
+          <p class="hint">The app treats this as the prosecutor's source material.</p>
+          <div class="upload-row">
+            <input id="file-a" type="file" accept=".txt,.md,.csv,.json,.html,.htm">
+          </div>
+          <textarea id="doc-a" placeholder="Loading browser model..." disabled></textarea>
+        </section>
+
+        <section class="doc-card">
+          <h2>Document B</h2>
+          <p class="hint">The app treats this as the defense source material.</p>
+          <div class="upload-row">
+            <input id="file-b" type="file" accept=".txt,.md,.csv,.json,.html,.htm">
+          </div>
+          <textarea id="doc-b" placeholder="Loading browser model..." disabled></textarea>
+        </section>
+
+        <aside class="meta-card">
+          <h2>Session</h2>
+          <div class="pill" id="model-pill">Loading model…</div>
+          <div class="metrics">
+            <div id="status-text">Loading browser generation model…</div>
+            <div id="claim-status">Claim extraction waits for both documents.</div>
+          </div>
+          <div class="points" id="claim-points"></div>
+        </aside>
+      </div>
+
+      <section class="transcript-card">
+        <h2>Transcript</h2>
+        <p class="summary" id="transcript-summary">The staged exchange will appear here turn by turn.</p>
+        <div class="points" id="transcript"></div>
+      </section>
+    </section>
+  </main>
+
+  <script type="module">
+    import { env, pipeline } from "https://cdn.jsdelivr.net/npm/@xenova/transformers";
+
+    env.allowLocalModels = false;
+    env.allowRemoteModels = true;
+
+    const GENERATION_MODEL_ID = "Xenova/flan-t5-small";
+    const SAMPLE_A = "The vendor signed a contract promising delivery by March 1, along with security compliance documentation and a fixed support response time. Internal emails show repeated missed milestones, missing evidence of compliance review, and requests for more money after the agreement was already executed. The buyer argues that these failures caused operational downtime and extra costs. The buyer also points to a clause allowing termination for material breach after written notice.";
+    const SAMPLE_B = "The vendor argues that the buyer repeatedly changed the scope, delayed approvals, and demanded additional features that were not in the original statement of work. The defense says the March 1 date was tied to client-side deliverables that never arrived on time. Emails show multiple warnings that launch timing would slip unless dependencies were resolved. The vendor also argues that the buyer kept using the system after notice of the alleged breach, which undermines the claim of immediate material harm.";
+
+    const stopWords = new Set([
+      "the", "and", "that", "with", "have", "this", "from", "they", "their", "into", "about", "after", "there", "were", "been", "when", "what", "which", "would", "could", "should", "them", "because", "while", "where", "your", "ours", "also", "than", "then", "such", "only", "will", "very", "just", "more", "most", "some", "each", "many", "much", "like", "across", "under", "over", "through", "being", "does", "doesn", "between", "within", "using"
+    ]);
+
+    const runButton = document.getElementById("run-button");
+    const clearButton = document.getElementById("clear-button");
+    const caseType = document.getElementById("case-type");
+    const roundsSelect = document.getElementById("rounds-select");
+    const fileA = document.getElementById("file-a");
+    const fileB = document.getElementById("file-b");
+    const docA = document.getElementById("doc-a");
+    const docB = document.getElementById("doc-b");
+    const modelPill = document.getElementById("model-pill");
+    const statusText = document.getElementById("status-text");
+    const claimStatus = document.getElementById("claim-status");
+    const claimPoints = document.getElementById("claim-points");
+    const transcript = document.getElementById("transcript");
+    const transcriptSummary = document.getElementById("transcript-summary");
+
+    let generator = null;
+    let generatorLoad = null;
+    let isRunning = false;
+
+    function setStatus(message) {
+      statusText.textContent = message;
+    }
+
+    function sentences(text) {
+      return text.split(/(?<=[.!?])\s+/).map((item) => item.trim()).filter(Boolean);
+    }
+
+    function scoreSentence(sentence) {
+      const lower = sentence.toLowerCase();
+      let score = 0;
+      if (/breach|failed|violate|damage|harm|fraud|lied|loss|terminated|warning|proof|evidence|notice|deadline|missed|downtime|clause|scope|approval|delay/.test(lower)) {
+        score += 3;
+      }
+      if (/must|should|required|promised|caused|shows|demonstrates|argues|says|points to/.test(lower)) {
+        score += 2;
+      }
+      score += Math.min(2, sentence.length / 120);
+      return score;
+    }
+
+    function extractClaims(text, maxClaims = 4) {
+      return sentences(text)
+        .map((sentence) => ({ sentence, score: scoreSentence(sentence) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, maxClaims)
+        .map((item) => item.sentence);
+    }
+
+    function topKeywords(text, maxKeywords = 8) {
+      const counts = new Map();
+      const words = text.toLowerCase().match(/\b[a-z][a-z'-]{2,}\b/g) || [];
+      for (const word of words) {
+        if (stopWords.has(word)) {
+          continue;
+        }
+        counts.set(word, (counts.get(word) || 0) + 1);
+      }
+      return [...counts.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, maxKeywords)
+        .map(([word]) => word);
+    }
+
+    function renderClaims(label, claims, color) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "speaker";
+      wrapper.style.borderLeftColor = color;
+      wrapper.innerHTML = `<div class="speaker-name">${label}</div>`;
+      for (const claim of claims) {
+        const item = document.createElement("div");
+        item.className = "point";
+        item.textContent = claim;
+        wrapper.appendChild(item);
+      }
+      claimPoints.appendChild(wrapper);
+    }
+
+    function clearTranscript() {
+      transcript.innerHTML = "";
+      transcriptSummary.textContent = "The staged exchange will appear here turn by turn.";
+    }
+
+    function addSpeech(role, title, text) {
+      const section = document.createElement("section");
+      section.className = `speaker ${role}`;
+      section.innerHTML = `
+        <div class="speaker-head">
+          <div class="speaker-name">${title}</div>
+        </div>
+        <div class="speaker-body">${text}</div>
+      `;
+      transcript.appendChild(section);
+      section.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+
+    async function ensureGenerator() {
+      if (generator) {
+        return generator;
+      }
+      if (!generatorLoad) {
+        modelPill.textContent = "Loading flan-t5-small";
+        setStatus("Loading browser generation model…");
+        generatorLoad = pipeline("text2text-generation", GENERATION_MODEL_ID, {
+          device: "wasm",
+          dtype: "q4",
+        }).then((instance) => {
+          generator = instance;
+          modelPill.textContent = "Model ready";
+          setStatus("Model ready. Paste documents and run the debate.");
+          runButton.disabled = false;
+          docA.disabled = false;
+          docB.disabled = false;
+          docA.placeholder = "Paste prosecutor-side source material here...";
+          docB.placeholder = "Paste defense-side source material here...";
+          return instance;
+        }).catch((error) => {
+          console.error(error);
+          modelPill.textContent = "Model failed";
+          setStatus(`Model load failed: ${String(error.message || error)}`);
+          throw error;
+        });
+      }
+      return generatorLoad;
+    }
+
+    async function generateTurn(prompt) {
+      const model = await ensureGenerator();
+      const output = await model(prompt, {
+        max_new_tokens: 96,
+        temperature: 0.85,
+        top_p: 0.92,
+        repetition_penalty: 1.08,
+      });
+      const text = Array.isArray(output) ? output[0]?.generated_text || output[0]?.summary_text || "" : output.generated_text || output.summary_text || "";
+      return text.trim();
+    }
+
+    function buildPrompt(role, context) {
+      return [
+        `You are writing one short courtroom statement for the ${role}.`,
+        `Case type: ${context.caseType}.`,
+        `Prosecutor claims: ${context.prosecutorClaims.join(" ")}`,
+        `Defense claims: ${context.defenseClaims.join(" ")}`,
+        `Shared keywords: ${context.sharedKeywords.join(", ") || "none"}.`,
+        context.lastTurn ? `Previous turn: ${context.lastTurn}` : "Previous turn: none.",
+        role === "judge"
+          ? "Write a neutral synthesis in 3 to 5 sentences. Compare strengths, weaknesses, and unresolved uncertainty."
+          : `Write 3 to 4 sentences in a persuasive but grounded style. Reference evidence, attack the other side's weak point, and stay concise.`,
+      ].join("\n");
+    }
+
+    function delay(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    async function loadFileIntoTextarea(file, target, label) {
+      if (!file) {
+        return;
+      }
+      const text = await file.text();
+      target.value = text.trim();
+      claimStatus.textContent = `${label} loaded from ${file.name}.`;
+    }
+
+    async function runDebate() {
+      const textA = docA.value.trim();
+      const textB = docB.value.trim();
+      if (!textA || !textB) {
+        setStatus("Paste both documents first.");
+        return;
+      }
+      if (isRunning) {
+        return;
+      }
+
+      isRunning = true;
+      runButton.disabled = true;
+      clearTranscript();
+      claimPoints.innerHTML = "";
+
+      try {
+        const prosecutorClaims = extractClaims(textA, 4);
+        const defenseClaims = extractClaims(textB, 4);
+        const sharedKeywords = [...new Set([...topKeywords(textA), ...topKeywords(textB)])].slice(0, 10);
+        renderClaims("Prosecutor source", prosecutorClaims, "var(--prosecution)");
+        renderClaims("Defense source", defenseClaims, "var(--defense)");
+        claimStatus.textContent = "Strongest claims extracted from both documents.";
+        transcriptSummary.textContent = "The model is now staging a live courtroom exchange.";
+
+        const context = {
+          caseType: caseType.value,
+          prosecutorClaims,
+          defenseClaims,
+          sharedKeywords,
+          lastTurn: "",
+        };
+
+        const rounds = Number(roundsSelect.value);
+        const roles = [];
+        for (let i = 0; i < rounds; i += 1) {
+          roles.push(i % 2 === 0 ? "prosecutor" : "defense");
+        }
+
+        for (let index = 0; index < roles.length; index += 1) {
+          const role = roles[index];
+          setStatus(`Generating ${role} turn ${index + 1} of ${roles.length}…`);
+          const text = await generateTurn(buildPrompt(role, context));
+          addSpeech(role, role === "prosecutor" ? "Prosecutor" : "Defense", text);
+          context.lastTurn = text;
+          await delay(420);
+        }
+
+        setStatus("Generating judge synthesis…");
+        const judgeText = await generateTurn(buildPrompt("judge", context));
+        addSpeech("judge", "Judge", judgeText);
+        transcriptSummary.textContent = "Debate complete. Review the exchange and the extracted claim set side by side.";
+        setStatus("Debate complete.");
+      } catch (error) {
+        console.error(error);
+        setStatus(`Debate failed: ${String(error.message || error)}`);
+      } finally {
+        isRunning = false;
+        runButton.disabled = false;
+      }
+    }
+
+    clearButton.addEventListener("click", () => {
+      docA.value = "";
+      docB.value = "";
+      fileA.value = "";
+      fileB.value = "";
+      claimPoints.innerHTML = "";
+      clearTranscript();
+      claimStatus.textContent = "Claim extraction waits for both documents.";
+      setStatus("Cleared. Paste two documents to stage a debate.");
+    });
+
+    fileA.addEventListener("change", async (event) => {
+      try {
+        await loadFileIntoTextarea(event.target.files?.[0], docA, "Document A");
+      } catch (error) {
+        console.error(error);
+        setStatus(`Could not read Document A: ${String(error.message || error)}`);
+      }
+    });
+
+    fileB.addEventListener("change", async (event) => {
+      try {
+        await loadFileIntoTextarea(event.target.files?.[0], docB, "Document B");
+      } catch (error) {
+        console.error(error);
+        setStatus(`Could not read Document B: ${String(error.message || error)}`);
+      }
+    });
+
+    docA.value = SAMPLE_A;
+    docB.value = SAMPLE_B;
+    ensureGenerator().catch(() => {
+      docA.disabled = false;
+      docB.disabled = false;
+      docA.placeholder = "Paste prosecutor-side source material here...";
+      docB.placeholder = "Paste defense-side source material here...";
+    });
+    runButton.addEventListener("click", runDebate);
+  </script>
+</body>
+</html>
