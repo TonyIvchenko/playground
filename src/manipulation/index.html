@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Manipulation Detector</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #eff4fb;
+      --ink: #18212b;
+      --muted: #657483;
+      --panel: rgba(255, 255, 255, 0.84);
+      --line: #d9e2ef;
+      --good: #166534;
+      --good-bg: #dcfce7;
+      --warn: #b45309;
+      --warn-bg: #fef3c7;
+      --bad: #b91c1c;
+      --bad-bg: #fee2e2;
+      --neutral: #1d4ed8;
+      --neutral-bg: #dbeafe;
+      font-family: Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(239, 68, 68, 0.08), transparent 26%),
+        radial-gradient(circle at top right, rgba(59, 130, 246, 0.1), transparent 30%),
+        linear-gradient(180deg, #ffffff 0%, var(--bg) 62%, #dbe8f6 100%);
+    }
+
+    main {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero,
+    .panel {
+      border-radius: 22px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      box-shadow: 0 16px 42px rgba(39, 55, 79, 0.1);
+      backdrop-filter: blur(10px);
+    }
+
+    .hero {
+      padding: 24px;
+      display: grid;
+      gap: 8px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 34px;
+      letter-spacing: -0.03em;
+    }
+
+    .hero p,
+    .status,
+    .help,
+    .summary,
+    .evidence-empty {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .panel {
+      padding: 20px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .controls {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 200px minmax(0, 1fr) auto auto;
+      align-items: end;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    select,
+    textarea,
+    button {
+      font: inherit;
+      color: inherit;
+    }
+
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+    }
+
+    select {
+      padding: 12px 14px;
+    }
+
+    textarea {
+      min-height: 280px;
+      padding: 14px 16px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    textarea:focus,
+    select:focus {
+      outline: none;
+      border-color: #7aa8ff;
+      box-shadow: 0 0 0 4px rgba(76, 132, 255, 0.12);
+    }
+
+    button {
+      padding: 12px 16px;
+      border: 0;
+      border-radius: 14px;
+      cursor: pointer;
+      background: #18212b;
+      color: #fff;
+    }
+
+    button.secondary {
+      background: #eef3f9;
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .workspace {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      align-items: start;
+    }
+
+    .score-card {
+      display: grid;
+      gap: 14px;
+      padding: 18px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .pill {
+      display: inline-flex;
+      width: fit-content;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-weight: 700;
+      border: 1px solid var(--line);
+    }
+
+    .pill.low {
+      color: var(--good);
+      background: var(--good-bg);
+      border-color: #86efac;
+    }
+
+    .pill.medium {
+      color: var(--warn);
+      background: var(--warn-bg);
+      border-color: #fcd34d;
+    }
+
+    .pill.high {
+      color: var(--bad);
+      background: var(--bad-bg);
+      border-color: #fca5a5;
+    }
+
+    .pill.neutral {
+      color: var(--neutral);
+      background: var(--neutral-bg);
+      border-color: #93c5fd;
+    }
+
+    .score-value {
+      font-size: 46px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .models {
+      display: grid;
+      gap: 6px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .pattern-grid {
+      display: grid;
+      gap: 14px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .pattern-card,
+    .evidence-card,
+    .samples-card {
+      padding: 16px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.9);
+      display: grid;
+      gap: 10px;
+    }
+
+    .pattern-card h3,
+    .evidence-card h2,
+    .samples-card h2 {
+      margin: 0;
+      font-size: 15px;
+      letter-spacing: 0.02em;
+    }
+
+    .pattern-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .pattern-score {
+      font-weight: 700;
+    }
+
+    .bar {
+      width: 100%;
+      height: 10px;
+      border-radius: 999px;
+      background: #e8eef7;
+      overflow: hidden;
+    }
+
+    .bar > div {
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #60a5fa, #f59e0b, #ef4444);
+    }
+
+    .hits {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .hit {
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #f5f8fc;
+      border: 1px solid var(--line);
+      font-size: 13px;
+    }
+
+    .evidence-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .evidence-item {
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: #f8fbff;
+      display: grid;
+      gap: 6px;
+    }
+
+    .evidence-label {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .sample-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .sample-buttons button {
+      background: #fff;
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+
+    @media (max-width: 960px) {
+      .controls,
+      .workspace,
+      .pattern-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <h1>Manipulation Detector</h1>
+      <p>Paste a newsletter, group chat excerpt, or community post and review the pressure patterns inside it. This tool combines browser-side classifiers with transparent pattern scoring, then shows its work.</p>
+    </section>
+
+    <section class="panel">
+      <div class="controls">
+        <label>
+          Source Type
+          <select id="source-type">
+            <option value="newsletter">Newsletter</option>
+            <option value="community">Community Post</option>
+            <option value="group_chat">Group Chat</option>
+          </select>
+        </label>
+
+        <label>
+          Text
+          <textarea id="text-input" placeholder="Loading browser models..." disabled></textarea>
+        </label>
+
+        <button id="analyze-button" type="button" disabled>Analyze</button>
+        <button id="clear-button" class="secondary" type="button">Clear</button>
+      </div>
+
+      <p class="status" id="status-text">Loading browser models…</p>
+
+      <div class="workspace">
+        <section class="score-card">
+          <div class="pill neutral" id="risk-pill">Waiting for text</div>
+          <div class="score-value" id="score-value">--</div>
+          <p class="summary" id="summary-text">Paste text to score manipulation-related patterns.</p>
+          <div class="models">
+            <div id="toxicity-status">Toxicity model: loading…</div>
+            <div id="sentiment-status">Sentiment model: loading…</div>
+          </div>
+        </section>
+
+        <section class="samples-card">
+          <h2>Quick Samples</h2>
+          <div class="sample-buttons">
+            <button type="button" data-sample="newsletter">Pushy Newsletter</button>
+            <button type="button" data-sample="community">Polarized Community Post</button>
+            <button type="button" data-sample="group_chat">Guilt-heavy Group Chat</button>
+          </div>
+          <p class="help">Use these to see the detector's breakdown before pasting your own text.</p>
+        </section>
+      </div>
+
+      <section class="pattern-grid" id="pattern-grid"></section>
+
+      <section class="evidence-card">
+        <h2>Evidence</h2>
+        <div class="evidence-empty" id="evidence-empty">Matched snippets and model signals will show here.</div>
+        <div class="evidence-list" id="evidence-list"></div>
+      </section>
+    </section>
+  </main>
+
+  <script type="module">
+    import { env, pipeline } from "https://cdn.jsdelivr.net/npm/@xenova/transformers";
+
+    env.allowLocalModels = false;
+    env.allowRemoteModels = true;
+
+    const SAMPLES = {
+      newsletter: "Members of our inner circle know this is the last real chance to act. Do not share this outside the group. If you care about the mission, donate before midnight or we may lose everything. Trusted experts agree the danger is obvious, and only loyal supporters will step up now.",
+      community: "They want to destroy what we built, and everyone can see it. Real members know the truth and do not question the leadership right now. Outsiders are spreading lies, so rally behind the approved message, shut down dissent, and show them we are the only side that matters.",
+      group_chat: "I hate asking again, but if you were really with us you would reply tonight. Please do not let the team down. We chose you because you are one of the few people we can trust, and it would be selfish to ignore this after everything we have done for you.",
+    };
+
+    const PATTERNS = [
+      {
+        id: "urgency",
+        label: "Urgency Pressure",
+        description: "Pushes immediate action or last-chance framing.",
+        weight: 1.0,
+        expressions: [/act now/gi, /last chance/gi, /before midnight/gi, /immediately/gi, /urgent/gi, /don't wait/gi, /right now/gi, /today only/gi, /deadline/gi],
+      },
+      {
+        id: "exclusivity",
+        label: "Exclusivity",
+        description: "Frames access, identity, or truth as restricted to a chosen few.",
+        weight: 0.95,
+        expressions: [/inner circle/gi, /exclusive/gi, /selected few/gi, /only for/gi, /do not share/gi, /keep this private/gi, /chosen/gi, /one of the few/gi, /special access/gi],
+      },
+      {
+        id: "authority",
+        label: "Authority Pressure",
+        description: "Leans on approved leaders, experts, or obedience language.",
+        weight: 0.85,
+        expressions: [/experts agree/gi, /leadership/gi, /trusted source/gi, /approved message/gi, /don't question/gi, /follow instructions/gi, /official line/gi, /mandate/gi],
+      },
+      {
+        id: "guilt",
+        label: "Guilt / Loyalty",
+        description: "Uses shame, obligation, or loyalty tests to force compliance.",
+        weight: 1.0,
+        expressions: [/if you care/gi, /let (?:us|the team) down/gi, /prove your loyalty/gi, /selfish/gi, /after everything we have done/gi, /real supporters/gi, /betray/gi, /owe/gi],
+      },
+      {
+        id: "fear",
+        label: "Fear / Catastrophe",
+        description: "Uses threat, danger, collapse, or disaster framing.",
+        weight: 0.95,
+        expressions: [/danger/gi, /lose everything/gi, /catastrophe/gi, /destroy/gi, /threat/gi, /ruin/gi, /attack/gi, /or else/gi, /regret it/gi],
+      },
+      {
+        id: "polarization",
+        label: "Us vs Them",
+        description: "Splits people into loyal insiders and hostile outsiders.",
+        weight: 0.9,
+        expressions: [/outsiders/gi, /they want to destroy/gi, /enemy/gi, /traitor/gi, /only side that matters/gi, /real members/gi, /shut down dissent/gi, /they are against us/gi],
+      },
+      {
+        id: "certainty",
+        label: "Absolute Certainty",
+        description: "Overstates certainty and discourages doubt.",
+        weight: 0.7,
+        expressions: [/everyone can see/gi, /obvious/gi, /the truth/gi, /no doubt/gi, /undeniable/gi, /always/gi, /never/gi, /guaranteed/gi],
+      },
+      {
+        id: "cta",
+        label: "Action Density",
+        description: "Stacks commands and calls to action close together.",
+        weight: 0.65,
+        expressions: [/donate/gi, /reply/gi, /share/gi, /join/gi, /register/gi, /click/gi, /forward/gi, /pay/gi, /send/gi, /rally/gi],
+      },
+    ];
+
+    const textInput = document.getElementById("text-input");
+    const sourceType = document.getElementById("source-type");
+    const analyzeButton = document.getElementById("analyze-button");
+    const clearButton = document.getElementById("clear-button");
+    const statusText = document.getElementById("status-text");
+    const scoreValue = document.getElementById("score-value");
+    const riskPill = document.getElementById("risk-pill");
+    const summaryText = document.getElementById("summary-text");
+    const patternGrid = document.getElementById("pattern-grid");
+    const evidenceList = document.getElementById("evidence-list");
+    const evidenceEmpty = document.getElementById("evidence-empty");
+    const toxicityStatus = document.getElementById("toxicity-status");
+    const sentimentStatus = document.getElementById("sentiment-status");
+
+    let toxicityClassifier = null;
+    let sentimentClassifier = null;
+
+    function setStatus(message) {
+      statusText.textContent = message;
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function normalizePredictions(predictions) {
+      if (Array.isArray(predictions)) {
+        if (predictions.length > 0 && Array.isArray(predictions[0])) {
+          return predictions[0];
+        }
+        return predictions;
+      }
+      return [predictions];
+    }
+
+    function countPatternMatches(text, pattern) {
+      const hits = [];
+      let total = 0;
+      for (const expression of pattern.expressions) {
+        const matches = [...text.matchAll(expression)];
+        if (!matches.length) {
+          continue;
+        }
+        total += matches.length;
+        hits.push(...matches.map((match) => match[0]));
+      }
+      return {
+        total,
+        uniqueHits: [...new Set(hits.map((item) => item.toLowerCase()))],
+      };
+    }
+
+    function getSentences(text) {
+      return text.split(/(?<=[.!?])\s+/).map((item) => item.trim()).filter(Boolean);
+    }
+
+    function collectEvidence(text, patternResults, modelSignals) {
+      const sentences = getSentences(text);
+      const evidence = [];
+
+      for (const result of patternResults) {
+        if (!result.uniqueHits.length) {
+          continue;
+        }
+        const hit = result.uniqueHits[0];
+        const sentence = sentences.find((item) => item.toLowerCase().includes(hit));
+        evidence.push({
+          label: result.label,
+          detail: sentence || `Matched phrase: ${hit}`,
+        });
+      }
+
+      if (modelSignals.toxicityTop) {
+        evidence.push({
+          label: "Toxicity model",
+          detail: `${modelSignals.toxicityTop.label.replaceAll("_", " ")} ${(modelSignals.toxicityTop.score * 100).toFixed(1)}%`,
+        });
+      }
+
+      if (modelSignals.sentimentTop) {
+        evidence.push({
+          label: "Sentiment model",
+          detail: `${modelSignals.sentimentTop.label.toLowerCase()} ${(modelSignals.sentimentTop.score * 100).toFixed(1)}%`,
+        });
+      }
+
+      return evidence.slice(0, 8);
+    }
+
+    function renderEvidence(items) {
+      evidenceList.innerHTML = "";
+      if (!items.length) {
+        evidenceEmpty.style.display = "block";
+        evidenceEmpty.textContent = "No notable manipulation signals were found in the current text.";
+        return;
+      }
+
+      evidenceEmpty.style.display = "none";
+      for (const item of items) {
+        const row = document.createElement("div");
+        row.className = "evidence-item";
+        row.innerHTML = `<div class="evidence-label">${item.label}</div><div>${item.detail}</div>`;
+        evidenceList.appendChild(row);
+      }
+    }
+
+    function renderPatterns(results) {
+      patternGrid.innerHTML = "";
+      for (const result of results) {
+        const card = document.createElement("section");
+        card.className = "pattern-card";
+        const hits = result.uniqueHits.length
+          ? result.uniqueHits.slice(0, 4).map((hit) => `<span class="hit">${hit}</span>`).join("")
+          : '<span class="hit">No strong cues matched</span>';
+        card.innerHTML = `
+          <div class="pattern-meta">
+            <h3>${result.label}</h3>
+            <span class="pattern-score">${Math.round(result.score * 100)}%</span>
+          </div>
+          <div class="bar"><div style="width:${Math.round(result.score * 100)}%"></div></div>
+          <div>${result.description}</div>
+          <div class="hits">${hits}</div>
+        `;
+        patternGrid.appendChild(card);
+      }
+    }
+
+    function resetView() {
+      riskPill.className = "pill neutral";
+      riskPill.textContent = "Waiting for text";
+      scoreValue.textContent = "--";
+      summaryText.textContent = "Paste text to score manipulation-related patterns.";
+      renderPatterns(PATTERNS.map((pattern) => ({ ...pattern, score: 0, uniqueHits: [] })));
+      evidenceList.innerHTML = "";
+      evidenceEmpty.style.display = "block";
+      evidenceEmpty.textContent = "Matched snippets and model signals will show here.";
+    }
+
+    function riskBucket(score) {
+      if (score >= 0.66) {
+        return { label: "High manipulation risk", className: "high" };
+      }
+      if (score >= 0.38) {
+        return { label: "Medium manipulation risk", className: "medium" };
+      }
+      return { label: "Low manipulation risk", className: "low" };
+    }
+
+    function summarize(patternResults, modelSignals, overallScore, source) {
+      const topPatterns = patternResults.filter((item) => item.score > 0.18).sort((a, b) => b.score - a.score).slice(0, 3);
+      const parts = [];
+      if (topPatterns.length) {
+        parts.push(`Strongest signals: ${topPatterns.map((item) => item.label.toLowerCase()).join(", ")}.`);
+      } else {
+        parts.push("The text does not show many classic manipulation cues.");
+      }
+
+      if (modelSignals.toxicityTop && modelSignals.toxicityTop.score > 0.45) {
+        parts.push(`The tone also carries coercive or hostile language (${modelSignals.toxicityTop.label.toLowerCase().replaceAll("_", " ")}).`);
+      }
+
+      if (source === "newsletter" && overallScore > 0.45) {
+        parts.push("This reads more like pressure marketing than neutral outreach.");
+      }
+      if (source === "group_chat" && overallScore > 0.45) {
+        parts.push("The pressure is social: loyalty, guilt, and obligation are doing most of the work.");
+      }
+      if (source === "community" && overallScore > 0.45) {
+        parts.push("The pressure is identity-based: insiders are elevated while outsiders are framed as threats.");
+      }
+
+      return parts.join(" ");
+    }
+
+    async function loadModels() {
+      setStatus("Loading browser models…");
+      try {
+        toxicityClassifier = await pipeline("text-classification", "Xenova/toxic-bert");
+        toxicityStatus.textContent = "Toxicity model: ready";
+      } catch (error) {
+        console.error(error);
+        toxicityStatus.textContent = `Toxicity model: failed (${String(error.message || error)})`;
+      }
+
+      try {
+        sentimentClassifier = await pipeline("text-classification", "Xenova/distilbert-base-uncased-finetuned-sst-2-english");
+        sentimentStatus.textContent = "Sentiment model: ready";
+      } catch (error) {
+        console.error(error);
+        sentimentStatus.textContent = `Sentiment model: failed (${String(error.message || error)})`;
+      }
+
+      textInput.disabled = false;
+      textInput.placeholder = "Paste a newsletter, post, or group chat excerpt here...";
+      analyzeButton.disabled = false;
+      setStatus("Models ready. Paste text and analyze.");
+    }
+
+    async function runModelSignals(text) {
+      const modelSignals = {
+        toxicityScore: 0,
+        toxicityTop: null,
+        sentimentNegativeScore: 0,
+        sentimentTop: null,
+      };
+
+      if (toxicityClassifier) {
+        const toxicityRows = normalizePredictions(await toxicityClassifier(text, { top_k: null }));
+        const sorted = [...toxicityRows].sort((a, b) => b.score - a.score);
+        modelSignals.toxicityTop = sorted[0];
+        modelSignals.toxicityScore = clamp(sorted[0].score, 0, 1);
+      }
+
+      if (sentimentClassifier) {
+        const sentimentRows = normalizePredictions(await sentimentClassifier(text, { top_k: null }));
+        const sorted = [...sentimentRows].sort((a, b) => b.score - a.score);
+        modelSignals.sentimentTop = sorted[0];
+        const negative = sentimentRows.find((row) => row.label.toLowerCase() === "negative");
+        modelSignals.sentimentNegativeScore = negative ? negative.score : (sorted[0]?.label.toLowerCase() === "negative" ? sorted[0].score : 0);
+      }
+
+      return modelSignals;
+    }
+
+    function analyzeHeuristics(text, source) {
+      const words = text.match(/\b[\p{L}\p{N}'-]+\b/gu) || [];
+      const wordCount = words.length || 1;
+      const sourceBoosts = {
+        newsletter: { urgency: 0.05, cta: 0.06 },
+        community: { polarization: 0.08, authority: 0.04 },
+        group_chat: { guilt: 0.08, exclusivity: 0.05 },
+      }[source] || {};
+
+      return PATTERNS.map((pattern) => {
+        const { total, uniqueHits } = countPatternMatches(text, pattern);
+        const density = total / Math.max(1, wordCount / 40);
+        const score = clamp((density / 3.4) * pattern.weight + (sourceBoosts[pattern.id] || 0), 0, 1);
+        return {
+          ...pattern,
+          total,
+          uniqueHits,
+          score,
+        };
+      });
+    }
+
+    async function analyzeText() {
+      const text = textInput.value.trim();
+      if (!text) {
+        setStatus("Paste some text first.");
+        return;
+      }
+
+      analyzeButton.disabled = true;
+      setStatus("Analyzing manipulation patterns…");
+
+      try {
+        const source = sourceType.value;
+        const heuristicResults = analyzeHeuristics(text, source);
+        const modelSignals = await runModelSignals(text);
+
+        const heuristicScore = heuristicResults.reduce((sum, item) => sum + item.score, 0) / heuristicResults.length;
+        const overallScore = clamp(
+          heuristicScore * 0.82 + modelSignals.toxicityScore * 0.1 + modelSignals.sentimentNegativeScore * 0.08,
+          0,
+          1,
+        );
+
+        const bucket = riskBucket(overallScore);
+        riskPill.className = `pill ${bucket.className}`;
+        riskPill.textContent = bucket.label;
+        scoreValue.textContent = `${Math.round(overallScore * 100)}%`;
+        summaryText.textContent = summarize(heuristicResults, modelSignals, overallScore, source);
+        renderPatterns(heuristicResults.sort((a, b) => b.score - a.score));
+        renderEvidence(collectEvidence(text, heuristicResults, modelSignals));
+        setStatus("Analysis complete.");
+      } catch (error) {
+        console.error(error);
+        setStatus(`Analysis failed: ${String(error.message || error)}`);
+      } finally {
+        analyzeButton.disabled = false;
+      }
+    }
+
+    analyzeButton.addEventListener("click", analyzeText);
+
+    clearButton.addEventListener("click", () => {
+      textInput.value = "";
+      resetView();
+      setStatus("Cleared. Paste text and analyze.");
+    });
+
+    document.querySelectorAll("[data-sample]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const key = button.dataset.sample;
+        textInput.value = SAMPLES[key];
+        sourceType.value = key === "group_chat" ? "group_chat" : key;
+        setStatus(`Loaded ${button.textContent.toLowerCase()} sample.`);
+        await analyzeText();
+      });
+    });
+
+    resetView();
+    loadModels().catch((error) => {
+      console.error(error);
+      setStatus(`Model load failed: ${String(error.message || error)}`);
+      textInput.disabled = false;
+      textInput.placeholder = "Paste text here...";
+      analyzeButton.disabled = false;
+    });
+  </script>
+</body>
+</html>
