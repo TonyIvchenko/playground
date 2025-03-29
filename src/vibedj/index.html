@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VibeDJ</title>
+  <link rel="icon" href="data:,">
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;700&display=swap");
+
+    :root {
+      color-scheme: light;
+      --bg-a: #dce7ff;
+      --bg-b: #fff1de;
+      --bg-c: #f8fbff;
+      --ink: #16202a;
+      --muted: #667687;
+      --panel: rgba(255, 255, 255, 0.82);
+      --line: rgba(22, 32, 42, 0.08);
+      --accent: #16202a;
+      --accent-soft: rgba(22, 32, 42, 0.08);
+      --card-shadow: 0 20px 46px rgba(28, 40, 56, 0.12);
+      --warm: #ff7a59;
+      --cool: #3d68ff;
+      --mint: #39b88f;
+      font-family: "Space Grotesk", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, color-mix(in srgb, var(--bg-a) 92%, white 8%), transparent 28%),
+        radial-gradient(circle at top right, color-mix(in srgb, var(--bg-b) 88%, white 12%), transparent 30%),
+        radial-gradient(circle at bottom center, color-mix(in srgb, var(--bg-c) 94%, white 6%), transparent 36%),
+        linear-gradient(180deg, #ffffff 0%, #eef4ff 56%, #edf2f8 100%);
+    }
+
+    main {
+      width: min(1280px, 100%);
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero,
+    .panel {
+      border-radius: 26px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      box-shadow: var(--card-shadow);
+      backdrop-filter: blur(14px);
+    }
+
+    .hero {
+      padding: 28px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-family: "Fraunces", serif;
+      font-size: clamp(40px, 6vw, 68px);
+      line-height: 0.94;
+      letter-spacing: -0.05em;
+    }
+
+    .hero p,
+    .summary,
+    .status,
+    .help {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .hero-top {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.82);
+      border: 1px solid var(--line);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .panel {
+      padding: 20px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .composer {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: minmax(0, 1.35fr) 320px;
+      align-items: start;
+    }
+
+    .input-card,
+    .side-card,
+    .result-card {
+      display: grid;
+      gap: 14px;
+      padding: 18px;
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    .input-card h2,
+    .side-card h2,
+    .result-card h2 {
+      margin: 0;
+      font-size: 15px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    textarea,
+    button {
+      font: inherit;
+      color: inherit;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 320px;
+      padding: 16px 18px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: #fff;
+      resize: vertical;
+      line-height: 1.58;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: rgba(61, 104, 255, 0.45);
+      box-shadow: 0 0 0 4px rgba(61, 104, 255, 0.1);
+    }
+
+    .actions,
+    .sample-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 16px;
+      padding: 12px 16px;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    button.secondary {
+      background: #f3f6fb;
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+
+    button.ghost {
+      background: rgba(22, 32, 42, 0.04);
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .model-pill,
+    .vibe-pill {
+      display: inline-flex;
+      width: fit-content;
+      padding: 9px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #fff;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .vibe-pill {
+      font-family: "Fraunces", serif;
+      font-size: 20px;
+      letter-spacing: -0.02em;
+      padding: 10px 14px;
+    }
+
+    .metrics {
+      display: grid;
+      gap: 10px;
+    }
+
+    .metric {
+      display: grid;
+      gap: 6px;
+    }
+
+    .metric-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .metric-bar {
+      height: 10px;
+      border-radius: 999px;
+      background: #edf2f9;
+      overflow: hidden;
+    }
+
+    .metric-fill {
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--cool), var(--mint), var(--warm));
+      width: 0;
+      transition: width 280ms ease;
+    }
+
+    .result-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .swatches {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .swatch {
+      display: grid;
+      gap: 8px;
+    }
+
+    .swatch-chip {
+      aspect-ratio: 1 / 1;
+      border-radius: 18px;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    }
+
+    .swatch-label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .list-item {
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: #f7fafe;
+      border: 1px solid var(--line);
+    }
+
+    .list-item strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .brief {
+      padding: 16px 18px;
+      border-radius: 18px;
+      border: 1px dashed rgba(22, 32, 42, 0.16);
+      background: rgba(255, 255, 255, 0.72);
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media (max-width: 1040px) {
+      .composer,
+      .result-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .swatches {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <div class="hero-top">
+        <div>
+          <h1>VibeDJ</h1>
+          <p>Paste writing and get a creative direction pack: soundtrack, palette, typography, motion, and a one-shot art brief that all feel like they belong together.</p>
+        </div>
+        <div class="hero-badge" id="hero-badge">Waiting for text</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="composer">
+        <section class="input-card">
+          <div>
+            <h2>Text Input</h2>
+            <p class="help">Bring anything: a paragraph, manifesto, pitch, diary entry, or scene. The stronger the writing voice, the stronger the creative direction.</p>
+          </div>
+          <div class="sample-row">
+            <button class="ghost" data-sample="afterglow" type="button">Warm confession</button>
+            <button class="ghost" data-sample="pressure" type="button">Pressure memo</button>
+            <button class="ghost" data-sample="dream" type="button">Dream monologue</button>
+          </div>
+          <textarea id="source-text" placeholder="Paste writing here..."></textarea>
+          <div class="actions">
+            <button id="analyze-button" type="button" disabled>Spin The Set</button>
+            <button id="clear-button" class="secondary" type="button">Clear</button>
+            <button id="copy-button" class="secondary" type="button" disabled>Copy Brief</button>
+          </div>
+        </section>
+
+        <aside class="side-card">
+          <h2>Session</h2>
+          <div class="model-pill" id="model-pill">Loading model…</div>
+          <p class="status" id="status-text">Loading browser sentiment model…</p>
+          <div class="vibe-pill" id="vibe-pill">No mix yet</div>
+          <div class="metrics" id="metrics"></div>
+        </aside>
+      </div>
+
+      <div class="result-grid hidden" id="results-shell">
+        <section class="result-card">
+          <h2>Soundtrack</h2>
+          <p class="summary" id="soundtrack-summary"></p>
+          <div class="list" id="soundtrack-list"></div>
+        </section>
+
+        <section class="result-card">
+          <h2>Palette</h2>
+          <p class="summary" id="palette-summary"></p>
+          <div class="swatches" id="palette-swatches"></div>
+        </section>
+
+        <section class="result-card">
+          <h2>Typography</h2>
+          <p class="summary" id="typography-summary"></p>
+          <div class="list" id="typography-list"></div>
+        </section>
+
+        <section class="result-card">
+          <h2>Motion Treatment</h2>
+          <p class="summary" id="motion-summary"></p>
+          <div class="list" id="motion-list"></div>
+        </section>
+      </div>
+
+      <section class="result-card hidden" id="brief-shell">
+        <h2>Creative Brief</h2>
+        <div class="brief" id="brief-output"></div>
+      </section>
+    </section>
+  </main>
+
+  <script type="module">
+    import { env, pipeline } from "https://cdn.jsdelivr.net/npm/@xenova/transformers";
+
+    env.allowLocalModels = false;
+    env.allowRemoteModels = true;
+
+    const MODEL_ID = "Xenova/distilbert-base-uncased-finetuned-sst-2-english";
+    const SAMPLE_TEXTS = {
+      afterglow: "I keep thinking about the hour after everybody leaves, when the room still holds the shape of the conversation. The cups are half full, the records are still warm, and the whole apartment feels like it knows a secret it will never say out loud. I want the page to feel like that exact moment: a little gold, a little tired, intimate without getting sleepy.",
+      pressure: "Every number is green until someone asks how we got there. The deck is polished, the language is careful, but the floor beneath it is still moving. We need a system that feels fast, sharp, and a little dangerous, like it knows the cost of pretending things are stable when they are not.",
+      dream: "The streetlights looked liquid and the billboards were breathing again. I walked through the city like it had been assembled from rumors and perfume, every window a portal, every shadow too blue to be real. I want visuals that feel like insomnia wearing silk gloves."
+    };
+
+    const SOUNDTRACK_LIBRARY = {
+      ember: {
+        summary: "Human, close-mic, and warm. This wants emotional detail more than spectacle.",
+        items: [
+          ["Tempo", "72-92 BPM, unhurried but present"],
+          ["Core sound", "Felt piano, soft bass, vinyl crackle, brushed drums"],
+          ["Reference energy", "Late-night soul, indie confession, candlelit downtempo"],
+          ["Mix note", "Keep the low end round and leave air around the vocal space"]
+        ]
+      },
+      pressure: {
+        summary: "Forward-leaning and tense. The track should sound like decisions are happening in real time.",
+        items: [
+          ["Tempo", "116-132 BPM with clipped rhythm"],
+          ["Core sound", "Pulse bass, dry percussion, sharp synth stabs, distorted texture"],
+          ["Reference energy", "Techno-adjacent tension, boardroom thriller, industrial pop"],
+          ["Mix note", "Use restraint: crisp transients, narrow reverb, pressure without mud"]
+        ]
+      },
+      dream: {
+        summary: "Soft-focus, cinematic, and a little unreal. Movement should feel suspended.",
+        items: [
+          ["Tempo", "84-104 BPM, drifting rather than driving"],
+          ["Core sound", "Shimmer pads, reverse tails, airy vocal fragments, sub haze"],
+          ["Reference energy", "Dream pop, surreal score, nocturnal ambient"],
+          ["Mix note", "Long delays, blurred edges, and slow spectral movement"]
+        ]
+      },
+      civic: {
+        summary: "Controlled, declarative, and public-facing. It should feel built for impact and clarity.",
+        items: [
+          ["Tempo", "98-118 BPM with marching confidence"],
+          ["Core sound", "Low brass textures, taut drums, analog bass, assertive motif"],
+          ["Reference energy", "Campaign trailer, prestige documentary, civic anthem"],
+          ["Mix note", "Keep the theme simple and forceful; clarity beats ornament"]
+        ]
+      },
+      frost: {
+        summary: "Elegant, severe, and polished. The drama comes from precision, not noise.",
+        items: [
+          ["Tempo", "70-96 BPM, poised and exact"],
+          ["Core sound", "Glass synths, piano stabs, sparse percussion, controlled sub"],
+          ["Reference energy", "Luxury noir, gallery minimalism, cold glamour"],
+          ["Mix note", "Let silence do work; every element should feel intentionally placed"]
+        ]
+      }
+    };
+
+    const PALETTES = {
+      ember: {
+        summary: "Sun-worn warmth with enough shadow to keep it intimate.",
+        swatches: [
+          ["Afterglow", "#ffb27a"],
+          ["Clay Pulse", "#d46843"],
+          ["Mulled Rose", "#af5e6b"],
+          ["Ash Linen", "#f2e8df"],
+          ["Midnight Cocoa", "#2e2423"]
+        ]
+      },
+      pressure: {
+        summary: "High-contrast, electric, and sharpened for urgency.",
+        swatches: [
+          ["Signal Red", "#ff5e5b"],
+          ["Grid Blue", "#305dff"],
+          ["Circuit Mint", "#42d4a3"],
+          ["Smoke Steel", "#66748b"],
+          ["Black Panel", "#11151c"]
+        ]
+      },
+      dream: {
+        summary: "Neon haze and soft surreal light without going full candy.",
+        swatches: [
+          ["Moon Milk", "#f7f4ff"],
+          ["Iris Mist", "#b59dff"],
+          ["Blue Velvet", "#5b7dff"],
+          ["Neon Dust", "#ff8fce"],
+          ["Night Pool", "#17304c"]
+        ]
+      },
+      civic: {
+        summary: "Public, declarative color with documentary seriousness.",
+        swatches: [
+          ["Paper White", "#f6f4ef"],
+          ["Banner Red", "#d64045"],
+          ["Assembly Blue", "#2444c2"],
+          ["Bronze Voice", "#ba7a45"],
+          ["Civic Ink", "#18212b"]
+        ]
+      },
+      frost: {
+        summary: "Chiseled neutrals with one cold luxury accent.",
+        swatches: [
+          ["Porcelain", "#f7f8fb"],
+          ["Silver Veil", "#cfd7e4"],
+          ["Slate Glass", "#73819a"],
+          ["Arctic Blue", "#8eb7ff"],
+          ["Obsidian", "#131822"]
+        ]
+      }
+    };
+
+    const TYPOGRAPHY = {
+      ember: {
+        summary: "Soft contrast and tactile body copy. It should feel held, not shouted.",
+        items: [
+          ["Display", "Fraunces, Canela, or Cormorant for emotional headers"],
+          ["Body", "Newsreader or Source Serif for a warm reading rhythm"],
+          ["Accent", "Use narrow all-caps labels sparingly for structure"],
+          ["Layout", "Generous line height, medium measure, breathing room around quotes"]
+        ]
+      },
+      pressure: {
+        summary: "Tight, modern, and decisive. Typography should punch before it decorates.",
+        items: [
+          ["Display", "Space Grotesk, Neue Haas Grotesk, or Sora"],
+          ["Body", "Inter Tight or IBM Plex Sans with compact leading"],
+          ["Accent", "Numerals and data callouts get oversized treatment"],
+          ["Layout", "Grid-first, short paragraphs, hard section breaks, strong asymmetry"]
+        ]
+      },
+      dream: {
+        summary: "Elegant but unstable. Let type feel like it is floating through fog.",
+        items: [
+          ["Display", "PP Editorial New, Fraunces Soft, or a high-contrast serif"],
+          ["Body", "Space Grotesk or Suisse International for clean counterweight"],
+          ["Accent", "Italic whispers, oversized pull lines, occasional letter stretch"],
+          ["Layout", "Soft overlaps, layered captions, avoid rigid boxes"]
+        ]
+      },
+      civic: {
+        summary: "Clarity first. The voice should feel public, credible, and impossible to ignore.",
+        items: [
+          ["Display", "A bold grotesk like Archivo, Franklin, or League Gothic"],
+          ["Body", "Public Sans or IBM Plex Sans for civic readability"],
+          ["Accent", "Use statements as banners; lean on hierarchy not ornament"],
+          ["Layout", "Poster logic: large headlines, framed facts, modular rhythm"]
+        ]
+      },
+      frost: {
+        summary: "Refined and controlled. Let the typography feel expensive and slightly distant.",
+        items: [
+          ["Display", "A restrained serif like Portrait, Tiempos, or Noe Text"],
+          ["Body", "Suisse, Inter, or Basis with careful spacing"],
+          ["Accent", "Hairline rules, small-cap labels, deliberate whitespace"],
+          ["Layout", "Center gravity, wide margins, fewer but stronger blocks"]
+        ]
+      }
+    };
+
+    const MOTION = {
+      ember: {
+        summary: "Slow reveals and human pacing. Motion should feel like a breath, not a trick.",
+        items: [
+          ["Entry", "Soft rise + fade at 500-700ms"],
+          ["Transitions", "Crossfades, warm parallax, almost no hard cuts"],
+          ["Camera logic", "Gentle drift or hand-held calm"],
+          ["Texture", "Film grain, light leaks, subtle bloom on highlights"]
+        ]
+      },
+      pressure: {
+        summary: "Snappy and tactical. Every move should sharpen the sense of stakes.",
+        items: [
+          ["Entry", "Fast wipe or hard cut at 180-260ms"],
+          ["Transitions", "Stacked cards, directional slides, kinetic counters"],
+          ["Camera logic", "Push-ins, punch zooms, brisk horizontal shifts"],
+          ["Texture", "Scanlines, digital jitter, clipped glow accents"]
+        ]
+      },
+      dream: {
+        summary: "Liquid motion with long tails. Movement should feel half remembered.",
+        items: [
+          ["Entry", "Blur-in with slow luminosity ramp at 700-900ms"],
+          ["Transitions", "Morphs, dissolve layers, floating overlays"],
+          ["Camera logic", "Slow orbit, drift, gravityless pan"],
+          ["Texture", "Chromatic haze, glow bleed, mirrored fragments"]
+        ]
+      },
+      civic: {
+        summary: "Strong, public, and legible. Motion should reinforce conviction.",
+        items: [
+          ["Entry", "Bold upward reveal, banner lock-in at 260-360ms"],
+          ["Transitions", "Poster swaps, quote slams, stat counters"],
+          ["Camera logic", "Confident push, minimal flourish"],
+          ["Texture", "Print grit, halftone accents, documentary overlays"]
+        ]
+      },
+      frost: {
+        summary: "Precise and expensive. The movement is in the restraint.",
+        items: [
+          ["Entry", "Measured fade with slight scale at 320-460ms"],
+          ["Transitions", "Edge wipes, quiet slides, glassy dissolves"],
+          ["Camera logic", "Locked shots with occasional deliberate tilt"],
+          ["Texture", "Reflections, frost blur, metal shimmer used sparingly"]
+        ]
+      }
+    };
+
+    const warmWords = /\b(love|touch|warm|hold|soft|gold|home|tender|heart|quiet|intimate|memory|gentle|close)\b/gi;
+    const tensionWords = /\b(fight|pressure|risk|danger|sharp|collapse|urgent|fail|loss|break|threat|damage|crisis|stakes)\b/gi;
+    const dreamWords = /\b(dream|ghost|moon|perfume|silk|liquid|shadow|haze|rumor|portal|mirror|velvet|insomnia|float)\b/gi;
+    const actionWords = /\b(push|move|run|cut|launch|build|drive|hit|decide|prove|shift|ignite|slam|march)\b/gi;
+    const civicWords = /\b(public|system|policy|people|truth|vote|city|power|collective|document|future|speech)\b/gi;
+
+    const sourceText = document.getElementById("source-text");
+    const analyzeButton = document.getElementById("analyze-button");
+    const clearButton = document.getElementById("clear-button");
+    const copyButton = document.getElementById("copy-button");
+    const modelPill = document.getElementById("model-pill");
+    const statusText = document.getElementById("status-text");
+    const heroBadge = document.getElementById("hero-badge");
+    const vibePill = document.getElementById("vibe-pill");
+    const metrics = document.getElementById("metrics");
+    const resultsShell = document.getElementById("results-shell");
+    const briefShell = document.getElementById("brief-shell");
+    const briefOutput = document.getElementById("brief-output");
+    const soundtrackSummary = document.getElementById("soundtrack-summary");
+    const soundtrackList = document.getElementById("soundtrack-list");
+    const paletteSummary = document.getElementById("palette-summary");
+    const paletteSwatches = document.getElementById("palette-swatches");
+    const typographySummary = document.getElementById("typography-summary");
+    const typographyList = document.getElementById("typography-list");
+    const motionSummary = document.getElementById("motion-summary");
+    const motionList = document.getElementById("motion-list");
+
+    let sentimentClassifier = null;
+    let sentimentLoad = null;
+    let lastBrief = "";
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function countMatches(regex, text) {
+      const matches = text.match(regex);
+      return matches ? matches.length : 0;
+    }
+
+    function setBackground(colors) {
+      document.documentElement.style.setProperty("--bg-a", colors[0] || "#dce7ff");
+      document.documentElement.style.setProperty("--bg-b", colors[1] || "#fff1de");
+      document.documentElement.style.setProperty("--bg-c", colors[2] || "#f8fbff");
+    }
+
+    function metricRow(label, value) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "metric";
+      wrapper.innerHTML = `
+        <div class="metric-head">
+          <span>${label}</span>
+          <span>${Math.round(value)}</span>
+        </div>
+        <div class="metric-bar">
+          <div class="metric-fill" style="width: ${value}%"></div>
+        </div>
+      `;
+      return wrapper;
+    }
+
+    function renderList(target, items) {
+      target.innerHTML = "";
+      for (const [label, body] of items) {
+        const item = document.createElement("div");
+        item.className = "list-item";
+        item.innerHTML = `<strong>${label}</strong>${body}`;
+        target.appendChild(item);
+      }
+    }
+
+    function renderPalette(palette) {
+      paletteSwatches.innerHTML = "";
+      for (const [label, hex] of palette.swatches) {
+        const item = document.createElement("div");
+        item.className = "swatch";
+        item.innerHTML = `
+          <div class="swatch-chip" style="background: ${hex};"></div>
+          <div class="swatch-label">${label}<br>${hex}</div>
+        `;
+        paletteSwatches.appendChild(item);
+      }
+      setBackground(palette.swatches.map(([, hex]) => hex));
+    }
+
+    function chooseFamily(axes) {
+      if (axes.dreaminess > 70) {
+        return "dream";
+      }
+      if (axes.tension > 68 && axes.energy > 56) {
+        return "pressure";
+      }
+      if (axes.publicVoice > 60) {
+        return "civic";
+      }
+      if (axes.polish > 66 && axes.warmth < 55) {
+        return "frost";
+      }
+      return "ember";
+    }
+
+    function vibeName(family, axes) {
+      if (family === "dream") {
+        return axes.tension > 55 ? "Neon Fever" : "Velvet Mirage";
+      }
+      if (family === "pressure") {
+        return axes.warmth > 52 ? "Hot Signal" : "Pressure Chamber";
+      }
+      if (family === "civic") {
+        return axes.energy > 58 ? "Banner Voltage" : "Public Resolve";
+      }
+      if (family === "frost") {
+        return axes.dreaminess > 45 ? "Crystal Echo" : "Cold Marble";
+      }
+      return axes.warmth > 64 ? "Afterglow Confessional" : "Smoke & Honey";
+    }
+
+    async function ensureSentiment() {
+      if (sentimentClassifier) {
+        return sentimentClassifier;
+      }
+      if (!sentimentLoad) {
+        modelPill.textContent = "Loading sentiment model";
+        statusText.textContent = "Loading browser sentiment model…";
+        sentimentLoad = pipeline("text-classification", MODEL_ID, {
+          device: "wasm",
+          dtype: "q4",
+        }).then((classifier) => {
+          sentimentClassifier = classifier;
+          modelPill.textContent = "Model ready";
+          statusText.textContent = "Model ready. Paste writing and spin the set.";
+          analyzeButton.disabled = false;
+          return classifier;
+        }).catch((error) => {
+          console.error(error);
+          modelPill.textContent = "Heuristic mode";
+          statusText.textContent = `Model unavailable, using heuristics only: ${String(error.message || error)}`;
+          analyzeButton.disabled = false;
+          return null;
+        });
+      }
+      return sentimentLoad;
+    }
+
+    async function sentimentScore(text) {
+      const classifier = await ensureSentiment();
+      if (!classifier) {
+        return { positive: 0.5, negative: 0.5 };
+      }
+      const results = await classifier(text.slice(0, 800), { top_k: null });
+      const normalized = Array.isArray(results) ? results : [results];
+      let positive = 0.5;
+      let negative = 0.5;
+      for (const item of normalized) {
+        const label = String(item.label || "").toLowerCase();
+        if (label.includes("pos")) {
+          positive = item.score;
+        } else if (label.includes("neg")) {
+          negative = item.score;
+        }
+      }
+      return { positive, negative };
+    }
+
+    function baseAxes(text, sentiment) {
+      const words = text.match(/\b[\w'-]+\b/g) || [];
+      const sentenceList = text.split(/(?<=[.!?])\s+/).map((item) => item.trim()).filter(Boolean);
+      const avgSentenceLength = words.length / Math.max(sentenceList.length, 1);
+      const avgWordLength = words.reduce((sum, word) => sum + word.length, 0) / Math.max(words.length, 1);
+      const exclamations = (text.match(/!/g) || []).length;
+      const questions = (text.match(/\?/g) || []).length;
+      const semicolons = (text.match(/;/g) || []).length;
+      const firstPerson = countMatches(/\b(i|me|my|mine|we|our|ours)\b/gi, text);
+      const secondPerson = countMatches(/\b(you|your|yours)\b/gi, text);
+      const uppercaseBursts = countMatches(/\b[A-Z]{3,}\b/g, text);
+      const warmthHits = countMatches(warmWords, text);
+      const tensionHits = countMatches(tensionWords, text);
+      const dreamHits = countMatches(dreamWords, text);
+      const actionHits = countMatches(actionWords, text);
+      const civicHits = countMatches(civicWords, text);
+
+      const energy = clamp(
+        26 +
+        actionHits * 5 +
+        exclamations * 8 +
+        uppercaseBursts * 6 +
+        Math.max(0, 18 - avgSentenceLength) * 1.8,
+        0,
+        100
+      );
+
+      const warmth = clamp(
+        20 +
+        warmthHits * 7 +
+        firstPerson * 2.2 +
+        secondPerson * 1.4 +
+        sentiment.positive * 35 -
+        sentiment.negative * 12,
+        0,
+        100
+      );
+
+      const tension = clamp(
+        18 +
+        tensionHits * 7 +
+        questions * 4 +
+        uppercaseBursts * 4 +
+        sentiment.negative * 45,
+        0,
+        100
+      );
+
+      const dreaminess = clamp(
+        16 +
+        dreamHits * 9 +
+        Math.max(0, avgWordLength - 4.8) * 10 +
+        semicolons * 2,
+        0,
+        100
+      );
+
+      const polish = clamp(
+        18 +
+        Math.max(0, avgWordLength - 4.2) * 18 +
+        semicolons * 6 +
+        Math.max(0, 24 - Math.abs(avgSentenceLength - 18)) * 1.8,
+        0,
+        100
+      );
+
+      const publicVoice = clamp(
+        12 +
+        civicHits * 9 +
+        secondPerson * 1.4 +
+        Math.max(0, words.length - 90) * 0.2,
+        0,
+        100
+      );
+
+      return { energy, warmth, tension, dreaminess, polish, publicVoice };
+    }
+
+    function buildBrief(name, family, soundtrack, palette, typography, motion, axes) {
+      return [
+        `${name}`,
+        ``,
+        `Core mood: ${family}.`,
+        `Energy ${Math.round(axes.energy)}, warmth ${Math.round(axes.warmth)}, tension ${Math.round(axes.tension)}, dreaminess ${Math.round(axes.dreaminess)}, polish ${Math.round(axes.polish)}.`,
+        ``,
+        `Soundtrack: ${soundtrack.summary}`,
+        `Palette: ${palette.swatches.map(([label, hex]) => `${label} ${hex}`).join(", ")}.`,
+        `Typography: ${typography.items[0][1]} paired with ${typography.items[1][1]}.`,
+        `Motion: ${motion.summary}`,
+        ``,
+        `Direction note: keep every output in the same emotional lane. If the palette is restrained, the soundtrack should not become maximalist. If the text feels intimate, motion should stay close and human.`
+      ].join("\n");
+    }
+
+    async function analyze() {
+      const text = sourceText.value.trim();
+      if (!text) {
+        statusText.textContent = "Paste writing first.";
+        return;
+      }
+
+      analyzeButton.disabled = true;
+      copyButton.disabled = true;
+      statusText.textContent = "Reading tone and assembling the mix…";
+
+      try {
+        const sentiment = await sentimentScore(text);
+        const axes = baseAxes(text, sentiment);
+        const family = chooseFamily(axes);
+        const name = vibeName(family, axes);
+        const soundtrack = SOUNDTRACK_LIBRARY[family];
+        const palette = PALETTES[family];
+        const typography = TYPOGRAPHY[family];
+        const motion = MOTION[family];
+
+        heroBadge.textContent = `${name} / ${family}`;
+        vibePill.textContent = name;
+
+        metrics.innerHTML = "";
+        metrics.appendChild(metricRow("Energy", axes.energy));
+        metrics.appendChild(metricRow("Warmth", axes.warmth));
+        metrics.appendChild(metricRow("Tension", axes.tension));
+        metrics.appendChild(metricRow("Dreaminess", axes.dreaminess));
+        metrics.appendChild(metricRow("Polish", axes.polish));
+
+        soundtrackSummary.textContent = soundtrack.summary;
+        renderList(soundtrackList, soundtrack.items);
+
+        paletteSummary.textContent = palette.summary;
+        renderPalette(palette);
+
+        typographySummary.textContent = typography.summary;
+        renderList(typographyList, typography.items);
+
+        motionSummary.textContent = motion.summary;
+        renderList(motionList, motion.items);
+
+        lastBrief = buildBrief(name, family, soundtrack, palette, typography, motion, axes);
+        briefOutput.textContent = lastBrief;
+
+        resultsShell.classList.remove("hidden");
+        briefShell.classList.remove("hidden");
+        copyButton.disabled = false;
+        statusText.textContent = "Mix ready.";
+      } catch (error) {
+        console.error(error);
+        statusText.textContent = `Analysis failed: ${String(error.message || error)}`;
+      } finally {
+        analyzeButton.disabled = false;
+      }
+    }
+
+    clearButton.addEventListener("click", () => {
+      sourceText.value = "";
+      heroBadge.textContent = "Waiting for text";
+      vibePill.textContent = "No mix yet";
+      metrics.innerHTML = "";
+      resultsShell.classList.add("hidden");
+      briefShell.classList.add("hidden");
+      copyButton.disabled = true;
+      lastBrief = "";
+      statusText.textContent = "Cleared. Paste writing and spin the set.";
+      setBackground(["#dce7ff", "#fff1de", "#f8fbff"]);
+    });
+
+    copyButton.addEventListener("click", async () => {
+      if (!lastBrief) {
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(lastBrief);
+        statusText.textContent = "Creative brief copied.";
+      } catch (error) {
+        console.error(error);
+        statusText.textContent = `Copy failed: ${String(error.message || error)}`;
+      }
+    });
+
+    analyzeButton.addEventListener("click", analyze);
+
+    for (const button of document.querySelectorAll("[data-sample]")) {
+      button.addEventListener("click", () => {
+        const key = button.dataset.sample;
+        sourceText.value = SAMPLE_TEXTS[key] || "";
+        statusText.textContent = "Sample loaded. Spin the set when ready.";
+      });
+    }
+
+    sourceText.value = SAMPLE_TEXTS.afterglow;
+    ensureSentiment();
+  </script>
+</body>
+</html>
