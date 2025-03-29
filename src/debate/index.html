@@ -14,9 +14,9 @@
       --panel: rgba(255, 255, 255, 0.84);
       --line: #dbe3ef;
       --accent: #17212c;
-      --prosecution: #b42318;
-      --defense: #1d4ed8;
-      --judge: #6d28d9;
+      --side-a: #b42318;
+      --side-b: #1d4ed8;
+      --coach: #0f766e;
       font-family: Georgia, "Times New Roman", serif;
     }
 
@@ -33,7 +33,7 @@
     }
 
     main {
-      width: min(1240px, 100%);
+      width: min(1280px, 100%);
       margin: 0 auto;
       padding: 24px;
       display: grid;
@@ -88,6 +88,13 @@
       display: grid;
       gap: 16px;
       grid-template-columns: 1fr 1fr 320px;
+      align-items: start;
+    }
+
+    .analysis-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
       align-items: start;
     }
 
@@ -155,7 +162,8 @@
 
     .doc-card,
     .meta-card,
-    .transcript-card {
+    .transcript-card,
+    .prep-card {
       padding: 16px;
       border-radius: 18px;
       border: 1px solid var(--line);
@@ -166,7 +174,8 @@
 
     .doc-card h2,
     .meta-card h2,
-    .transcript-card h2 {
+    .transcript-card h2,
+    .prep-card h2 {
       margin: 0;
       font-size: 15px;
       letter-spacing: 0.04em;
@@ -195,11 +204,20 @@
       color: var(--muted);
     }
 
-    .metrics {
+    .metrics,
+    .prep-section {
       display: grid;
       gap: 8px;
       color: var(--muted);
       font-size: 14px;
+    }
+
+    .prep-section h3 {
+      margin: 0;
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
     }
 
     .pill {
@@ -222,17 +240,17 @@
       background: #fff;
     }
 
-    .speaker.prosecution {
-      border-left: 5px solid var(--prosecution);
+    .speaker.side-a {
+      border-left: 5px solid var(--side-a);
     }
 
-    .speaker.defense {
-      border-left: 5px solid var(--defense);
+    .speaker.side-b {
+      border-left: 5px solid var(--side-b);
     }
 
-    .speaker.judge {
-      border-left: 5px solid var(--judge);
-      background: #faf5ff;
+    .speaker.coach {
+      border-left: 5px solid var(--coach);
+      background: #f0fdfa;
     }
 
     .speaker-head {
@@ -270,7 +288,8 @@
 
     @media (max-width: 1040px) {
       .controls,
-      .workspace {
+      .workspace,
+      .analysis-grid {
         grid-template-columns: 1fr;
       }
     }
@@ -280,18 +299,18 @@
   <main>
     <section class="hero">
       <h1>Debate</h1>
-      <p>Drop in two competing documents and watch a browser-generated courtroom exchange unfold: prosecutor, defense, rebuttals, and a judge-style synthesis at the end.</p>
+      <p>Drop in two competing points of view and let the browser simulate a hard argument. You get the live dialogue plus prep notes: what lands, what gets challenged, and what counteroffense to expect.</p>
     </section>
 
     <section class="panel">
       <div class="controls">
         <label>
-          Case Type
+          Argument Type
           <select id="case-type">
-            <option value="contract">Contract dispute</option>
-            <option value="fraud">Fraud claim</option>
-            <option value="employment">Employment conflict</option>
-            <option value="policy">Policy / public argument</option>
+            <option value="workplace">Workplace conflict</option>
+            <option value="relationship">Relationship conflict</option>
+            <option value="family">Family conflict</option>
+            <option value="public">Public / political argument</option>
           </select>
         </label>
 
@@ -304,14 +323,14 @@
           </select>
         </label>
 
-        <button id="run-button" type="button" disabled>Run Debate</button>
+        <button id="run-button" type="button" disabled>Run Sparring</button>
         <button id="clear-button" class="secondary" type="button">Clear</button>
       </div>
 
       <div class="workspace">
         <section class="doc-card">
-          <h2>Document A</h2>
-          <p class="hint">The app treats this as the prosecutor's source material.</p>
+          <h2>Point Of View A</h2>
+          <p class="hint">This is your side or the side you want to stress-test.</p>
           <div class="upload-row">
             <input id="file-a" type="file" accept=".txt,.md,.csv,.json,.html,.htm">
           </div>
@@ -319,8 +338,8 @@
         </section>
 
         <section class="doc-card">
-          <h2>Document B</h2>
-          <p class="hint">The app treats this as the defense source material.</p>
+          <h2>Point Of View B</h2>
+          <p class="hint">This is the strongest counter-position you expect to face.</p>
           <div class="upload-row">
             <input id="file-b" type="file" accept=".txt,.md,.csv,.json,.html,.htm">
           </div>
@@ -332,17 +351,36 @@
           <div class="pill" id="model-pill">Loading model…</div>
           <div class="metrics">
             <div id="status-text">Loading browser generation model…</div>
-            <div id="claim-status">Claim extraction waits for both documents.</div>
+            <div id="claim-status">Point extraction waits for both sides.</div>
           </div>
           <div class="points" id="claim-points"></div>
         </aside>
       </div>
 
-      <section class="transcript-card">
-        <h2>Transcript</h2>
-        <p class="summary" id="transcript-summary">The staged exchange will appear here turn by turn.</p>
-        <div class="points" id="transcript"></div>
-      </section>
+      <div class="analysis-grid">
+        <section class="transcript-card">
+          <h2>Transcript</h2>
+          <p class="summary" id="transcript-summary">The staged exchange will appear here turn by turn.</p>
+          <div class="points" id="transcript"></div>
+        </section>
+
+        <aside class="prep-card">
+          <h2>Prep Notes</h2>
+          <p class="summary" id="prep-summary">After the sparring run finishes, this panel will capture what matters before a real fight.</p>
+          <div class="prep-section">
+            <h3>What Lands</h3>
+            <div class="points" id="prep-findings"></div>
+          </div>
+          <div class="prep-section">
+            <h3>What They Hit Back With</h3>
+            <div class="points" id="prep-counters"></div>
+          </div>
+          <div class="prep-section">
+            <h3>Counteroffense</h3>
+            <div class="points" id="prep-pressure"></div>
+          </div>
+        </aside>
+      </div>
     </section>
   </main>
 
@@ -353,8 +391,8 @@
     env.allowRemoteModels = true;
 
     const GENERATION_MODEL_ID = "Xenova/flan-t5-small";
-    const SAMPLE_A = "The vendor signed a contract promising delivery by March 1, along with security compliance documentation and a fixed support response time. Internal emails show repeated missed milestones, missing evidence of compliance review, and requests for more money after the agreement was already executed. The buyer argues that these failures caused operational downtime and extra costs. The buyer also points to a clause allowing termination for material breach after written notice.";
-    const SAMPLE_B = "The vendor argues that the buyer repeatedly changed the scope, delayed approvals, and demanded additional features that were not in the original statement of work. The defense says the March 1 date was tied to client-side deliverables that never arrived on time. Emails show multiple warnings that launch timing would slip unless dependencies were resolved. The vendor also argues that the buyer kept using the system after notice of the alleged breach, which undermines the claim of immediate material harm.";
+    const SAMPLE_A = "I keep carrying more of the operational load than the title and pay reflect. I am handling the release checklist, incident follow-up, and cross-team coordination, but decisions still bottleneck through my manager. I want a promotion conversation now instead of being told to wait for another cycle. My strongest point is that the scope of the role already changed before the compensation did.";
+    const SAMPLE_B = "The company is under pressure and titles cannot move every time responsibilities expand. The manager would argue that visibility is not the same as sustained senior-level performance. They might say that some of the extra work was temporary and that promotion needs clearer evidence of leading strategy, not just absorbing urgent tasks. Their strongest point is that timing and consistency matter, not only effort.";
 
     const stopWords = new Set([
       "the", "and", "that", "with", "have", "this", "from", "they", "their", "into", "about", "after", "there", "were", "been", "when", "what", "which", "would", "could", "should", "them", "because", "while", "where", "your", "ours", "also", "than", "then", "such", "only", "will", "very", "just", "more", "most", "some", "each", "many", "much", "like", "across", "under", "over", "through", "being", "does", "doesn", "between", "within", "using"
@@ -374,6 +412,10 @@
     const claimPoints = document.getElementById("claim-points");
     const transcript = document.getElementById("transcript");
     const transcriptSummary = document.getElementById("transcript-summary");
+    const prepSummary = document.getElementById("prep-summary");
+    const prepFindings = document.getElementById("prep-findings");
+    const prepCounters = document.getElementById("prep-counters");
+    const prepPressure = document.getElementById("prep-pressure");
 
     let generator = null;
     let generatorLoad = null;
@@ -390,10 +432,10 @@
     function scoreSentence(sentence) {
       const lower = sentence.toLowerCase();
       let score = 0;
-      if (/breach|failed|violate|damage|harm|fraud|lied|loss|terminated|warning|proof|evidence|notice|deadline|missed|downtime|clause|scope|approval|delay/.test(lower)) {
+      if (/failed|harm|lied|loss|warning|proof|evidence|notice|deadline|missed|delay|pattern|pressure|change|promised|scope|respect|support|fair|responsibility|trust|hurt|expect|boundary|value|decision/.test(lower)) {
         score += 3;
       }
-      if (/must|should|required|promised|caused|shows|demonstrates|argues|says|points to/.test(lower)) {
+      if (/must|should|required|promised|caused|shows|demonstrates|argues|says|points to|need|expect|deserve|because|always|never/.test(lower)) {
         score += 2;
       }
       score += Math.min(2, sentence.length / 120);
@@ -440,6 +482,10 @@
     function clearTranscript() {
       transcript.innerHTML = "";
       transcriptSummary.textContent = "The staged exchange will appear here turn by turn.";
+      prepSummary.textContent = "After the sparring run finishes, this panel will capture what matters before a real fight.";
+      prepFindings.innerHTML = "";
+      prepCounters.innerHTML = "";
+      prepPressure.innerHTML = "";
     }
 
     function addSpeech(role, title, text) {
@@ -455,6 +501,27 @@
       section.scrollIntoView({ behavior: "smooth", block: "end" });
     }
 
+    function renderPrep(target, items) {
+      target.innerHTML = "";
+      for (const item of items) {
+        const div = document.createElement("div");
+        div.className = "point";
+        div.textContent = item;
+        target.appendChild(div);
+      }
+    }
+
+    function parseBullets(text) {
+      const lines = text
+        .split(/\n+/)
+        .map((line) => line.replace(/^[-*•\d.\s]+/, "").trim())
+        .filter(Boolean);
+      if (lines.length) {
+        return lines.slice(0, 3);
+      }
+      return sentences(text).slice(0, 3);
+    }
+
     async function ensureGenerator() {
       if (generator) {
         return generator;
@@ -468,12 +535,12 @@
         }).then((instance) => {
           generator = instance;
           modelPill.textContent = "Model ready";
-          setStatus("Model ready. Paste documents and run the debate.");
+          setStatus("Model ready. Paste both sides and run the sparring session.");
           runButton.disabled = false;
           docA.disabled = false;
           docB.disabled = false;
-          docA.placeholder = "Paste prosecutor-side source material here...";
-          docB.placeholder = "Paste defense-side source material here...";
+          docA.placeholder = "Paste your side here...";
+          docB.placeholder = "Paste the other side here...";
           return instance;
         }).catch((error) => {
           console.error(error);
@@ -493,22 +560,42 @@
         top_p: 0.92,
         repetition_penalty: 1.08,
       });
-      const text = Array.isArray(output) ? output[0]?.generated_text || output[0]?.summary_text || "" : output.generated_text || output.summary_text || "";
+      const text = Array.isArray(output)
+        ? output[0]?.generated_text || output[0]?.summary_text || ""
+        : output.generated_text || output.summary_text || "";
       return text.trim();
     }
 
     function buildPrompt(role, context) {
       return [
-        `You are writing one short courtroom statement for the ${role}.`,
-        `Case type: ${context.caseType}.`,
-        `Prosecutor claims: ${context.prosecutorClaims.join(" ")}`,
-        `Defense claims: ${context.defenseClaims.join(" ")}`,
+        `You are writing one short argument turn for ${role}.`,
+        `Argument type: ${context.caseType}.`,
+        `Point of view A: ${context.sideAClaims.join(" ")}`,
+        `Point of view B: ${context.sideBClaims.join(" ")}`,
         `Shared keywords: ${context.sharedKeywords.join(", ") || "none"}.`,
         context.lastTurn ? `Previous turn: ${context.lastTurn}` : "Previous turn: none.",
-        role === "judge"
-          ? "Write a neutral synthesis in 3 to 5 sentences. Compare strengths, weaknesses, and unresolved uncertainty."
-          : `Write 3 to 4 sentences in a persuasive but grounded style. Reference evidence, attack the other side's weak point, and stay concise.`,
+        role === "side-a"
+          ? "Write 3 to 4 sentences as point of view A. Sound direct, human, and grounded. Push your best argument and answer the strongest likely objection."
+          : "Write 3 to 4 sentences as point of view B. Sound direct, human, and grounded. Push the strongest objection and expose the weak point in side A.",
       ].join("\n");
+    }
+
+    function buildPrepPrompt(mode, context, transcriptText) {
+      const shared = [
+        "You are coaching someone for a real argument.",
+        `Argument type: ${context.caseType}.`,
+        `Point of view A: ${context.sideAClaims.join(" ")}`,
+        `Point of view B: ${context.sideBClaims.join(" ")}`,
+        `Transcript so far: ${transcriptText}`,
+      ];
+      if (mode === "findings") {
+        shared.push("Return exactly three short bullets. Focus on what arguments from side A land best and feel most defensible.");
+      } else if (mode === "counters") {
+        shared.push("Return exactly three short bullets. Focus on the strongest counters side B is likely to use in a real fight.");
+      } else {
+        shared.push("Return exactly three short bullets. Focus on counteroffense: short reply angles side A can use to regain control after being challenged.");
+      }
+      return shared.join("\n");
     }
 
     function delay(ms) {
@@ -528,7 +615,7 @@
       const textA = docA.value.trim();
       const textB = docB.value.trim();
       if (!textA || !textB) {
-        setStatus("Paste both documents first.");
+        setStatus("Paste both sides first.");
         return;
       }
       if (isRunning) {
@@ -541,45 +628,56 @@
       claimPoints.innerHTML = "";
 
       try {
-        const prosecutorClaims = extractClaims(textA, 4);
-        const defenseClaims = extractClaims(textB, 4);
+        const sideAClaims = extractClaims(textA, 4);
+        const sideBClaims = extractClaims(textB, 4);
         const sharedKeywords = [...new Set([...topKeywords(textA), ...topKeywords(textB)])].slice(0, 10);
-        renderClaims("Prosecutor source", prosecutorClaims, "var(--prosecution)");
-        renderClaims("Defense source", defenseClaims, "var(--defense)");
-        claimStatus.textContent = "Strongest claims extracted from both documents.";
-        transcriptSummary.textContent = "The model is now staging a live courtroom exchange.";
+        renderClaims("Point of view A", sideAClaims, "var(--side-a)");
+        renderClaims("Point of view B", sideBClaims, "var(--side-b)");
+        claimStatus.textContent = "Strongest points extracted from both sides.";
+        transcriptSummary.textContent = "The model is now staging a live argument so you can pressure-test your position.";
 
         const context = {
           caseType: caseType.value,
-          prosecutorClaims,
-          defenseClaims,
+          sideAClaims,
+          sideBClaims,
           sharedKeywords,
           lastTurn: "",
         };
 
         const rounds = Number(roundsSelect.value);
         const roles = [];
-        for (let i = 0; i < rounds; i += 1) {
-          roles.push(i % 2 === 0 ? "prosecutor" : "defense");
+        for (let index = 0; index < rounds; index += 1) {
+          roles.push(index % 2 === 0 ? "side-a" : "side-b");
         }
 
+        const transcriptLines = [];
         for (let index = 0; index < roles.length; index += 1) {
           const role = roles[index];
           setStatus(`Generating ${role} turn ${index + 1} of ${roles.length}…`);
           const text = await generateTurn(buildPrompt(role, context));
-          addSpeech(role, role === "prosecutor" ? "Prosecutor" : "Defense", text);
+          addSpeech(role, role === "side-a" ? "Point of view A" : "Point of view B", text);
+          transcriptLines.push(`${role}: ${text}`);
           context.lastTurn = text;
           await delay(420);
         }
 
-        setStatus("Generating judge synthesis…");
-        const judgeText = await generateTurn(buildPrompt("judge", context));
-        addSpeech("judge", "Judge", judgeText);
-        transcriptSummary.textContent = "Debate complete. Review the exchange and the extracted claim set side by side.";
-        setStatus("Debate complete.");
+        prepSummary.textContent = "Coach notes generated from the full sparring run. Use them to sharpen your next real-world conversation.";
+        const transcriptText = transcriptLines.join("\n");
+
+        setStatus("Generating prep findings…");
+        renderPrep(prepFindings, parseBullets(await generateTurn(buildPrepPrompt("findings", context, transcriptText))));
+
+        setStatus("Generating expected counters…");
+        renderPrep(prepCounters, parseBullets(await generateTurn(buildPrepPrompt("counters", context, transcriptText))));
+
+        setStatus("Generating counteroffense options…");
+        renderPrep(prepPressure, parseBullets(await generateTurn(buildPrepPrompt("pressure", context, transcriptText))));
+
+        transcriptSummary.textContent = "Sparring complete. Read the exchange, then use the prep notes to tighten your real response.";
+        setStatus("Sparring complete.");
       } catch (error) {
         console.error(error);
-        setStatus(`Debate failed: ${String(error.message || error)}`);
+        setStatus(`Sparring failed: ${String(error.message || error)}`);
       } finally {
         isRunning = false;
         runButton.disabled = false;
@@ -593,25 +691,25 @@
       fileB.value = "";
       claimPoints.innerHTML = "";
       clearTranscript();
-      claimStatus.textContent = "Claim extraction waits for both documents.";
-      setStatus("Cleared. Paste two documents to stage a debate.");
+      claimStatus.textContent = "Point extraction waits for both sides.";
+      setStatus("Cleared. Paste both sides to stage an argument.");
     });
 
     fileA.addEventListener("change", async (event) => {
       try {
-        await loadFileIntoTextarea(event.target.files?.[0], docA, "Document A");
+        await loadFileIntoTextarea(event.target.files?.[0], docA, "Point of view A");
       } catch (error) {
         console.error(error);
-        setStatus(`Could not read Document A: ${String(error.message || error)}`);
+        setStatus(`Could not read Point of view A: ${String(error.message || error)}`);
       }
     });
 
     fileB.addEventListener("change", async (event) => {
       try {
-        await loadFileIntoTextarea(event.target.files?.[0], docB, "Document B");
+        await loadFileIntoTextarea(event.target.files?.[0], docB, "Point of view B");
       } catch (error) {
         console.error(error);
-        setStatus(`Could not read Document B: ${String(error.message || error)}`);
+        setStatus(`Could not read Point of view B: ${String(error.message || error)}`);
       }
     });
 
@@ -620,8 +718,8 @@
     ensureGenerator().catch(() => {
       docA.disabled = false;
       docB.disabled = false;
-      docA.placeholder = "Paste prosecutor-side source material here...";
-      docB.placeholder = "Paste defense-side source material here...";
+      docA.placeholder = "Paste your side here...";
+      docB.placeholder = "Paste the other side here...";
     });
     runButton.addEventListener("click", runDebate);
   </script>
