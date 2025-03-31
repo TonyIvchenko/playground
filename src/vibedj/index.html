@@ -303,6 +303,32 @@
       white-space: pre-wrap;
     }
 
+    .soundtrack-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .stage {
+      position: relative;
+      overflow: hidden;
+      min-height: 250px;
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      background: radial-gradient(circle at top, rgba(255, 255, 255, 0.85), rgba(230, 236, 248, 0.82));
+    }
+
+    .stage canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .soundtrack-status {
+      font-size: 14px;
+      color: var(--muted);
+    }
+
     .hidden {
       display: none;
     }
@@ -364,6 +390,15 @@
         <section class="result-card">
           <h2>Soundtrack</h2>
           <p class="summary" id="soundtrack-summary"></p>
+          <div class="soundtrack-actions">
+            <button id="play-button" class="secondary" type="button" disabled>Play Mix</button>
+            <button id="stop-button" class="secondary" type="button" disabled>Stop</button>
+            <button id="remix-button" class="secondary" type="button" disabled>Remix</button>
+          </div>
+          <p class="soundtrack-status" id="soundtrack-status">Generate a mix first to hear it.</p>
+          <div class="stage">
+            <canvas id="stage-canvas" width="1000" height="360"></canvas>
+          </div>
           <div class="list" id="soundtrack-list"></div>
         </section>
 
@@ -393,6 +428,7 @@
     </section>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/tone@15.0.4/build/Tone.js"></script>
   <script type="module">
     import { env, pipeline } from "https://cdn.jsdelivr.net/npm/@xenova/transformers";
 
@@ -603,6 +639,101 @@
       }
     };
 
+    const FAMILY_MUSIC = {
+      ember: {
+        bpm: [76, 92],
+        roots: [48, 50, 53],
+        scale: [0, 2, 4, 7, 9],
+        progression: [
+          [0, 4, 7, 11],
+          [5, 9, 12, 16],
+          [7, 11, 14, 17],
+          [9, 12, 16, 19]
+        ],
+        leadDensity: 0.36,
+        hatDensity: 0.32,
+        swing: 0.08,
+        padWave: "triangle",
+        leadWave: "sine",
+        bassWave: "triangle",
+        visual: "embers"
+      },
+      pressure: {
+        bpm: [114, 132],
+        roots: [38, 41, 43],
+        scale: [0, 1, 3, 5, 7, 8, 10],
+        progression: [
+          [0, 3, 7, 10],
+          [2, 5, 9, 12],
+          [5, 8, 12, 15],
+          [7, 10, 14, 17]
+        ],
+        leadDensity: 0.62,
+        hatDensity: 0.74,
+        swing: 0.02,
+        padWave: "sawtooth",
+        leadWave: "square",
+        bassWave: "sawtooth",
+        visual: "grid"
+      },
+      dream: {
+        bpm: [84, 102],
+        roots: [50, 55, 57],
+        scale: [0, 2, 3, 7, 9],
+        progression: [
+          [0, 3, 7, 10],
+          [2, 5, 9, 12],
+          [7, 10, 14, 17],
+          [9, 12, 15, 19]
+        ],
+        leadDensity: 0.42,
+        hatDensity: 0.18,
+        swing: 0.12,
+        padWave: "sine",
+        leadWave: "triangle",
+        bassWave: "sine",
+        visual: "orbit"
+      },
+      civic: {
+        bpm: [98, 118],
+        roots: [43, 45, 48],
+        scale: [0, 2, 4, 5, 7, 9, 11],
+        progression: [
+          [0, 4, 7, 11],
+          [5, 9, 12, 16],
+          [7, 11, 14, 18],
+          [0, 4, 7, 11]
+        ],
+        leadDensity: 0.44,
+        hatDensity: 0.38,
+        swing: 0.03,
+        padWave: "triangle",
+        leadWave: "square",
+        bassWave: "square",
+        visual: "rays"
+      },
+      frost: {
+        bpm: [72, 94],
+        roots: [46, 48, 51],
+        scale: [0, 2, 3, 7, 8, 10],
+        progression: [
+          [0, 3, 7, 10],
+          [3, 7, 10, 14],
+          [7, 10, 14, 17],
+          [10, 14, 17, 20]
+        ],
+        leadDensity: 0.28,
+        hatDensity: 0.24,
+        swing: 0.01,
+        padWave: "triangle",
+        leadWave: "sine",
+        bassWave: "triangle",
+        visual: "glass"
+      }
+    };
+
+    const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+
     const warmWords = /\b(love|touch|warm|hold|soft|gold|home|tender|heart|quiet|intimate|memory|gentle|close)\b/gi;
     const tensionWords = /\b(fight|pressure|risk|danger|sharp|collapse|urgent|fail|loss|break|threat|damage|crisis|stakes)\b/gi;
     const dreamWords = /\b(dream|ghost|moon|perfume|silk|liquid|shadow|haze|rumor|portal|mirror|velvet|insomnia|float)\b/gi;
@@ -629,10 +760,30 @@
     const typographyList = document.getElementById("typography-list");
     const motionSummary = document.getElementById("motion-summary");
     const motionList = document.getElementById("motion-list");
+    const playButton = document.getElementById("play-button");
+    const stopButton = document.getElementById("stop-button");
+    const remixButton = document.getElementById("remix-button");
+    const soundtrackStatus = document.getElementById("soundtrack-status");
+    const stageCanvas = document.getElementById("stage-canvas");
+    const stageContext = stageCanvas.getContext("2d");
 
     let sentimentClassifier = null;
     let sentimentLoad = null;
     let lastBrief = "";
+    let currentAnalysis = null;
+    let currentMix = null;
+    let audioState = null;
+    let remixIndex = 0;
+    let stageFrame = null;
+    let stageSeed = 0;
+    const visualState = {
+      colors: ["#dce7ff", "#fff1de", "#f8fbff"],
+      mode: "embers",
+      bursts: [],
+      pulse: 0,
+      playing: false,
+      label: "Idle"
+    };
 
     function clamp(value, min, max) {
       return Math.max(min, Math.min(max, value));
@@ -641,6 +792,59 @@
     function countMatches(regex, text) {
       const matches = text.match(regex);
       return matches ? matches.length : 0;
+    }
+
+    function hashString(text) {
+      let hash = 2166136261;
+      for (let index = 0; index < text.length; index += 1) {
+        hash ^= text.charCodeAt(index);
+        hash = Math.imul(hash, 16777619);
+      }
+      return hash >>> 0;
+    }
+
+    function mulberry32(seed) {
+      let state = seed >>> 0;
+      return () => {
+        state = (state + 0x6D2B79F5) >>> 0;
+        let value = Math.imul(state ^ (state >>> 15), 1 | state);
+        value ^= value + Math.imul(value ^ (value >>> 7), 61 | value);
+        return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function pick(list, random) {
+      return list[Math.floor(random() * list.length)];
+    }
+
+    function midiToLabel(midi) {
+      const name = NOTE_NAMES[((midi % 12) + 12) % 12];
+      const octave = Math.floor(midi / 12) - 1;
+      return `${name}${octave}`;
+    }
+
+    function resizeStage() {
+      const dpr = window.devicePixelRatio || 1;
+      const width = Math.max(1, Math.floor(stageCanvas.clientWidth * dpr));
+      const height = Math.max(1, Math.floor(stageCanvas.clientHeight * dpr));
+      if (stageCanvas.width !== width || stageCanvas.height !== height) {
+        stageCanvas.width = width;
+        stageCanvas.height = height;
+      }
+    }
+
+    function emitVisual(strength, color) {
+      visualState.pulse = clamp(visualState.pulse + strength * 0.32, 0, 2);
+      visualState.bursts.push({
+        strength,
+        color,
+        born: performance.now(),
+        x: Math.random(),
+        y: Math.random()
+      });
+      if (visualState.bursts.length > 48) {
+        visualState.bursts.shift();
+      }
     }
 
     function setBackground(colors) {
@@ -686,6 +890,298 @@
         paletteSwatches.appendChild(item);
       }
       setBackground(palette.swatches.map(([, hex]) => hex));
+    }
+
+    function drawStage(timestamp) {
+      resizeStage();
+      const width = stageCanvas.width;
+      const height = stageCanvas.height;
+
+      stageContext.clearRect(0, 0, width, height);
+
+      const gradient = stageContext.createLinearGradient(0, 0, width, height);
+      gradient.addColorStop(0, visualState.colors[0] || "#dce7ff");
+      gradient.addColorStop(0.5, visualState.colors[1] || "#fff1de");
+      gradient.addColorStop(1, visualState.colors[2] || "#f8fbff");
+      stageContext.fillStyle = gradient;
+      stageContext.fillRect(0, 0, width, height);
+
+      const centerX = width * 0.5;
+      const centerY = height * 0.52;
+      const time = timestamp * 0.001;
+      const pulse = visualState.pulse;
+
+      stageContext.save();
+      stageContext.globalAlpha = 0.16;
+      stageContext.fillStyle = visualState.colors[3] || "#11151c";
+      for (let index = 0; index < 4; index += 1) {
+        const radius = width * (0.11 + index * 0.06) + Math.sin(time * 0.8 + index) * 12 + pulse * 16;
+        stageContext.beginPath();
+        stageContext.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        stageContext.fill();
+      }
+      stageContext.restore();
+
+      if (visualState.mode === "grid" || visualState.mode === "rays") {
+        for (let index = 0; index < 28; index += 1) {
+          const x = (index / 27) * width;
+          const lift = Math.sin(time * 3 + index * 0.4 + stageSeed * 0.001) * 22;
+          const heightScale = visualState.mode === "grid" ? 0.4 : 0.6;
+          stageContext.strokeStyle = `${visualState.colors[index % visualState.colors.length]}66`;
+          stageContext.lineWidth = visualState.mode === "grid" ? 3 : 2;
+          stageContext.beginPath();
+          stageContext.moveTo(x, centerY + lift);
+          stageContext.lineTo(x, centerY - height * heightScale * (0.15 + pulse * 0.08));
+          stageContext.stroke();
+        }
+      } else {
+        stageContext.lineWidth = 3;
+        stageContext.strokeStyle = `${visualState.colors[1] || "#ffffff"}aa`;
+        stageContext.beginPath();
+        for (let x = 0; x <= width; x += 8) {
+          const progress = x / width;
+          const wave = Math.sin(progress * 16 + time * (visualState.mode === "orbit" ? 1.2 : 2.4) + stageSeed * 0.01);
+          const secondary = Math.cos(progress * 8 - time * 1.3);
+          const y = centerY + wave * 18 + secondary * 10 + pulse * 8;
+          if (x === 0) {
+            stageContext.moveTo(x, y);
+          } else {
+            stageContext.lineTo(x, y);
+          }
+        }
+        stageContext.stroke();
+      }
+
+      visualState.bursts = visualState.bursts.filter((burst) => timestamp - burst.born < 1800);
+      for (const burst of visualState.bursts) {
+        const age = (timestamp - burst.born) / 1800;
+        const radius = 14 + age * (width * 0.18) * burst.strength;
+        const alpha = 0.38 * (1 - age);
+        stageContext.strokeStyle = `${burst.color}${Math.round(alpha * 255).toString(16).padStart(2, "0")}`;
+        stageContext.lineWidth = 2 + burst.strength * 3;
+        stageContext.beginPath();
+        stageContext.arc(
+          burst.x * width,
+          burst.y * height,
+          radius,
+          0,
+          Math.PI * 2
+        );
+        stageContext.stroke();
+      }
+
+      stageContext.fillStyle = "rgba(255, 255, 255, 0.85)";
+      stageContext.font = `${Math.max(20, width * 0.022)}px Space Grotesk`;
+      stageContext.fillText(visualState.label, 28, 36);
+
+      visualState.pulse *= visualState.playing ? 0.94 : 0.9;
+      stageFrame = requestAnimationFrame(drawStage);
+    }
+
+    function startStage() {
+      if (!stageFrame) {
+        stageFrame = requestAnimationFrame(drawStage);
+      }
+    }
+
+    function pickScaleMidi(root, scale, random, upperLift = 12) {
+      const degree = pick(scale, random);
+      const octaveLift = random() < 0.3 ? upperLift : 0;
+      return root + degree + octaveLift;
+    }
+
+    function buildMixPlan(text, family, axes, palette, remixNonce = 0) {
+      const recipe = FAMILY_MUSIC[family];
+      const random = mulberry32(hashString(`${family}|${remixNonce}|${text.slice(0, 1600)}`));
+      const bpmBase = recipe.bpm[0] + random() * (recipe.bpm[1] - recipe.bpm[0]);
+      const bpm = Math.round(clamp(bpmBase + (axes.energy - 50) * 0.18 - (axes.dreaminess - 50) * 0.08, recipe.bpm[0], recipe.bpm[1]));
+      const root = pick(recipe.roots, random);
+      const chords = recipe.progression.map((offsets) => offsets.map((offset) => root + offset));
+      const leadPattern = Array.from({ length: 32 }, (_, step) => {
+        if (random() > recipe.leadDensity + axes.energy / 260) {
+          return null;
+        }
+        return pickScaleMidi(root + (step % 8 === 0 ? 12 : 0), recipe.scale, random, 24);
+      });
+      const bassPattern = Array.from({ length: 32 }, (_, step) => {
+        if (step % 2 !== 0) {
+          return null;
+        }
+        if (random() < 0.2) {
+          return 7;
+        }
+        return 0;
+      });
+      const kickPattern = Array.from({ length: 32 }, (_, step) => step % 8 === 0 || (family === "pressure" && (step === 6 || step === 22)));
+      const snarePattern = Array.from({ length: 32 }, (_, step) => step % 8 === 4 || (family === "civic" && step % 16 === 12));
+      const hatPattern = Array.from({ length: 32 }, (_, step) => {
+        if (step % 2 !== 0) {
+          return false;
+        }
+        return random() < recipe.hatDensity + axes.energy / 320;
+      });
+      return {
+        family,
+        mode: recipe.visual,
+        bpm,
+        root,
+        keyLabel: midiToLabel(root),
+        colors: palette.swatches.map(([, hex]) => hex),
+        chords,
+        scale: recipe.scale,
+        leadPattern,
+        bassPattern,
+        kickPattern,
+        snarePattern,
+        hatPattern,
+        swing: recipe.swing,
+        padWave: recipe.padWave,
+        leadWave: recipe.leadWave,
+        bassWave: recipe.bassWave,
+        warmth: axes.warmth,
+        dreaminess: axes.dreaminess,
+        tension: axes.tension
+      };
+    }
+
+    async function ensureToneStarted() {
+      if (!window.Tone) {
+        throw new Error("Tone.js failed to load");
+      }
+      await window.Tone.start();
+    }
+
+    function stopPlayback(updateStatus = true) {
+      if (window.Tone) {
+        window.Tone.Transport.stop();
+        window.Tone.Transport.cancel();
+      }
+      if (audioState) {
+        for (const loop of audioState.loops) {
+          loop.dispose();
+        }
+        for (const node of audioState.nodes) {
+          node.dispose?.();
+        }
+        audioState = null;
+      }
+      visualState.playing = false;
+      playButton.disabled = !currentMix;
+      stopButton.disabled = true;
+      if (updateStatus && currentMix) {
+        soundtrackStatus.textContent = `Mix stopped. Ready at ${currentMix.bpm} BPM in ${currentMix.keyLabel}.`;
+      }
+    }
+
+    function buildAudioEngine(plan, mixName) {
+      const Tone = window.Tone;
+      stopPlayback(false);
+
+      const limiter = new Tone.Limiter(-2).toDestination();
+      const master = new Tone.Gain(0.78).connect(limiter);
+      const reverb = new Tone.Reverb({
+        decay: 3 + plan.dreaminess / 35,
+        wet: clamp(0.18 + plan.dreaminess / 220, 0.15, 0.55)
+      }).connect(master);
+      const delay = new Tone.FeedbackDelay({
+        delayTime: plan.family === "pressure" ? "8n" : "4n",
+        feedback: clamp(0.18 + plan.dreaminess / 280, 0.15, 0.42),
+        wet: clamp(0.08 + plan.dreaminess / 260, 0.06, 0.36)
+      }).connect(master);
+      const hatFilter = new Tone.Filter(6400, "highpass").connect(master);
+
+      const pad = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: plan.padWave },
+        envelope: {
+          attack: plan.family === "pressure" ? 0.03 : 0.12,
+          decay: 0.2,
+          sustain: 0.58,
+          release: plan.family === "dream" ? 2.8 : 1.6
+        }
+      }).connect(reverb);
+
+      const lead = new Tone.Synth({
+        oscillator: { type: plan.leadWave },
+        envelope: {
+          attack: 0.01,
+          decay: 0.12,
+          sustain: 0.18,
+          release: plan.family === "dream" ? 1.4 : 0.35
+        }
+      }).connect(delay);
+
+      const bass = new Tone.MonoSynth({
+        oscillator: { type: plan.bassWave },
+        filter: { Q: 1, type: "lowpass", rolloff: -24 },
+        envelope: { attack: 0.01, decay: 0.2, sustain: 0.35, release: 0.4 },
+        filterEnvelope: { attack: 0.01, decay: 0.18, sustain: 0.2, release: 0.4, baseFrequency: 120, octaves: 2.2 }
+      }).connect(master);
+
+      const kick = new Tone.MembraneSynth({
+        pitchDecay: 0.05,
+        octaves: 5,
+        oscillator: { type: "sine" },
+        envelope: { attack: 0.001, decay: 0.24, sustain: 0.01, release: 0.1 }
+      }).connect(master);
+
+      const snare = new Tone.NoiseSynth({
+        noise: { type: "white" },
+        envelope: { attack: 0.001, decay: 0.14, sustain: 0 }
+      }).connect(master);
+
+      const hat = new Tone.NoiseSynth({
+        noise: { type: "pink" },
+        envelope: { attack: 0.001, decay: 0.05, sustain: 0 }
+      }).connect(hatFilter);
+
+      Tone.Transport.bpm.value = plan.bpm;
+      Tone.Transport.swing = plan.swing;
+      Tone.Transport.swingSubdivision = "8n";
+
+      let step = 0;
+      const gridLoop = new Tone.Loop((time) => {
+        const cycleStep = step % 32;
+        const chordIndex = Math.floor(cycleStep / 8) % plan.chords.length;
+        const chord = plan.chords[chordIndex];
+        if (cycleStep % 8 === 0) {
+          pad.triggerAttackRelease(chord.map((midi) => Tone.Frequency(midi, "midi").toNote()), "1m", time, 0.42);
+          emitVisual(1, plan.colors[chordIndex % plan.colors.length]);
+        }
+        if (plan.kickPattern[cycleStep]) {
+          kick.triggerAttackRelease("C1", "8n", time, 0.85);
+          emitVisual(0.75, plan.colors[0] || "#ffffff");
+        }
+        if (plan.snarePattern[cycleStep]) {
+          snare.triggerAttackRelease("16n", time, 0.45);
+          emitVisual(0.46, plan.colors[1] || "#ffffff");
+        }
+        if (plan.hatPattern[cycleStep]) {
+          hat.triggerAttackRelease("32n", time, 0.16);
+          emitVisual(0.18, plan.colors[2] || "#ffffff");
+        }
+        if (plan.bassPattern[cycleStep] !== null) {
+          const bassMidi = chord[0] - 12 + plan.bassPattern[cycleStep];
+          bass.triggerAttackRelease(Tone.Frequency(bassMidi, "midi").toNote(), "8n", time, 0.58);
+          emitVisual(0.28, plan.colors[4] || plan.colors[0] || "#ffffff");
+        }
+        if (plan.leadPattern[cycleStep] !== null) {
+          const leadMidi = plan.leadPattern[cycleStep];
+          const duration = plan.family === "dream" ? "4n" : (cycleStep % 4 === 0 ? "8n" : "16n");
+          lead.triggerAttackRelease(Tone.Frequency(leadMidi, "midi").toNote(), duration, time, 0.36);
+          emitVisual(0.48, plan.colors[3] || plan.colors[1] || "#ffffff");
+        }
+        step += 1;
+      }, "8n").start(0);
+
+      audioState = {
+        loops: [gridLoop],
+        nodes: [limiter, master, reverb, delay, hatFilter, pad, lead, bass, kick, snare, hat]
+      };
+
+      visualState.colors = plan.colors;
+      visualState.mode = plan.mode;
+      visualState.playing = true;
+      visualState.label = `${mixName} / ${plan.bpm} BPM / ${plan.keyLabel}`;
     }
 
     function chooseFamily(axes) {
@@ -868,6 +1364,7 @@
         return;
       }
 
+      stopPlayback(false);
       analyzeButton.disabled = true;
       copyButton.disabled = true;
       statusText.textContent = "Reading tone and assembling the mix…";
@@ -881,9 +1378,14 @@
         const palette = PALETTES[family];
         const typography = TYPOGRAPHY[family];
         const motion = MOTION[family];
+        remixIndex = 0;
+        const mix = buildMixPlan(text, family, axes, palette, remixIndex);
 
         heroBadge.textContent = `${name} / ${family}`;
         vibePill.textContent = name;
+        currentAnalysis = { text, family, axes, palette, name };
+        currentMix = mix;
+        stageSeed = hashString(`${name}|${family}|${text.slice(0, 400)}`);
 
         metrics.innerHTML = "";
         metrics.appendChild(metricRow("Energy", axes.energy));
@@ -893,7 +1395,10 @@
         metrics.appendChild(metricRow("Polish", axes.polish));
 
         soundtrackSummary.textContent = soundtrack.summary;
-        renderList(soundtrackList, soundtrack.items);
+        renderList(soundtrackList, [
+          ["Live loop", `Browser-generated preview in ${mix.keyLabel} at ${mix.bpm} BPM`],
+          ...soundtrack.items
+        ]);
 
         paletteSummary.textContent = palette.summary;
         renderPalette(palette);
@@ -910,6 +1415,14 @@
         resultsShell.classList.remove("hidden");
         briefShell.classList.remove("hidden");
         copyButton.disabled = false;
+        playButton.disabled = false;
+        remixButton.disabled = false;
+        stopButton.disabled = true;
+        soundtrackStatus.textContent = `Ready to play: ${mix.bpm} BPM in ${mix.keyLabel}.`;
+        visualState.colors = mix.colors;
+        visualState.mode = mix.mode;
+        visualState.label = `${name} / ready`;
+        visualState.bursts = [];
         statusText.textContent = "Mix ready.";
       } catch (error) {
         console.error(error);
@@ -920,6 +1433,7 @@
     }
 
     clearButton.addEventListener("click", () => {
+      stopPlayback(false);
       sourceText.value = "";
       heroBadge.textContent = "Waiting for text";
       vibePill.textContent = "No mix yet";
@@ -927,8 +1441,21 @@
       resultsShell.classList.add("hidden");
       briefShell.classList.add("hidden");
       copyButton.disabled = true;
+      playButton.disabled = true;
+      remixButton.disabled = true;
+      stopButton.disabled = true;
       lastBrief = "";
+      currentAnalysis = null;
+      currentMix = null;
+      remixIndex = 0;
+      stageSeed = 0;
       statusText.textContent = "Cleared. Paste writing and spin the set.";
+      soundtrackStatus.textContent = "Generate a mix first to hear it.";
+      visualState.colors = ["#dce7ff", "#fff1de", "#f8fbff"];
+      visualState.mode = "embers";
+      visualState.label = "Idle";
+      visualState.bursts = [];
+      visualState.playing = false;
       setBackground(["#dce7ff", "#fff1de", "#f8fbff"]);
     });
 
@@ -945,6 +1472,64 @@
       }
     });
 
+    playButton.addEventListener("click", async () => {
+      if (!currentMix || !currentAnalysis) {
+        return;
+      }
+      try {
+        await ensureToneStarted();
+        buildAudioEngine(currentMix, currentAnalysis.name);
+        window.Tone.Transport.start();
+        playButton.disabled = true;
+        stopButton.disabled = false;
+        soundtrackStatus.textContent = `Playing ${currentAnalysis.name} at ${currentMix.bpm} BPM in ${currentMix.keyLabel}.`;
+        statusText.textContent = "Live mix playing.";
+      } catch (error) {
+        console.error(error);
+        soundtrackStatus.textContent = `Playback failed: ${String(error.message || error)}`;
+      }
+    });
+
+    stopButton.addEventListener("click", () => {
+      stopPlayback();
+      statusText.textContent = "Playback stopped.";
+    });
+
+    remixButton.addEventListener("click", async () => {
+      if (!currentAnalysis) {
+        return;
+      }
+      const shouldResume = Boolean(audioState);
+      remixIndex += 1;
+      currentMix = buildMixPlan(currentAnalysis.text, currentAnalysis.family, currentAnalysis.axes, currentAnalysis.palette, remixIndex);
+      soundtrackStatus.textContent = `Remixed: ${currentMix.bpm} BPM in ${currentMix.keyLabel}.`;
+      stageSeed = hashString(`${currentAnalysis.name}|${remixIndex}|${currentMix.keyLabel}`);
+      visualState.colors = currentMix.colors;
+      visualState.mode = currentMix.mode;
+      visualState.label = `${currentAnalysis.name} / remixed`;
+      visualState.bursts = [];
+      renderList(soundtrackList, [
+        ["Live loop", `Browser-generated preview in ${currentMix.keyLabel} at ${currentMix.bpm} BPM`],
+        ...SOUNDTRACK_LIBRARY[currentAnalysis.family].items
+      ]);
+      if (shouldResume) {
+        try {
+          await ensureToneStarted();
+          buildAudioEngine(currentMix, currentAnalysis.name);
+          window.Tone.Transport.start();
+          playButton.disabled = true;
+          stopButton.disabled = false;
+          statusText.textContent = "Remix playing.";
+        } catch (error) {
+          console.error(error);
+          soundtrackStatus.textContent = `Remix failed: ${String(error.message || error)}`;
+        }
+      } else {
+        playButton.disabled = false;
+        stopButton.disabled = true;
+      }
+    });
+
     analyzeButton.addEventListener("click", analyze);
 
     for (const button of document.querySelectorAll("[data-sample]")) {
@@ -956,6 +1541,7 @@
     }
 
     sourceText.value = SAMPLE_TEXTS.afterglow;
+    startStage();
     ensureSentiment();
   </script>
 </body>
