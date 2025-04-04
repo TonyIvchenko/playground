@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MemoryPalace</title>
+  <link rel="icon" href="data:,">
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap");
+
+    :root {
+      color-scheme: light;
+      --ink: #18212b;
+      --muted: #627283;
+      --line: rgba(24, 33, 43, 0.1);
+      --panel: rgba(255, 255, 255, 0.84);
+      --panel-strong: rgba(255, 255, 255, 0.92);
+      --bg-a: #dfe9ff;
+      --bg-b: #fff0dc;
+      --bg-c: #edf5ff;
+      font-family: "IBM Plex Sans", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(111, 160, 255, 0.18), transparent 28%),
+        radial-gradient(circle at top right, rgba(255, 174, 104, 0.18), transparent 30%),
+        linear-gradient(180deg, #ffffff 0%, #eef4ff 54%, #e9f1fb 100%);
+    }
+
+    main {
+      width: min(1360px, 100%);
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero,
+    .panel {
+      border-radius: 26px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      box-shadow: 0 20px 48px rgba(27, 40, 56, 0.12);
+      backdrop-filter: blur(14px);
+    }
+
+    .hero {
+      padding: 28px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-family: "Fraunces", serif;
+      font-size: clamp(42px, 6vw, 70px);
+      line-height: 0.95;
+      letter-spacing: -0.05em;
+    }
+
+    .hero p,
+    .help,
+    .status,
+    .summary {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .hero-top {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.86);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .panel {
+      padding: 20px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .builder {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: minmax(0, 1.1fr) 340px;
+      align-items: start;
+    }
+
+    .input-card,
+    .info-card,
+    .scene-card {
+      display: grid;
+      gap: 14px;
+      padding: 18px;
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      background: var(--panel-strong);
+    }
+
+    .input-card h2,
+    .info-card h2,
+    .scene-card h2 {
+      margin: 0;
+      font-size: 15px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    textarea,
+    button {
+      font: inherit;
+      color: inherit;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 260px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      padding: 16px 18px;
+      resize: vertical;
+      line-height: 1.56;
+      background: #fff;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: rgba(67, 118, 255, 0.44);
+      box-shadow: 0 0 0 4px rgba(67, 118, 255, 0.1);
+    }
+
+    .actions,
+    .sample-row,
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 16px;
+      padding: 12px 16px;
+      cursor: pointer;
+      background: #18212b;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    button.secondary {
+      background: #f3f6fb;
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+
+    button.ghost {
+      background: rgba(24, 33, 43, 0.04);
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+
+    .status-pill {
+      display: inline-flex;
+      width: fit-content;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .meta-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .meta-block {
+      padding: 14px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: #f7fafe;
+    }
+
+    .meta-block h3 {
+      margin: 0 0 8px;
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .meta-title {
+      font-family: "Fraunces", serif;
+      font-size: 28px;
+      line-height: 1.04;
+      letter-spacing: -0.03em;
+    }
+
+    .meta-body {
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .chip {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .chip.active {
+      color: #fff;
+      border-color: transparent;
+      background: linear-gradient(135deg, #4376ff, #ff9566);
+    }
+
+    .scene-card {
+      gap: 12px;
+    }
+
+    .scene-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .scene-shell {
+      position: relative;
+      overflow: hidden;
+      min-height: 620px;
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      background: radial-gradient(circle at top, rgba(255, 255, 255, 0.9), rgba(223, 235, 255, 0.86));
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .hud {
+      position: absolute;
+      left: 18px;
+      bottom: 18px;
+      max-width: min(420px, calc(100% - 36px));
+      padding: 14px 16px;
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      background: rgba(13, 20, 29, 0.56);
+      color: #f8fbff;
+      backdrop-filter: blur(12px);
+      pointer-events: none;
+    }
+
+    .hud strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.72);
+    }
+
+    .crosshair {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 12px;
+      height: 12px;
+      margin-left: -6px;
+      margin-top: -6px;
+      border-radius: 999px;
+      border: 2px solid rgba(255, 255, 255, 0.55);
+      box-shadow: 0 0 0 8px rgba(255, 255, 255, 0.05);
+      pointer-events: none;
+    }
+
+    @media (max-width: 1040px) {
+      .builder {
+        grid-template-columns: 1fr;
+      }
+
+      .scene-shell {
+        min-height: 500px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <div class="hero-top">
+        <div>
+          <h1>MemoryPalace</h1>
+          <p>Turn rough notes into a chain of rooms you can actually walk through. Each room gets a title, a mnemonic anchor, and a wall summary so your recall has a place to live.</p>
+        </div>
+        <div class="hero-badge" id="hero-badge">No palace built yet</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="builder">
+        <section class="input-card">
+          <div>
+            <h2>Notes</h2>
+            <p class="help">Paste bullet points, short paragraphs, or study notes. Blank lines create bigger room breaks; single lines become smaller rooms.</p>
+          </div>
+          <div class="sample-row">
+            <button class="ghost" data-sample="biology" type="button">Biology</button>
+            <button class="ghost" data-sample="history" type="button">History</button>
+            <button class="ghost" data-sample="pitch" type="button">Pitch deck</button>
+          </div>
+          <textarea id="notes-input" placeholder="Paste notes here..."></textarea>
+          <div class="actions">
+            <button id="build-button" type="button">Build Palace</button>
+            <button id="reset-view-button" class="secondary" type="button">Reset View</button>
+            <button id="sample-route-button" class="secondary" type="button">Show Route</button>
+          </div>
+        </section>
+
+        <aside class="info-card">
+          <h2>Navigator</h2>
+          <div class="status-pill" id="status-pill">Ready</div>
+          <p class="status" id="status-text">Build a palace to start walking.</p>
+          <div class="meta-grid">
+            <section class="meta-block">
+              <h3>Current Room</h3>
+              <div class="meta-title" id="room-title">None yet</div>
+              <div class="meta-body" id="room-body">Your current room details will appear here once the palace exists.</div>
+            </section>
+            <section class="meta-block">
+              <h3>Recall Cues</h3>
+              <div class="chip-row" id="room-keywords"></div>
+            </section>
+            <section class="meta-block">
+              <h3>Jump To Room</h3>
+              <div class="chip-row" id="room-chips"></div>
+            </section>
+            <section class="meta-block">
+              <h3>Controls</h3>
+              <div class="meta-body">Use <strong>W A S D</strong> to move, arrow keys or drag to look, and click any room chip to jump directly there.</div>
+            </section>
+          </div>
+        </aside>
+      </div>
+
+      <section class="scene-card">
+        <div class="scene-head">
+          <div>
+            <h2>Palace Walkthrough</h2>
+            <p class="summary">The route is laid out as a straight memory corridor so your recall follows a predictable path.</p>
+          </div>
+        </div>
+        <div class="scene-shell" id="scene-shell">
+          <canvas id="palace-canvas"></canvas>
+          <div class="crosshair"></div>
+          <div class="hud" id="scene-hud">
+            <strong>Room 1</strong>
+            Step inside the palace to begin.
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script type="module">
+    import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js";
+
+    const SAMPLE_NOTES = {
+      biology: `Cell membrane: phospholipid bilayer, selective permeability, embedded proteins for transport and signaling.
+
+Mitochondria: double membrane, ATP production, own DNA, central to aerobic respiration.
+
+Photosynthesis: light reactions in thylakoid membrane, Calvin cycle in stroma, glucose is assembled from carbon fixation.
+
+DNA replication: helicase opens the strand, polymerase extends 5' to 3', ligase seals fragments on lagging strand.
+
+Immune response: innate defense is immediate, adaptive defense is specific, memory cells drive faster future response.`,
+      history: `Printing press: accelerated literacy, standardized texts, and wider circulation of reform ideas.
+
+Thirty Years' War: religious conflict widened into a political struggle and reshaped state power in Europe.
+
+Treaty of Westphalia: strengthened the idea of state sovereignty and limited outside interference in internal affairs.
+
+Industrial Revolution: mechanization increased output, urbanization intensified, labor conditions became a central political question.
+
+Telegraph: compressed communication time, changed trade, war coordination, and the speed of public news.`,
+      pitch: `Problem: reporting takes too long because data lives in seven systems with different owners.
+
+Product: one workspace that unifies metrics, owners, and decisions in a shared operational timeline.
+
+Why now: teams are under pressure to move faster without losing auditability or context.
+
+Moat: workflow memory, embedded approvals, and cross-team usage data compound over time.
+
+Go to market: start with finance and operations leaders, then expand into product and executive review cycles.`
+    };
+
+    const stopWords = new Set([
+      "the", "and", "that", "with", "have", "this", "from", "into", "they", "their", "were", "been", "about",
+      "there", "which", "would", "could", "should", "while", "where", "your", "ours", "than", "then", "such",
+      "only", "very", "just", "more", "most", "some", "each", "many", "much", "like", "across", "under", "over",
+      "through", "being", "does", "between", "within", "using", "after", "before", "because", "also"
+    ]);
+
+    const notesInput = document.getElementById("notes-input");
+    const buildButton = document.getElementById("build-button");
+    const resetViewButton = document.getElementById("reset-view-button");
+    const sampleRouteButton = document.getElementById("sample-route-button");
+    const heroBadge = document.getElementById("hero-badge");
+    const statusPill = document.getElementById("status-pill");
+    const statusText = document.getElementById("status-text");
+    const roomTitle = document.getElementById("room-title");
+    const roomBody = document.getElementById("room-body");
+    const roomKeywords = document.getElementById("room-keywords");
+    const roomChips = document.getElementById("room-chips");
+    const sceneHud = document.getElementById("scene-hud");
+    const sceneShell = document.getElementById("scene-shell");
+    const canvas = document.getElementById("palace-canvas");
+
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0xe9f1fb, 18, 120);
+
+    const camera = new THREE.PerspectiveCamera(68, 1, 0.1, 400);
+    camera.position.set(0, 1.75, 4.5);
+    camera.rotation.order = "YXZ";
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.6);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.4);
+    directionalLight.position.set(8, 12, 6);
+    const rimLight = new THREE.PointLight(0x8db0ff, 24, 100);
+    rimLight.position.set(0, 6, -12);
+    scene.add(ambientLight, directionalLight, rimLight);
+
+    const worldGroup = new THREE.Group();
+    scene.add(worldGroup);
+
+    const dustGroup = new THREE.Group();
+    scene.add(dustGroup);
+
+    let roomData = [];
+    let corridorLength = 0;
+    let currentRoomIndex = -1;
+    let jumpTarget = null;
+
+    const controls = {
+      dragging: false,
+      yaw: 0,
+      pitch: 0,
+      keys: new Set()
+    };
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, value));
+    }
+
+    function hashString(text) {
+      let hash = 2166136261;
+      for (let index = 0; index < text.length; index += 1) {
+        hash ^= text.charCodeAt(index);
+        hash = Math.imul(hash, 16777619);
+      }
+      return hash >>> 0;
+    }
+
+    function mulberry32(seed) {
+      let state = seed >>> 0;
+      return () => {
+        state = (state + 0x6D2B79F5) >>> 0;
+        let value = Math.imul(state ^ (state >>> 15), 1 | state);
+        value ^= value + Math.imul(value ^ (value >>> 7), 61 | value);
+        return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function resize() {
+      const width = sceneShell.clientWidth;
+      const height = sceneShell.clientHeight;
+      renderer.setSize(width, height, false);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+    }
+
+    function wrapText(context, text, maxWidth) {
+      const words = text.split(/\s+/);
+      const lines = [];
+      let current = "";
+      for (const word of words) {
+        const next = current ? `${current} ${word}` : word;
+        if (context.measureText(next).width > maxWidth && current) {
+          lines.push(current);
+          current = word;
+        } else {
+          current = next;
+        }
+      }
+      if (current) {
+        lines.push(current);
+      }
+      return lines;
+    }
+
+    function createLabelTexture(title, body, accentHex) {
+      const canvas2d = document.createElement("canvas");
+      canvas2d.width = 1024;
+      canvas2d.height = 640;
+      const context = canvas2d.getContext("2d");
+
+      context.fillStyle = "#f8fbff";
+      context.fillRect(0, 0, canvas2d.width, canvas2d.height);
+      context.fillStyle = accentHex;
+      context.fillRect(0, 0, canvas2d.width, 32);
+      context.fillStyle = "rgba(24, 33, 43, 0.08)";
+      context.fillRect(0, 70, canvas2d.width, 2);
+
+      context.fillStyle = "#18212b";
+      context.font = "700 58px IBM Plex Sans";
+      context.fillText(title, 56, 132);
+
+      context.fillStyle = "#627283";
+      context.font = "400 34px IBM Plex Sans";
+      const lines = wrapText(context, body, canvas2d.width - 112).slice(0, 8);
+      lines.forEach((line, index) => {
+        context.fillText(line, 56, 220 + index * 54);
+      });
+
+      const texture = new THREE.CanvasTexture(canvas2d);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      return texture;
+    }
+
+    function createKeywordTexture(words, accentHex) {
+      const canvas2d = document.createElement("canvas");
+      canvas2d.width = 900;
+      canvas2d.height = 420;
+      const context = canvas2d.getContext("2d");
+      context.fillStyle = "#11161d";
+      context.fillRect(0, 0, canvas2d.width, canvas2d.height);
+      context.strokeStyle = accentHex;
+      context.lineWidth = 14;
+      context.strokeRect(24, 24, canvas2d.width - 48, canvas2d.height - 48);
+      context.fillStyle = "#f7faff";
+      context.font = "700 52px IBM Plex Sans";
+      context.fillText("Recall Cues", 52, 90);
+      context.font = "600 44px IBM Plex Sans";
+      words.slice(0, 5).forEach((word, index) => {
+        context.fillStyle = index % 2 === 0 ? accentHex : "#f7faff";
+        context.fillText(word, 60, 170 + index * 48);
+      });
+      const texture = new THREE.CanvasTexture(canvas2d);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      return texture;
+    }
+
+    function topKeywords(text, maxKeywords = 5) {
+      const counts = new Map();
+      const words = text.toLowerCase().match(/\b[a-z][a-z'-]{2,}\b/g) || [];
+      for (const word of words) {
+        if (stopWords.has(word)) {
+          continue;
+        }
+        counts.set(word, (counts.get(word) || 0) + 1);
+      }
+      return [...counts.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, maxKeywords)
+        .map(([word]) => word);
+    }
+
+    function cleanChunk(text) {
+      return text
+        .split("\n")
+        .map((line) => line.replace(/^\s*[-*•\d.)]+\s*/, "").trim())
+        .filter(Boolean)
+        .join(" ");
+    }
+
+    function chunkNotes(text) {
+      const trimmed = text.trim();
+      if (!trimmed) {
+        return [];
+      }
+      const blocks = trimmed.split(/\n\s*\n+/).map(cleanChunk).filter(Boolean);
+      const parts = blocks.length > 1 ? blocks : trimmed.split(/\n+/).map(cleanChunk).filter(Boolean);
+      return parts.map((body, index) => {
+        const firstSentence = body.split(/(?<=[.!?])\s+/)[0] || body;
+        const titleWords = firstSentence
+          .replace(/[:;,.!?]/g, "")
+          .split(/\s+/)
+          .filter(Boolean)
+          .slice(0, 4);
+        const title = titleWords.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ") || `Room ${index + 1}`;
+        const keywords = topKeywords(body, 5);
+        return {
+          index,
+          title,
+          body,
+          keywords,
+          hash: hashString(`${title}|${body}`)
+        };
+      });
+    }
+
+    function createAnchor(note, accentColor) {
+      const random = mulberry32(note.hash);
+      const group = new THREE.Group();
+      const shapeType = note.hash % 5;
+      const emissive = new THREE.Color(accentColor).multiplyScalar(0.25);
+
+      const material = new THREE.MeshStandardMaterial({
+        color: accentColor,
+        emissive,
+        metalness: 0.35,
+        roughness: 0.28
+      });
+
+      let geometry;
+      if (shapeType === 0) {
+        geometry = new THREE.IcosahedronGeometry(1.2, 0);
+      } else if (shapeType === 1) {
+        geometry = new THREE.TorusKnotGeometry(0.8, 0.24, 120, 18);
+      } else if (shapeType === 2) {
+        geometry = new THREE.CylinderGeometry(0.65, 1.1, 2.2, 6);
+      } else if (shapeType === 3) {
+        geometry = new THREE.OctahedronGeometry(1.3);
+      } else {
+        geometry = new THREE.SphereGeometry(1.05, 24, 24);
+      }
+
+      const mainMesh = new THREE.Mesh(geometry, material);
+      mainMesh.castShadow = false;
+      group.add(mainMesh);
+
+      for (let index = 0; index < 3; index += 1) {
+        const orb = new THREE.Mesh(
+          new THREE.SphereGeometry(0.18 + random() * 0.12, 18, 18),
+          new THREE.MeshStandardMaterial({
+            color: "#ffffff",
+            emissive: accentColor,
+            emissiveIntensity: 0.4,
+            roughness: 0.15,
+            metalness: 0.1
+          })
+        );
+        const angle = random() * Math.PI * 2;
+        const radius = 1.9 + random() * 0.8;
+        orb.position.set(Math.cos(angle) * radius, (random() - 0.5) * 1.3, Math.sin(angle) * radius);
+        group.add(orb);
+      }
+
+      return group;
+    }
+
+    function clearWorld() {
+      while (worldGroup.children.length) {
+        worldGroup.remove(worldGroup.children[0]);
+      }
+      while (dustGroup.children.length) {
+        dustGroup.remove(dustGroup.children[0]);
+      }
+    }
+
+    function buildDustField(length) {
+      const random = mulberry32(42 + length);
+      const geometry = new THREE.BufferGeometry();
+      const positions = [];
+      for (let index = 0; index < 900; index += 1) {
+        positions.push((random() - 0.5) * 14, random() * 6.5, -random() * Math.max(length, 18));
+      }
+      geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+      const material = new THREE.PointsMaterial({
+        color: 0xffffff,
+        size: 0.05,
+        transparent: true,
+        opacity: 0.6
+      });
+      dustGroup.add(new THREE.Points(geometry, material));
+    }
+
+    function buildPalace() {
+      const notes = chunkNotes(notesInput.value);
+      if (!notes.length) {
+        statusPill.textContent = "Need notes";
+        statusText.textContent = "Paste at least one note or choose a sample set.";
+        return;
+      }
+
+      clearWorld();
+      roomData = [];
+
+      const roomSpacing = 18;
+      const roomWidth = 12;
+      const roomHeight = 7;
+      const roomDepth = 12;
+      const corridorWidth = 4;
+      corridorLength = (notes.length - 1) * roomSpacing + roomDepth + 8;
+
+      const corridorFloor = new THREE.Mesh(
+        new THREE.BoxGeometry(corridorWidth, 0.2, corridorLength),
+        new THREE.MeshStandardMaterial({ color: 0xf7f9fe, roughness: 0.85, metalness: 0.04 })
+      );
+      corridorFloor.position.set(0, -0.1, -corridorLength / 2 + roomDepth / 2);
+      worldGroup.add(corridorFloor);
+
+      const guideLine = new THREE.Mesh(
+        new THREE.BoxGeometry(0.18, 0.02, corridorLength),
+        new THREE.MeshStandardMaterial({ color: 0xffa064, emissive: 0xffa064, emissiveIntensity: 0.08 })
+      );
+      guideLine.position.set(0, 0.01, corridorFloor.position.z);
+      worldGroup.add(guideLine);
+
+      notes.forEach((note, index) => {
+        const group = new THREE.Group();
+        const z = -index * roomSpacing;
+        group.position.z = z;
+
+        const hue = (note.hash % 360) / 360;
+        const accentColor = new THREE.Color().setHSL(hue, 0.7, 0.62);
+        const accentHex = `#${accentColor.getHexString()}`;
+        const wallMaterial = new THREE.MeshStandardMaterial({
+          color: new THREE.Color().setHSL(hue, 0.36, 0.94),
+          roughness: 0.88
+        });
+        const trimMaterial = new THREE.MeshStandardMaterial({
+          color: accentColor,
+          emissive: accentColor.clone().multiplyScalar(0.08),
+          metalness: 0.18,
+          roughness: 0.34
+        });
+
+        const floor = new THREE.Mesh(
+          new THREE.BoxGeometry(roomWidth, 0.2, roomDepth),
+          new THREE.MeshStandardMaterial({
+            color: new THREE.Color().setHSL(hue, 0.28, 0.88),
+            roughness: 0.92
+          })
+        );
+        floor.position.set(0, -0.1, 0);
+        group.add(floor);
+
+        const backWall = new THREE.Mesh(new THREE.BoxGeometry(roomWidth, roomHeight, 0.3), wallMaterial);
+        backWall.position.set(0, roomHeight / 2 - 0.1, -roomDepth / 2);
+        group.add(backWall);
+
+        const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.3, roomHeight, roomDepth), wallMaterial);
+        leftWall.position.set(-roomWidth / 2, roomHeight / 2 - 0.1, 0);
+        group.add(leftWall);
+
+        const rightWall = leftWall.clone();
+        rightWall.position.x = roomWidth / 2;
+        group.add(rightWall);
+
+        const ceiling = new THREE.Mesh(
+          new THREE.BoxGeometry(roomWidth, 0.22, roomDepth),
+          new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.76 })
+        );
+        ceiling.position.set(0, roomHeight - 0.1, 0);
+        group.add(ceiling);
+
+        const trim = new THREE.Mesh(
+          new THREE.BoxGeometry(roomWidth, 0.16, roomDepth),
+          trimMaterial
+        );
+        trim.position.set(0, 0.12, 0);
+        group.add(trim);
+
+        const anchor = createAnchor(note, accentHex);
+        anchor.position.set(0, 1.65, 0);
+        group.add(anchor);
+
+        const titleTexture = createLabelTexture(note.title, note.body, accentHex);
+        const titlePanel = new THREE.Mesh(
+          new THREE.PlaneGeometry(5.4, 3.4),
+          new THREE.MeshBasicMaterial({ map: titleTexture, transparent: false })
+        );
+        titlePanel.position.set(0, 2.7, -roomDepth / 2 + 0.18);
+        group.add(titlePanel);
+
+        const keywordTexture = createKeywordTexture(note.keywords, accentHex);
+        const keywordPanel = new THREE.Mesh(
+          new THREE.PlaneGeometry(3.1, 1.45),
+          new THREE.MeshBasicMaterial({ map: keywordTexture })
+        );
+        keywordPanel.position.set(-roomWidth / 2 + 0.18, 2.05, 0);
+        keywordPanel.rotation.y = Math.PI / 2;
+        group.add(keywordPanel);
+
+        const noteGlow = new THREE.Mesh(
+          new THREE.TorusGeometry(1.8, 0.04, 16, 80),
+          new THREE.MeshBasicMaterial({ color: accentColor, transparent: true, opacity: 0.42 })
+        );
+        noteGlow.position.set(0, 1.62, 0);
+        noteGlow.rotation.x = Math.PI / 2;
+        group.add(noteGlow);
+
+        worldGroup.add(group);
+        roomData.push({
+          index,
+          title: note.title,
+          body: note.body,
+          keywords: note.keywords,
+          accentHex,
+          centerZ: z,
+          anchor,
+          glow: noteGlow
+        });
+      });
+
+      buildDustField(corridorLength + 20);
+      currentRoomIndex = -1;
+      updateCurrentRoom(true);
+      resetView();
+      rebuildRoomChips();
+      heroBadge.textContent = `${roomData.length} rooms generated`;
+      statusPill.textContent = "Palace ready";
+      statusText.textContent = "Walk the route with W A S D and use the room chips if you want to jump.";
+    }
+
+    function rebuildRoomChips() {
+      roomChips.innerHTML = "";
+      roomData.forEach((room) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "chip";
+        button.textContent = `${room.index + 1}. ${room.title}`;
+        button.addEventListener("click", () => jumpToRoom(room.index));
+        roomChips.appendChild(button);
+      });
+      updateRoomChipState();
+    }
+
+    function updateRoomChipState() {
+      const chips = [...roomChips.children];
+      chips.forEach((chip, index) => {
+        chip.classList.toggle("active", index === currentRoomIndex);
+      });
+    }
+
+    function updateRoomPanel(room) {
+      if (!room) {
+        roomTitle.textContent = "None yet";
+        roomBody.textContent = "Your current room details will appear here once the palace exists.";
+        roomKeywords.innerHTML = "";
+        sceneHud.innerHTML = "<strong>No palace</strong>Build a palace to begin.";
+        return;
+      }
+      roomTitle.textContent = room.title;
+      roomBody.textContent = room.body;
+      roomKeywords.innerHTML = "";
+      room.keywords.forEach((word) => {
+        const chip = document.createElement("div");
+        chip.className = "chip";
+        chip.textContent = word;
+        chip.style.cursor = "default";
+        roomKeywords.appendChild(chip);
+      });
+      sceneHud.innerHTML = `<strong>Room ${room.index + 1}</strong>${room.title}: ${room.keywords.join(" · ")}`;
+    }
+
+    function updateCurrentRoom(force = false) {
+      if (!roomData.length) {
+        updateRoomPanel(null);
+        return;
+      }
+      let nearestIndex = 0;
+      let nearestDistance = Infinity;
+      roomData.forEach((room, index) => {
+        const distance = Math.abs(camera.position.z - room.centerZ);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearestIndex = index;
+        }
+      });
+      if (force || nearestIndex !== currentRoomIndex) {
+        currentRoomIndex = nearestIndex;
+        updateRoomPanel(roomData[currentRoomIndex]);
+        updateRoomChipState();
+      }
+    }
+
+    function jumpToRoom(index) {
+      const room = roomData[index];
+      if (!room) {
+        return;
+      }
+      jumpTarget = {
+        position: new THREE.Vector3(0, 1.75, room.centerZ + 4.2),
+        yaw: 0,
+        pitch: 0
+      };
+      statusPill.textContent = `Jumping to room ${index + 1}`;
+    }
+
+    function resetView() {
+      if (!roomData.length) {
+        camera.position.set(0, 1.75, 4.5);
+        controls.yaw = 0;
+        controls.pitch = 0;
+        return;
+      }
+      camera.position.set(0, 1.75, roomData[0].centerZ + 4.2);
+      controls.yaw = 0;
+      controls.pitch = 0;
+      camera.rotation.set(0, 0, 0);
+      jumpTarget = null;
+      updateCurrentRoom(true);
+      statusPill.textContent = "View reset";
+      statusText.textContent = "Back at the first room entrance.";
+    }
+
+    function showRoute() {
+      if (!roomData.length) {
+        return;
+      }
+      statusPill.textContent = "Route";
+      statusText.textContent = roomData.map((room) => `${room.index + 1}. ${room.title}`).join("  →  ");
+    }
+
+    function onKeyDown(event) {
+      controls.keys.add(event.key.toLowerCase());
+    }
+
+    function onKeyUp(event) {
+      controls.keys.delete(event.key.toLowerCase());
+    }
+
+    sceneShell.addEventListener("pointerdown", (event) => {
+      controls.dragging = true;
+      sceneShell.setPointerCapture(event.pointerId);
+    });
+
+    sceneShell.addEventListener("pointerup", (event) => {
+      controls.dragging = false;
+      sceneShell.releasePointerCapture(event.pointerId);
+    });
+
+    sceneShell.addEventListener("pointermove", (event) => {
+      if (!controls.dragging) {
+        return;
+      }
+      controls.yaw -= event.movementX * 0.0038;
+      controls.pitch -= event.movementY * 0.0028;
+      controls.pitch = clamp(controls.pitch, -0.72, 0.72);
+    });
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("resize", resize);
+
+    function animate(now = 0) {
+      requestAnimationFrame(animate);
+      const delta = 0.016;
+
+      const forward = new THREE.Vector3(Math.sin(controls.yaw), 0, -Math.cos(controls.yaw));
+      const right = new THREE.Vector3(Math.cos(controls.yaw), 0, Math.sin(controls.yaw));
+
+      if (controls.keys.has("arrowleft")) {
+        controls.yaw += 0.03;
+      }
+      if (controls.keys.has("arrowright")) {
+        controls.yaw -= 0.03;
+      }
+      if (controls.keys.has("arrowup")) {
+        controls.pitch += 0.02;
+      }
+      if (controls.keys.has("arrowdown")) {
+        controls.pitch -= 0.02;
+      }
+      controls.pitch = clamp(controls.pitch, -0.72, 0.72);
+
+      if (jumpTarget) {
+        camera.position.lerp(jumpTarget.position, 0.08);
+        controls.yaw += (jumpTarget.yaw - controls.yaw) * 0.08;
+        controls.pitch += (jumpTarget.pitch - controls.pitch) * 0.08;
+        if (camera.position.distanceTo(jumpTarget.position) < 0.08) {
+          jumpTarget = null;
+          statusPill.textContent = `Room ${currentRoomIndex + 1}`;
+        }
+      } else {
+        const speed = controls.keys.has("shift") ? 0.28 : 0.18;
+        if (controls.keys.has("w")) {
+          camera.position.addScaledVector(forward, speed);
+        }
+        if (controls.keys.has("s")) {
+          camera.position.addScaledVector(forward, -speed * 0.72);
+        }
+        if (controls.keys.has("a")) {
+          camera.position.addScaledVector(right, -speed * 0.76);
+        }
+        if (controls.keys.has("d")) {
+          camera.position.addScaledVector(right, speed * 0.76);
+        }
+      }
+
+      const maxForward = 6;
+      const minBack = -Math.max(10, corridorLength) + 2;
+      camera.position.x = clamp(camera.position.x, -4.2, 4.2);
+      camera.position.z = clamp(camera.position.z, minBack, maxForward);
+      camera.position.y = 1.75 + Math.sin(now * 0.0026) * 0.012;
+      camera.rotation.set(controls.pitch, controls.yaw, 0);
+
+      roomData.forEach((room, index) => {
+        room.anchor.rotation.y += 0.004 + index * 0.0002;
+        room.glow.rotation.z += 0.003;
+      });
+
+      dustGroup.rotation.y = now * 0.00002;
+
+      updateCurrentRoom();
+      if (currentRoomIndex >= 0) {
+        statusPill.textContent = jumpTarget ? statusPill.textContent : `Room ${currentRoomIndex + 1}`;
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    buildButton.addEventListener("click", buildPalace);
+    resetViewButton.addEventListener("click", resetView);
+    sampleRouteButton.addEventListener("click", showRoute);
+
+    document.querySelectorAll("[data-sample]").forEach((button) => {
+      button.addEventListener("click", () => {
+        notesInput.value = SAMPLE_NOTES[button.dataset.sample] || "";
+        statusPill.textContent = "Sample loaded";
+        statusText.textContent = "Sample notes loaded. Build the palace when you are ready.";
+      });
+    });
+
+    notesInput.value = SAMPLE_NOTES.biology;
+    resize();
+    buildPalace();
+    animate();
+  </script>
+</body>
+</html>
