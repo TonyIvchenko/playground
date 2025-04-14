@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Counterpoint</title>
+  <link rel="icon" href="data:,">
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap");
+
+    :root {
+      color-scheme: light;
+      --ink: #18212b;
+      --muted: #627283;
+      --line: rgba(24, 33, 43, 0.1);
+      --panel: rgba(255, 255, 255, 0.84);
+      --panel-strong: rgba(255, 255, 255, 0.92);
+      --bg-a: #dff3ff;
+      --bg-b: #fff0e1;
+      --bg-c: #edf3ff;
+      --accent: #15202c;
+      --accent-soft: #e8eef7;
+      --danger: #b42318;
+      --blue: #1d4ed8;
+      --green: #0f766e;
+      font-family: "IBM Plex Sans", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(111, 160, 255, 0.18), transparent 28%),
+        radial-gradient(circle at top right, rgba(255, 174, 104, 0.18), transparent 30%),
+        linear-gradient(180deg, #ffffff 0%, #eef4ff 54%, #e9f1fb 100%);
+    }
+
+    main {
+      width: min(1360px, 100%);
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .hero,
+    .panel {
+      border-radius: 26px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      box-shadow: 0 20px 48px rgba(27, 40, 56, 0.12);
+      backdrop-filter: blur(14px);
+    }
+
+    .hero {
+      padding: 28px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .hero h1 {
+      margin: 0;
+      font-family: "Fraunces", serif;
+      font-size: clamp(42px, 6vw, 72px);
+      line-height: 0.95;
+      letter-spacing: -0.05em;
+    }
+
+    .hero p,
+    .status,
+    .hint,
+    .body-copy {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .hero-top {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .badge {
+      display: inline-flex;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.86);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .panel {
+      padding: 20px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .controls {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      align-items: end;
+    }
+
+    .workspace {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.2fr);
+      align-items: start;
+    }
+
+    .output-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    select,
+    textarea,
+    button {
+      font: inherit;
+      color: inherit;
+    }
+
+    select,
+    textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #fff;
+    }
+
+    select {
+      padding: 12px 14px;
+    }
+
+    textarea {
+      min-height: 420px;
+      padding: 16px 18px;
+      resize: vertical;
+      line-height: 1.58;
+    }
+
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: rgba(67, 118, 255, 0.44);
+      box-shadow: 0 0 0 4px rgba(67, 118, 255, 0.1);
+    }
+
+    button {
+      border: 0;
+      border-radius: 16px;
+      padding: 12px 16px;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    button.secondary {
+      background: var(--accent-soft);
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+
+    button:disabled {
+      opacity: 0.62;
+      cursor: not-allowed;
+    }
+
+    .input-card,
+    .card {
+      display: grid;
+      gap: 14px;
+      padding: 18px;
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      background: var(--panel-strong);
+    }
+
+    .input-card h2,
+    .card h2 {
+      margin: 0;
+      font-size: 15px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .sample-row,
+    .upload-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .upload-row input[type="file"] {
+      max-width: 100%;
+      font: inherit;
+      color: var(--muted);
+    }
+
+    .pill {
+      display: inline-flex;
+      width: fit-content;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: #eef4fb;
+      font-weight: 700;
+      color: var(--blue);
+    }
+
+    .summary-box {
+      padding: 14px 16px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: linear-gradient(135deg, rgba(180, 35, 24, 0.05), rgba(29, 78, 216, 0.04));
+      line-height: 1.6;
+    }
+
+    .list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .list-item {
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: #fff;
+      line-height: 1.5;
+    }
+
+    .list-item strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .danger { border-left: 4px solid var(--danger); }
+    .blue { border-left: 4px solid var(--blue); }
+    .green { border-left: 4px solid var(--green); }
+
+    .status {
+      min-height: 24px;
+    }
+
+    @media (max-width: 1120px) {
+      .controls,
+      .workspace,
+      .output-grid {
+        grid-template-columns: 1fr;
+      }
+
+      textarea {
+        min-height: 320px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <div class="hero-top">
+        <div>
+          <h1>Counterpoint</h1>
+          <p>Paste your side of an argument and let the browser write the smartest opposition it can. Instead of cheering you on, it pressure-tests your weak spots so you can walk into the real conversation prepared.</p>
+        </div>
+        <div class="badge">Ghostwriter For Counterarguments</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="controls">
+        <label>
+          Arena
+          <select id="arena-select">
+            <option value="workplace">Workplace</option>
+            <option value="relationship">Relationship</option>
+            <option value="family">Family</option>
+            <option value="negotiation">Negotiation</option>
+            <option value="public">Public / political</option>
+          </select>
+        </label>
+
+        <label>
+          Opponent Style
+          <select id="style-select">
+            <option value="calm">Calm and precise</option>
+            <option value="skeptical">Skeptical and sharp</option>
+            <option value="aggressive">Aggressive and confrontational</option>
+            <option value="patronizing">Patronizing and dismissive</option>
+          </select>
+        </label>
+
+        <label>
+          Pressure Level
+          <select id="pressure-select">
+            <option value="balanced">Balanced</option>
+            <option value="hard" selected>Hard</option>
+            <option value="merciless">Merciless</option>
+          </select>
+        </label>
+
+        <button id="run-button" type="button" disabled>Build Counter-Side</button>
+        <button id="clear-button" class="secondary" type="button">Clear</button>
+      </div>
+
+      <div class="workspace">
+        <section class="input-card">
+          <h2>Your Position</h2>
+          <p class="hint">Write the side you want to stress-test. Clear, concrete claims work best.</p>
+          <div class="sample-row">
+            <button class="secondary sample-button" type="button" data-sample="remote">Remote Work</button>
+            <button class="secondary sample-button" type="button" data-sample="relationship">Relationship</button>
+            <button class="secondary sample-button" type="button" data-sample="negotiation">Salary</button>
+          </div>
+          <div class="upload-row">
+            <input id="file-input" type="file" accept=".txt,.md,.csv,.json,.html,.htm">
+          </div>
+          <textarea id="position-input" placeholder="Loading browser model..." disabled></textarea>
+        </section>
+
+        <div class="output-grid">
+          <section class="card">
+            <div>
+              <h2>Counter Thesis</h2>
+              <p class="hint">The strongest high-level opposition to your position.</p>
+            </div>
+            <div id="counter-thesis" class="summary-box body-copy">Run the ghostwriter to generate the opposing case.</div>
+          </section>
+
+          <section class="card">
+            <div>
+              <h2>Opening Attack</h2>
+              <p class="hint">How the other side would frame the fight in the first minute.</p>
+            </div>
+            <div id="opening-attack" class="summary-box body-copy">No output yet.</div>
+          </section>
+
+          <section class="card">
+            <div>
+              <h2>Likely Attack Lines</h2>
+              <p class="hint">The points they will keep hammering.</p>
+            </div>
+            <div id="attack-lines" class="list"></div>
+          </section>
+
+          <section class="card">
+            <div>
+              <h2>Trap Questions</h2>
+              <p class="hint">Questions that force you into weak or awkward answers.</p>
+            </div>
+            <div id="trap-questions" class="list"></div>
+          </section>
+
+          <section class="card">
+            <div>
+              <h2>Weak Spots In Your Position</h2>
+              <p class="hint">Assumptions, gaps, and contradictions they will exploit.</p>
+            </div>
+            <div id="weak-spots" class="list"></div>
+          </section>
+
+          <section class="card">
+            <div>
+              <h2>Do Not Say</h2>
+              <p class="hint">Phrases that invite an easy contradiction or make you look sloppy.</p>
+            </div>
+            <div id="dont-say" class="list"></div>
+          </section>
+
+          <section class="card" style="grid-column: 1 / -1;">
+            <div>
+              <h2>Prep Notes</h2>
+              <p class="hint">What to tighten before the real conversation starts.</p>
+            </div>
+            <div id="prep-notes" class="list"></div>
+          </section>
+        </div>
+      </div>
+
+      <div class="pill" id="model-pill">Loading browser model...</div>
+      <p id="status" class="status"></p>
+    </section>
+  </main>
+
+  <script type="module">
+    import { env, pipeline } from "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2";
+
+    env.allowLocalModels = false;
+    env.useBrowserCache = true;
+
+    const SAMPLE_TEXT = {
+      remote: `Our team should stay remote-first because the work quality is higher, commuting time is wasted energy, and forcing people back into the office is mostly about management optics rather than outcomes. We already proved we can ship on time from home. If someone wants office time, it should stay optional instead of mandatory.`,
+      relationship: `I think we should stop spending every weekend with your family because it leaves no room for our own life together. I am not saying they are bad people. I am saying the current routine is too much, and every time I bring it up you make it sound selfish even though I am asking for balance.`,
+      negotiation: `I deserve a higher salary because I took on responsibilities well beyond my original role, I have been covering critical work without additional headcount, and replacing me would cost more than adjusting my compensation now. The company says budgets are tight, but they keep expanding scope and expecting the same people to absorb it.`
+    };
+
+    const arenaSelect = document.getElementById("arena-select");
+    const styleSelect = document.getElementById("style-select");
+    const pressureSelect = document.getElementById("pressure-select");
+    const runButton = document.getElementById("run-button");
+    const clearButton = document.getElementById("clear-button");
+    const fileInput = document.getElementById("file-input");
+    const positionInput = document.getElementById("position-input");
+    const modelPill = document.getElementById("model-pill");
+    const statusEl = document.getElementById("status");
+    const counterThesisEl = document.getElementById("counter-thesis");
+    const openingAttackEl = document.getElementById("opening-attack");
+    const attackLinesEl = document.getElementById("attack-lines");
+    const trapQuestionsEl = document.getElementById("trap-questions");
+    const weakSpotsEl = document.getElementById("weak-spots");
+    const dontSayEl = document.getElementById("dont-say");
+    const prepNotesEl = document.getElementById("prep-notes");
+
+    let ghostwriter = null;
+    let modelReady = false;
+
+    function setStatus(message, isError = false) {
+      statusEl.textContent = message;
+      statusEl.style.color = isError ? "#b42318" : "var(--muted)";
+    }
+
+    function normalizeWhitespace(text) {
+      return text.replace(/\s+/g, " ").trim();
+    }
+
+    function splitSentences(text) {
+      return text
+        .split(/(?<=[.!?])\s+|\n+/)
+        .map((sentence) => sentence.trim())
+        .filter((sentence) => sentence.length > 20);
+    }
+
+    function scoreSentence(sentence) {
+      const words = sentence.toLowerCase().match(/[a-z']+/g) || [];
+      const unique = new Set(words);
+      let score = sentence.length + unique.size * 8;
+      if (/because|therefore|proves|means|deserve|should|must|always|never|clearly/.test(sentence.toLowerCase())) {
+        score += 30;
+      }
+      if (/i think|i feel|maybe|sort of|kind of/.test(sentence.toLowerCase())) {
+        score -= 18;
+      }
+      return score;
+    }
+
+    function topClaims(text, count = 4) {
+      const sentences = splitSentences(text);
+      return sentences
+        .map((sentence) => ({ sentence, score: scoreSentence(sentence) }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, count)
+        .map((item) => item.sentence);
+    }
+
+    function takeWords(text, count = 90) {
+      return normalizeWhitespace(text).split(" ").slice(0, count).join(" ");
+    }
+
+    function bulletize(text, minimum = 4) {
+      const lines = text
+        .split(/\n+/)
+        .map((line) => line.replace(/^[-*\d.)\s]+/, "").trim())
+        .filter(Boolean);
+      if (lines.length >= minimum) {
+        return lines;
+      }
+      return text
+        .split(/(?<=[.!?])\s+/)
+        .map((line) => line.replace(/^[-*\d.)\s]+/, "").trim())
+        .filter(Boolean)
+        .slice(0, Math.max(minimum, 6));
+    }
+
+    function renderList(target, items, tone = "blue") {
+      target.innerHTML = "";
+      for (const item of items) {
+        const div = document.createElement("div");
+        div.className = `list-item ${tone}`;
+        div.textContent = item;
+        target.appendChild(div);
+      }
+    }
+
+    function renderLabeledList(target, items, tone = "green") {
+      target.innerHTML = "";
+      for (const item of items) {
+        const [head, ...rest] = item.split(/:|-\>/);
+        const div = document.createElement("div");
+        div.className = `list-item ${tone}`;
+        const strong = document.createElement("strong");
+        strong.textContent = head ? head.trim() : "Note";
+        const body = document.createElement("div");
+        body.textContent = rest.join(":").trim() || item.trim();
+        div.append(strong, body);
+        target.appendChild(div);
+      }
+    }
+
+    function heuristicCounterpack(text) {
+      const claims = topClaims(text, 4);
+      const thesis = claims[0]
+        ? `Your position sounds cleaner than it is. The counter-side would say your argument overstates your case, ignores tradeoffs, and assumes your preferred outcome is cost-free for everyone else.`
+        : `The counter-side would attack your position as selective, self-serving, and under-supported.`;
+      const opening = `You are framing this as obvious and reasonable, but that only works if we accept your assumptions without inspection. The problem is that your case depends on selective evidence, downplays the costs to other people, and treats your preferred answer as the only fair one.`;
+      const attackLines = claims.map((claim) => `They would challenge this claim directly: ${claim}`);
+      const traps = [
+        "What evidence would change your mind, specifically?",
+        "What cost are you asking other people to absorb so your solution works?",
+        "Which part of your argument is fact, and which part is frustration?",
+        "If the opposite side used your own standard, would your case still hold?",
+        "What are you leaving out because it weakens your conclusion?"
+      ];
+      const weakSpots = claims.map((claim) => `Assumption behind '${takeWords(claim, 14)}': they will say you have not actually proved it.`);
+      const dontSay = [
+        "Never say 'everyone knows' because they can ask for proof immediately.",
+        "Avoid absolute words like 'always' and 'never' because one exception breaks your force.",
+        "Do not collapse motives into bad faith unless you can defend it.",
+        "Do not say 'it's obvious' when your case still needs evidence."
+      ];
+      const prep = [
+        "Tighten your evidence before defending your conclusion.",
+        "Separate what is unfair from what is merely inconvenient.",
+        "Be ready to name tradeoffs, not just benefits.",
+        "Have one short answer for the strongest objection instead of five weak ones."
+      ];
+      return { thesis, opening, attackLines, traps, weakSpots, dontSay, prep };
+    }
+
+    async function ensureModel() {
+      setStatus("Loading browser model...");
+      modelPill.textContent = "Loading browser model...";
+      try {
+        ghostwriter = await pipeline("text2text-generation", "Xenova/flan-t5-small", {
+          quantized: true,
+          progress_callback: () => {
+            modelPill.textContent = "Downloading browser model...";
+          }
+        });
+        modelReady = true;
+        positionInput.disabled = false;
+        runButton.disabled = false;
+        modelPill.textContent = "Model ready: Xenova/flan-t5-small";
+        setStatus("Paste a position and build the counter-side.");
+      } catch (error) {
+        console.error(error);
+        modelReady = false;
+        ghostwriter = null;
+        positionInput.disabled = false;
+        runButton.disabled = false;
+        modelPill.textContent = "Model unavailable: heuristic fallback";
+        setStatus("The browser model failed to load, so Counterpoint will use heuristic counterargument templates for this run.", true);
+      }
+    }
+
+    async function generateText(prompt, maxNewTokens = 120) {
+      if (!ghostwriter) {
+        return "";
+      }
+      const output = await ghostwriter(prompt, {
+        max_new_tokens: maxNewTokens,
+        temperature: 0.9,
+        repetition_penalty: 1.18,
+        no_repeat_ngram_size: 3,
+        do_sample: true,
+        top_k: 40,
+        top_p: 0.92
+      });
+      return normalizeWhitespace(output?.[0]?.generated_text || "");
+    }
+
+    async function buildCounterpack(text) {
+      const compact = takeWords(text, 170);
+      const claims = topClaims(text, 5).join(" | ");
+      const arena = arenaSelect.value;
+      const style = styleSelect.value;
+      const pressure = pressureSelect.value;
+      const fallback = heuristicCounterpack(text);
+
+      const thesisPrompt = `You are writing the strongest opposing case in a ${arena} argument. Opponent style: ${style}. Pressure level: ${pressure}. Viewpoint: ${compact}. Claims: ${claims}. Write 4 short bullet points that summarize the strongest counter-thesis.`;
+      const openingPrompt = `Roleplay the opponent in a ${arena} argument. Opponent style: ${style}. Pressure level: ${pressure}. Viewpoint you are attacking: ${compact}. Write one tough opening statement of 90 words max.`;
+      const attackPrompt = `You are the opponent. Attack this viewpoint in a ${arena} argument. Opponent style: ${style}. Claims: ${claims}. List 5 bullet points for the main attack lines you would keep repeating.`;
+      const trapPrompt = `You are the opponent. Viewpoint: ${compact}. Write 5 short trap questions that would expose weak spots in the position. Keep them sharp.`;
+      const weakPrompt = `Analyze this viewpoint: ${compact}. List 5 weak spots, assumptions, or contradictions the opponent can exploit. Keep each bullet concise.`;
+      const dontSayPrompt = `A person is about to defend this viewpoint: ${compact}. List 5 things they should avoid saying because the opponent can use them against them. Format each bullet as 'Phrase to avoid: why it backfires'.`;
+      const prepPrompt = `A person is about to defend this viewpoint: ${compact}. Give 5 prep notes for surviving a hard argument. Focus on what they need to tighten, prove, or stop doing.`;
+      const thesisRaw = await generateText(thesisPrompt, 110);
+      const openingRaw = await generateText(openingPrompt, 120);
+      const attackRaw = await generateText(attackPrompt, 130);
+      const trapRaw = await generateText(trapPrompt, 120);
+      const weakRaw = await generateText(weakPrompt, 130);
+      const dontSayRaw = await generateText(dontSayPrompt, 140);
+      const prepRaw = await generateText(prepPrompt, 140);
+
+      const attackLines = bulletize(attackRaw, 5);
+      const traps = bulletize(trapRaw, 5);
+      const weakSpots = bulletize(weakRaw, 5);
+      const dontSay = bulletize(dontSayRaw, 5);
+      const prep = bulletize(prepRaw, 5);
+
+      return {
+        thesis: bulletize(thesisRaw, 4).join(" ") || fallback.thesis,
+        opening: openingRaw || fallback.opening,
+        attackLines: attackLines.length ? attackLines : fallback.attackLines,
+        traps: traps.length ? traps : fallback.traps,
+        weakSpots: weakSpots.length ? weakSpots : fallback.weakSpots,
+        dontSay: dontSay.length ? dontSay : fallback.dontSay,
+        prep: prep.length ? prep : fallback.prep
+      };
+    }
+
+    function renderPack(pack) {
+      counterThesisEl.textContent = pack.thesis || "No counter-thesis generated.";
+      openingAttackEl.textContent = pack.opening || "No opening attack generated.";
+      renderList(attackLinesEl, pack.attackLines, "danger");
+      renderList(trapQuestionsEl, pack.traps, "blue");
+      renderList(weakSpotsEl, pack.weakSpots, "danger");
+      renderLabeledList(dontSayEl, pack.dontSay, "green");
+      renderList(prepNotesEl, pack.prep, "green");
+    }
+
+    function clearOutputs() {
+      counterThesisEl.textContent = "Run the ghostwriter to generate the opposing case.";
+      openingAttackEl.textContent = "No output yet.";
+      for (const target of [attackLinesEl, trapQuestionsEl, weakSpotsEl, dontSayEl, prepNotesEl]) {
+        target.innerHTML = "";
+      }
+    }
+
+    async function runGhostwriter() {
+      const text = normalizeWhitespace(positionInput.value);
+      if (!text) {
+        setStatus("Paste your position first.", true);
+        return;
+      }
+
+      runButton.disabled = true;
+      clearButton.disabled = true;
+      setStatus("Building the strongest counter-side...");
+
+      try {
+        const pack = ghostwriter
+          ? await buildCounterpack(text)
+          : heuristicCounterpack(text);
+        renderPack(pack);
+        setStatus(ghostwriter ? "Counter-side ready." : "Counter-side ready from heuristic fallback.");
+      } catch (error) {
+        console.error(error);
+        renderPack(heuristicCounterpack(text));
+        setStatus("Model generation failed, so Counterpoint fell back to heuristic output.", true);
+      } finally {
+        runButton.disabled = false;
+        clearButton.disabled = false;
+      }
+    }
+
+    function clearAll() {
+      positionInput.value = "";
+      fileInput.value = "";
+      clearOutputs();
+      setStatus(modelReady ? "Paste a position and build the counter-side." : "Paste a position. Heuristic fallback is available even if the model is not.");
+    }
+
+    fileInput.addEventListener("change", async (event) => {
+      const [file] = event.target.files || [];
+      if (!file) {
+        return;
+      }
+      positionInput.value = await file.text();
+      setStatus(`Loaded ${file.name}.`);
+    });
+
+    for (const button of document.querySelectorAll(".sample-button")) {
+      button.addEventListener("click", () => {
+        const key = button.dataset.sample;
+        positionInput.value = SAMPLE_TEXT[key] || "";
+        clearOutputs();
+        setStatus("Sample loaded. Build the counter-side when ready.");
+      });
+    }
+
+    runButton.addEventListener("click", runGhostwriter);
+    clearButton.addEventListener("click", clearAll);
+
+    positionInput.value = SAMPLE_TEXT.remote;
+    ensureModel();
+  </script>
+</body>
+</html>
