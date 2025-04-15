@@ -2,12 +2,21 @@
 
 Voice-cloning text-to-speech service built around transfer learning instead of training a voice model from zero.
 
-## Plan
+## Model Stack
 
-- Download open multi-speaker speech corpora.
-- Prepare a speaker-conditioned training manifest.
-- Fine-tune a pretrained `SpeechT5` text-to-speech model.
-- Run a local Gradio demo that speaks user text in the voice of a reference clip.
+- Base text-to-speech model: `microsoft/speecht5_tts`
+- Vocoder: `microsoft/speecht5_hifigan`
+- Speaker encoder: `speechbrain/spkrec-ecapa-voxceleb`
+- Fine-tuning target: speaker-conditioned SpeechT5 on open English speech corpora
+
+## Data
+
+The service is wired for these open datasets:
+
+- `LibriTTS` (`train-clean-100`, `dev-clean` by default)
+- `VCTK 0.92`
+
+The downloader uses `torchaudio` dataset loaders so it pulls the official archives instead of a private mirror.
 
 ## Layout
 
@@ -27,8 +36,37 @@ python main.py
 
 Then open `http://127.0.0.1:8080`.
 
+## End-To-End Flow
+
+Download the raw corpora:
+
+```bash
+python scripts/download_data.py
+```
+
+Build train/eval manifests:
+
+```bash
+python scripts/prepare_dataset.py --max-per-speaker 200
+```
+
+Run a smoke fine-tune on current hardware:
+
+```bash
+python scripts/train_model.py --epochs 1 --max-train-samples 64 --max-eval-samples 16
+```
+
+Run a larger local training pass on MPS:
+
+```bash
+python scripts/train_model.py --device mps --epochs 3 --batch-size 2 --gradient-accumulation-steps 8
+```
+
+After training, the Gradio app will automatically use `models/speecht5-finetuned` if the checkpoint exists.
+
 ## Notes
 
 - The first implementation targets English speech.
 - Training is designed for Apple Silicon MPS or CUDA.
-- The service can fall back to the base pretrained model before a fine-tuned checkpoint exists.
+- If no fine-tuned checkpoint exists yet, the demo falls back to the base pretrained model.
+- Short clean reference clips work better than noisy or heavily reverberant audio.
