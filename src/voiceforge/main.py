@@ -1,7 +1,9 @@
 from pathlib import Path
 import os
 
+from fastapi import FastAPI
 import gradio as gr
+import uvicorn
 
 try:
     from model.speecht5 import DEFAULT_MODEL_DIR, load_speecht5_bundle, synthesize_to_temp_wav
@@ -55,8 +57,21 @@ def build_app() -> gr.Blocks:
     return demo
 
 
-app = build_app()
+demo = build_app()
+app = FastAPI(title="VoiceForge")
+
+
+@app.get("/health")
+def health() -> dict[str, object]:
+    return {
+        "status": "ok",
+        "model_dir": str(MODEL_DIR),
+        "model_ready": (MODEL_DIR / "config.json").exists(),
+    }
+
+
+app = gr.mount_gradio_app(app, demo, path="/")
 
 
 if __name__ == "__main__":
-    app.launch(server_name="0.0.0.0", server_port=PORT)
+    uvicorn.run(app, host="0.0.0.0", port=PORT)
