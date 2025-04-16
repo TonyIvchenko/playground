@@ -64,6 +64,14 @@ python scripts/train_model.py --device mps --epochs 3 --batch-size 2 --gradient-
 
 After training, the Gradio app will automatically use `models/speecht5-finetuned` if the checkpoint exists.
 
+## References
+
+- SpeechT5 model card: https://huggingface.co/microsoft/speecht5_tts
+- SpeechT5 vocoder: https://huggingface.co/microsoft/speecht5_hifigan
+- SpeechBrain ECAPA speaker embeddings: https://huggingface.co/speechbrain/spkrec-ecapa-voxceleb
+- LibriTTS dataset: https://www.openslr.org/60/
+- VCTK 0.92 dataset: https://datashare.ed.ac.uk/handle/10283/3443
+
 ## Notes
 
 - The first implementation targets English speech.
