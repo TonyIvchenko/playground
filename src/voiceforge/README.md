@@ -24,6 +24,7 @@ The downloader uses `torchaudio` dataset loaders so it pulls the official archiv
 - `scripts/download_data.py`
 - `scripts/prepare_dataset.py`
 - `scripts/train_model.py`
+- `notebooks/voiceforge.ipynb`
 - `main.py`
 
 ## Local Run
