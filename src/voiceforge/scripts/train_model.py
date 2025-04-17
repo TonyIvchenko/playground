@@ -9,6 +9,7 @@ import sys
 from typing import Any
 
 import numpy as np
+import torch
 
 SERVICE_DIR = Path(__file__).resolve().parents[1]
 if str(SERVICE_DIR) not in sys.path:
@@ -63,6 +64,23 @@ def load_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def build_device_info(
+    *,
+    requested_device: str,
+    resolved_device: str,
+    model: Any,
+    training_args: Any,
+) -> dict[str, Any]:
+    return {
+        "requested_device": requested_device,
+        "resolved_device": resolved_device,
+        "mps_available": bool(torch.backends.mps.is_available()),
+        "mps_built": bool(torch.backends.mps.is_built()),
+        "model_parameter_device": str(next(model.parameters()).device),
+        "use_mps_device": bool(getattr(training_args, "use_mps_device", False)),
+    }
 
 
 def select_preview_rows(
@@ -275,6 +293,14 @@ def main() -> None:
         data_collator=collator,
         tokenizer=processor.tokenizer,
     )
+    device_info = build_device_info(
+        requested_device=args.device,
+        resolved_device=device,
+        model=model,
+        training_args=training_args,
+    )
+    (output_dir / "device_info.json").write_text(json.dumps(device_info, indent=2), encoding="utf-8")
+    print(json.dumps({"device_info": device_info}, indent=2), flush=True)
     trainer.train(resume_from_checkpoint=args.resume_from_checkpoint)
     trainer.save_model(str(output_dir))
     processor.save_pretrained(str(output_dir))
@@ -287,6 +313,7 @@ def main() -> None:
         "train_rows": len(train_rows),
         "eval_rows": len(eval_rows),
         "resume_from_checkpoint": args.resume_from_checkpoint,
+        "device_info": device_info,
     }
     (output_dir / "artifact.json").write_text(json.dumps(artifact, indent=2), encoding="utf-8")
 
