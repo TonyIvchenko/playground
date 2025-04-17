@@ -65,13 +65,13 @@ python scripts/prepare_dataset.py --max-per-speaker 200
 Run a smoke fine-tune on current hardware:
 
 ```bash
-python scripts/train_model.py --epochs 1 --max-train-samples 64 --max-eval-samples 16
+python scripts/train_model.py --epochs 1 --max-train-samples 64 --max-eval-samples 16 --preview-samples 2
 ```
 
 Run a larger local training pass on MPS:
 
 ```bash
-python scripts/train_model.py --device mps --epochs 3 --batch-size 2 --gradient-accumulation-steps 8
+python scripts/train_model.py --device mps --epochs 3 --batch-size 2 --gradient-accumulation-steps 8 --resume-from-checkpoint models/speecht5-finetuned/checkpoint-100
 ```
 
 After training, the Gradio app will automatically use `models/speecht5-finetuned` if the checkpoint exists.
@@ -90,3 +90,9 @@ After training, the Gradio app will automatically use `models/speecht5-finetuned
 - Training is designed for Apple Silicon MPS or CUDA.
 - If no fine-tuned checkpoint exists yet, the demo falls back to the base pretrained model.
 - Short clean reference clips work better than noisy or heavily reverberant audio.
+
+## Training Notes
+
+- `--resume-from-checkpoint` continues from a saved trainer checkpoint.
+- `--save-total-limit` prunes older checkpoints so the run does not grow forever.
+- After each training run, VoiceForge generates preview `.wav` files under `models/speecht5-finetuned/previews`.

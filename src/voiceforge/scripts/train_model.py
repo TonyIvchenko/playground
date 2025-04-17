@@ -14,8 +14,10 @@ try:
         DEFAULT_MODEL_DIR,
         DEFAULT_SPEAKER_ENCODER,
         TARGET_SAMPLE_RATE,
+        load_speecht5_bundle,
         pick_device,
         speaker_embedding_from_components,
+        synthesize_to_temp_wav,
     )
 except ImportError:
     from src.voiceforge.model.speecht5 import (
@@ -23,8 +25,10 @@ except ImportError:
         DEFAULT_MODEL_DIR,
         DEFAULT_SPEAKER_ENCODER,
         TARGET_SAMPLE_RATE,
+        load_speecht5_bundle,
         pick_device,
         speaker_embedding_from_components,
+        synthesize_to_temp_wav,
     )
 
 
@@ -36,6 +40,42 @@ def load_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def select_preview_rows(
+    eval_rows: list[dict[str, Any]],
+    train_rows: list[dict[str, Any]],
+    limit: int,
+) -> list[dict[str, Any]]:
+    seen_speakers: set[str] = set()
+    selected: list[dict[str, Any]] = []
+    for pool in (eval_rows, train_rows):
+        for row in pool:
+            speaker_id = row["speaker_id"]
+            if speaker_id in seen_speakers:
+                continue
+            seen_speakers.add(speaker_id)
+            selected.append(row)
+            if len(selected) >= limit:
+                return selected
+    return selected
+
+
+def write_preview_manifest(preview_dir: Path, rows: list[dict[str, Any]], generated_paths: list[str]) -> Path:
+    preview_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = preview_dir / "preview_manifest.json"
+    payload = [
+        {
+            "speaker_id": row["speaker_id"],
+            "source": row["source"],
+            "utterance_id": row["utterance_id"],
+            "reference_audio": row["audio_path"],
+            "generated_audio": generated_path,
+        }
+        for row, generated_path in zip(rows, generated_paths, strict=False)
+    ]
+    manifest_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return manifest_path
 
 
 @dataclass
@@ -94,6 +134,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--eval-steps", type=int, default=100)
     parser.add_argument("--max-train-samples", type=int, default=None)
     parser.add_argument("--max-eval-samples", type=int, default=None)
+    parser.add_argument("--resume-from-checkpoint", default=None)
+    parser.add_argument("--save-total-limit", type=int, default=2)
+    parser.add_argument("--preview-text", default="This is a VoiceForge preview generated after fine-tuning the SpeechT5 model.")
+    parser.add_argument("--preview-samples", type=int, default=3)
     return parser
 
 
@@ -186,6 +230,7 @@ def main() -> None:
         num_train_epochs=args.epochs,
         evaluation_strategy="steps" if eval_dataset is not None and len(eval_dataset) > 0 else "no",
         save_strategy="steps",
+        save_total_limit=args.save_total_limit,
         report_to=[],
         remove_unused_columns=False,
         dataloader_num_workers=0,
@@ -205,7 +250,7 @@ def main() -> None:
         data_collator=collator,
         tokenizer=processor.tokenizer,
     )
-    trainer.train()
+    trainer.train(resume_from_checkpoint=args.resume_from_checkpoint)
     trainer.save_model(str(output_dir))
     processor.save_pretrained(str(output_dir))
 
@@ -216,8 +261,28 @@ def main() -> None:
         "sample_rate": TARGET_SAMPLE_RATE,
         "train_rows": len(train_rows),
         "eval_rows": len(eval_rows),
+        "resume_from_checkpoint": args.resume_from_checkpoint,
     }
     (output_dir / "artifact.json").write_text(json.dumps(artifact, indent=2), encoding="utf-8")
+
+    preview_rows = select_preview_rows(eval_rows, train_rows, args.preview_samples)
+    generated_paths: list[str] = []
+    if preview_rows:
+        bundle = load_speecht5_bundle(model_dir=str(output_dir), preferred_device=device)
+        preview_dir = output_dir / "previews"
+        preview_dir.mkdir(parents=True, exist_ok=True)
+        for index, row in enumerate(preview_rows, start=1):
+            generated_path, _status = synthesize_to_temp_wav(
+                text=args.preview_text,
+                reference_audio_path=row["audio_path"],
+                bundle=bundle,
+            )
+            target_path = preview_dir / f"{index:02d}_{row['speaker_id']}.wav"
+            Path(generated_path).replace(target_path)
+            generated_paths.append(str(target_path))
+        manifest_path = write_preview_manifest(preview_dir, preview_rows, generated_paths)
+        artifact["preview_manifest"] = str(manifest_path)
+        (output_dir / "artifact.json").write_text(json.dumps(artifact, indent=2), encoding="utf-8")
     print(json.dumps(artifact, indent=2))
 
 
