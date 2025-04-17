@@ -148,3 +148,6 @@ src/ctscan/model/*.train.log
 src/ctscan/model/backbone_search*/
 src/ctscan/logs/
 tmp/
+
+# VoiceForge generated artifacts
+src/voiceforge/models/

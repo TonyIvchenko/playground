@@ -2,11 +2,17 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
+import inspect
 import json
 from pathlib import Path
+import sys
 from typing import Any
 
 import numpy as np
+
+SERVICE_DIR = Path(__file__).resolve().parents[1]
+if str(SERVICE_DIR) not in sys.path:
+    sys.path.insert(0, str(SERVICE_DIR))
 
 try:
     from model.speecht5 import (
@@ -32,7 +38,24 @@ except ImportError:
     )
 
 
-SERVICE_DIR = Path(__file__).resolve().parents[1]
+def patch_accelerate_compat() -> None:
+    try:
+        from accelerate import Accelerator
+    except ImportError:
+        return
+
+    parameters = inspect.signature(Accelerator.unwrap_model).parameters
+    if "keep_torch_compile" in parameters:
+        return
+
+    original = Accelerator.unwrap_model
+
+    def unwrap_model_compat(self, model, keep_torch_compile=None):  # type: ignore[override]
+        return original(self, model)
+
+    Accelerator.unwrap_model = unwrap_model_compat
+
+
 DEFAULT_DATA_DIR = SERVICE_DIR / "data" / "voiceforge" / "processed"
 
 
@@ -156,6 +179,8 @@ def main() -> None:
         SpeechT5Processor,
     )
 
+    patch_accelerate_compat()
+
     data_dir = args.data_dir.resolve()
     output_dir = args.output_dir.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -171,7 +196,8 @@ def main() -> None:
         eval_rows = eval_rows[: args.max_eval_samples]
 
     processor = SpeechT5Processor.from_pretrained(args.base_model)
-    model = SpeechT5ForTextToSpeech.from_pretrained(args.base_model)
+    model = SpeechT5ForTextToSpeech.from_pretrained(args.base_model, use_safetensors=True)
+    speaker_embedding_dim = getattr(model.config, "speaker_embedding_dim", None)
     device = pick_device(args.device)
     model.to(device)
 
@@ -203,6 +229,7 @@ def main() -> None:
                 np.asarray(audio["array"], dtype=np.float32),
                 speaker_encoder=speaker_encoder,
                 device=device,
+                target_dim=speaker_embedding_dim,
             )
             speaker_cache[speaker_id] = embedding.squeeze(0).detach().cpu().numpy().astype(np.float32)
         return {
@@ -228,7 +255,7 @@ def main() -> None:
         save_steps=args.save_steps,
         eval_steps=args.eval_steps,
         num_train_epochs=args.epochs,
-        evaluation_strategy="steps" if eval_dataset is not None and len(eval_dataset) > 0 else "no",
+        eval_strategy="steps" if eval_dataset is not None and len(eval_dataset) > 0 else "no",
         save_strategy="steps",
         save_total_limit=args.save_total_limit,
         report_to=[],

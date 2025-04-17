@@ -79,8 +79,8 @@ def load_speecht5_bundle(
     device = pick_device(preferred_device)
 
     processor = SpeechT5Processor.from_pretrained(source)
-    model = SpeechT5ForTextToSpeech.from_pretrained(source)
-    vocoder = SpeechT5HifiGan.from_pretrained(vocoder_name)
+    model = SpeechT5ForTextToSpeech.from_pretrained(source, use_safetensors=True)
+    vocoder = SpeechT5HifiGan.from_pretrained(vocoder_name, use_safetensors=True)
     model.to(device)
     vocoder.to(device)
     model.eval()
@@ -122,11 +122,44 @@ def load_audio_mono(audio_path: str | Path, target_sample_rate: int = TARGET_SAM
     return waveform.astype(np.float32)
 
 
+def coerce_speaker_embedding_dim(embedding: Any, target_dim: int | None) -> Any:
+    import torch
+
+    if target_dim is None:
+        return embedding
+    if embedding.ndim == 1:
+        embedding = embedding.unsqueeze(0)
+    current_dim = embedding.shape[-1]
+    if current_dim == target_dim:
+        return embedding
+    if current_dim <= 0:
+        raise ValueError("Speaker embedding has no feature dimension.")
+
+    resized = torch.nn.functional.interpolate(
+        embedding.unsqueeze(1),
+        size=target_dim,
+        mode="linear",
+        align_corners=False,
+    ).squeeze(1)
+    return torch.nn.functional.normalize(resized, dim=-1)
+
+
 def speaker_embedding_from_waveform(waveform: np.ndarray, bundle: SpeechT5Bundle) -> Any:
-    return speaker_embedding_from_components(waveform, bundle.speaker_encoder, bundle.device)
+    target_dim = getattr(bundle.model.config, "speaker_embedding_dim", None)
+    return speaker_embedding_from_components(
+        waveform,
+        bundle.speaker_encoder,
+        bundle.device,
+        target_dim=target_dim,
+    )
 
 
-def speaker_embedding_from_components(waveform: np.ndarray, speaker_encoder: Any, device: str) -> Any:
+def speaker_embedding_from_components(
+    waveform: np.ndarray,
+    speaker_encoder: Any,
+    device: str,
+    target_dim: int | None = None,
+) -> Any:
     import torch
 
     tensor = torch.from_numpy(waveform).unsqueeze(0).to(device)
@@ -136,7 +169,7 @@ def speaker_embedding_from_components(waveform: np.ndarray, speaker_encoder: Any
     if embedding.ndim == 1:
         embedding = embedding.unsqueeze(0)
     embedding = torch.nn.functional.normalize(embedding, dim=-1)
-    return embedding
+    return coerce_speaker_embedding_dim(embedding, target_dim)
 
 
 def speaker_embedding_from_audio(audio_path: str | Path, bundle: SpeechT5Bundle) -> Any:
