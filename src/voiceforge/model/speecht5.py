@@ -193,12 +193,21 @@ def synthesize_speech(
         attention_mask = attention_mask.to(bundle.device)
 
     with torch.no_grad():
-        audio = bundle.model.generate_speech(
+        spectrogram = bundle.model.generate_speech(
             input_ids,
             speaker_embedding,
             attention_mask=attention_mask,
-            vocoder=bundle.vocoder,
+            vocoder=None,
         )
+
+    vocoder_input = spectrogram.detach()
+    if bundle.device == "mps":
+        bundle.vocoder.to("cpu")
+        vocoder_input = vocoder_input.to("cpu")
+
+    with torch.no_grad():
+        audio = bundle.vocoder(vocoder_input)
+
     waveform = audio.detach().cpu().numpy().astype(np.float32)
     return sample_rate, waveform
 

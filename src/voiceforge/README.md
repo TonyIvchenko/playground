@@ -37,6 +37,14 @@ python main.py
 
 Then open `http://127.0.0.1:8080`.
 
+## Notebook
+
+Open `notebooks/voiceforge.ipynb` to inspect:
+
+- manifest balance across LibriTTS and VCTK
+- the latest `artifact.json` training summary
+- generated preview clips under `models/speecht5-finetuned/previews`
+
 ## Docker
 
 From repo root:
@@ -45,6 +53,13 @@ From repo root:
 docker build --pull -t voiceforge -f src/voiceforge/Dockerfile .
 docker run --rm --name voiceforge -p 8080:8080 -e PORT=8080 voiceforge
 curl --fail --silent --show-error http://127.0.0.1:8080/health
+```
+
+For a local app smoke check without Docker:
+
+```bash
+PORT=8091 python main.py
+curl --fail --silent --show-error http://127.0.0.1:8091/health
 ```
 
 
@@ -68,13 +83,37 @@ Run a smoke fine-tune on current hardware:
 python scripts/train_model.py --epochs 1 --max-train-samples 64 --max-eval-samples 16 --preview-samples 2
 ```
 
-Run a larger local training pass on MPS:
+Run a bounded local continuation pass on MPS:
 
 ```bash
-python scripts/train_model.py --device mps --epochs 3 --batch-size 2 --gradient-accumulation-steps 8 --resume-from-checkpoint models/speecht5-finetuned/checkpoint-100
+python scripts/train_model.py --base-model models/speecht5-finetuned --device mps --epochs 1 --max-train-samples 128 --max-eval-samples 32 --preview-samples 4 --save-steps 32 --eval-steps 32
+```
+
+Resume a larger run later:
+
+```bash
+python scripts/train_model.py --base-model models/speecht5-finetuned --device mps --epochs 3 --batch-size 2 --gradient-accumulation-steps 8 --resume-from-checkpoint models/speecht5-finetuned/checkpoint-8
 ```
 
 After training, the Gradio app will automatically use `models/speecht5-finetuned` if the checkpoint exists.
+
+## Verified local status
+
+On this machine we verified:
+
+- full manifest refresh from LibriTTS + VCTK: `11178` train rows, `787` eval rows, `396` speakers
+- MPS smoke fine-tune completed successfully
+- local app health check returned `model_ready: true`
+- direct app inference returned a real `.wav` from the fine-tuned checkpoint
+
+Current local artifact reports:
+
+- `base_model`: `models/speecht5-finetuned`
+- `device`: `mps`
+- `train_rows`: `128`
+- `eval_rows`: `32`
+
+When running on Apple Silicon, VoiceForge now generates mel spectrograms on MPS and runs the vocoder on CPU so preview generation and demo inference do not hit the unsupported MPS convolution path.
 
 ## References
 
