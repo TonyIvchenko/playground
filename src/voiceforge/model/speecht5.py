@@ -110,12 +110,18 @@ def load_audio_mono(audio_path: str | Path, target_sample_rate: int = TARGET_SAM
     import librosa
     import soundfile as sf
 
-    waveform, sample_rate = sf.read(str(audio_path))
-    waveform = np.asarray(waveform, dtype=np.float32)
-    if waveform.ndim == 2:
-        waveform = waveform.mean(axis=1)
-    if sample_rate != target_sample_rate:
-        waveform = librosa.resample(waveform, orig_sr=sample_rate, target_sr=target_sample_rate)
+    try:
+        waveform, sample_rate = sf.read(str(audio_path))
+        waveform = np.asarray(waveform, dtype=np.float32)
+        if waveform.ndim == 2:
+            waveform = waveform.mean(axis=1)
+        if sample_rate != target_sample_rate:
+            waveform = librosa.resample(waveform, orig_sr=sample_rate, target_sr=target_sample_rate)
+    except Exception:
+        # Fall back to librosa for formats that soundfile cannot decode directly.
+        waveform, _ = librosa.load(str(audio_path), sr=target_sample_rate, mono=True)
+        waveform = np.asarray(waveform, dtype=np.float32)
+
     peak = float(np.max(np.abs(waveform))) if waveform.size else 1.0
     if peak > 1.0:
         waveform = waveform / peak

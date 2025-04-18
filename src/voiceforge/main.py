@@ -36,13 +36,18 @@ def build_app() -> gr.Blocks:
             """
             # VoiceForge
             Upload a short clean reference voice clip, type text, and synthesize speech in that voice.
+            The reference upload uses a plain file picker so the app does not depend on system `ffprobe`.
 
             If `models/speecht5-finetuned` exists, the app uses the fine-tuned checkpoint.
             Otherwise it falls back to the base pretrained SpeechT5 model.
             """
         )
         with gr.Row():
-            reference_audio = gr.Audio(label="Reference Voice", type="filepath")
+            reference_audio = gr.File(
+                label="Reference Voice File",
+                type="filepath",
+                file_types=[".wav", ".flac", ".mp3", ".m4a", ".ogg"],
+            )
             text_input = gr.Textbox(
                 label="Text",
                 lines=8,
