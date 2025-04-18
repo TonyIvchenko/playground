@@ -52,7 +52,14 @@ def build_app() -> gr.Blocks:
         output_audio = gr.Audio(label="Synthesized Audio")
         status = gr.Textbox(label="Status", value=f"Looking for model in {MODEL_DIR}")
 
-        generate_button.click(run_inference, inputs=[reference_audio, text_input], outputs=[output_audio, status])
+        # Gradio's API schema generation is broken for file-backed components in the
+        # pinned version we ship, so keep the interactive UI but hide the auto API docs.
+        generate_button.click(
+            run_inference,
+            inputs=[reference_audio, text_input],
+            outputs=[output_audio, status],
+            show_api=False,
+        )
 
     return demo
 
