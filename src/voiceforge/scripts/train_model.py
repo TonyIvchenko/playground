@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
+import gc
 import inspect
 import json
 from pathlib import Path
@@ -10,6 +11,7 @@ from typing import Any
 
 import numpy as np
 import torch
+from transformers import TrainerCallback
 
 SERVICE_DIR = Path(__file__).resolve().parents[1]
 if str(SERVICE_DIR) not in sys.path:
@@ -64,6 +66,45 @@ def load_jsonl(path: Path) -> list[dict[str, Any]]:
     if not path.exists():
         return []
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def audio_seconds(audio_path: str | Path) -> float:
+    import soundfile as sf
+
+    info = sf.info(str(audio_path))
+    return float(info.frames) / float(info.samplerate)
+
+
+def enrich_manifest_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    enriched: list[dict[str, Any]] = []
+    for row in rows:
+        item = dict(row)
+        item.setdefault("text_length", len(item.get("text", "")))
+        if "audio_seconds" not in item:
+            item["audio_seconds"] = audio_seconds(item["audio_path"])
+        enriched.append(item)
+    return enriched
+
+
+def filter_manifest_rows(
+    rows: list[dict[str, Any]],
+    *,
+    max_audio_seconds: float | None = None,
+    max_text_chars: int | None = None,
+    min_audio_seconds: float | None = None,
+) -> list[dict[str, Any]]:
+    filtered: list[dict[str, Any]] = []
+    for row in rows:
+        text_length = int(row.get("text_length", len(row.get("text", ""))))
+        duration = float(row.get("audio_seconds", 0.0))
+        if max_audio_seconds is not None and duration > max_audio_seconds:
+            continue
+        if min_audio_seconds is not None and duration < min_audio_seconds:
+            continue
+        if max_text_chars is not None and text_length > max_text_chars:
+            continue
+        filtered.append(row)
+    return filtered
 
 
 def build_device_info(
@@ -158,6 +199,19 @@ class SpeechT5TTSDataCollator:
         return batch
 
 
+class MPSCacheCallback(TrainerCallback):
+    def __init__(self, interval_steps: int) -> None:
+        self.interval_steps = interval_steps
+
+    def on_step_end(self, args, state, control, **kwargs):  # noqa: ANN001
+        if self.interval_steps <= 0 or state.global_step <= 0:
+            return control
+        if state.global_step % self.interval_steps == 0 and torch.backends.mps.is_available():
+            gc.collect()
+            torch.mps.empty_cache()
+        return control
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Fine-tune SpeechT5 for VoiceForge.")
     parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
@@ -179,6 +233,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--save-total-limit", type=int, default=2)
     parser.add_argument("--preview-text", default="This is a VoiceForge preview generated after fine-tuning the SpeechT5 model.")
     parser.add_argument("--preview-samples", type=int, default=3)
+    parser.add_argument("--max-audio-seconds", type=float, default=None)
+    parser.add_argument("--min-audio-seconds", type=float, default=None)
+    parser.add_argument("--max-text-chars", type=int, default=None)
+    parser.add_argument("--group-by-target-length", action="store_true")
+    parser.add_argument("--mps-empty-cache-steps", type=int, default=25)
     return parser
 
 
@@ -207,6 +266,24 @@ def main() -> None:
     eval_rows = load_jsonl(data_dir / "eval_manifest.jsonl")
     if not train_rows:
         raise SystemExit(f"No training rows found in {data_dir}. Run scripts/prepare_dataset.py first.")
+    raw_train_row_count = len(train_rows)
+    raw_eval_row_count = len(eval_rows)
+
+    train_rows = enrich_manifest_rows(train_rows)
+    eval_rows = enrich_manifest_rows(eval_rows)
+
+    train_rows = filter_manifest_rows(
+        train_rows,
+        max_audio_seconds=args.max_audio_seconds,
+        min_audio_seconds=args.min_audio_seconds,
+        max_text_chars=args.max_text_chars,
+    )
+    eval_rows = filter_manifest_rows(
+        eval_rows,
+        max_audio_seconds=args.max_audio_seconds,
+        min_audio_seconds=args.min_audio_seconds,
+        max_text_chars=args.max_text_chars,
+    )
 
     if args.max_train_samples is not None:
         train_rows = train_rows[: args.max_train_samples]
@@ -254,6 +331,7 @@ def main() -> None:
             "input_ids": encoded["input_ids"],
             "labels": encoded["labels"][0],
             "speaker_embeddings": speaker_cache[speaker_id],
+            "target_length": len(encoded["labels"][0]),
         }
 
     remove_columns = train_dataset.column_names
@@ -282,6 +360,8 @@ def main() -> None:
         load_best_model_at_end=False,
         fp16=False,
         bf16=False,
+        group_by_length=args.group_by_target_length,
+        length_column_name="target_length" if args.group_by_target_length else None,
         use_mps_device=(device == "mps"),
     )
 
@@ -292,6 +372,7 @@ def main() -> None:
         eval_dataset=eval_dataset,
         data_collator=collator,
         tokenizer=processor.tokenizer,
+        callbacks=[MPSCacheCallback(args.mps_empty_cache_steps)] if device == "mps" and args.mps_empty_cache_steps > 0 else None,
     )
     device_info = build_device_info(
         requested_device=args.device,
@@ -299,8 +380,19 @@ def main() -> None:
         model=model,
         training_args=training_args,
     )
-    (output_dir / "device_info.json").write_text(json.dumps(device_info, indent=2), encoding="utf-8")
-    print(json.dumps({"device_info": device_info}, indent=2), flush=True)
+    startup_info = {
+        "device_info": device_info,
+        "raw_train_rows": raw_train_row_count,
+        "raw_eval_rows": raw_eval_row_count,
+        "filtered_train_rows": len(train_rows),
+        "filtered_eval_rows": len(eval_rows),
+        "max_audio_seconds": args.max_audio_seconds,
+        "min_audio_seconds": args.min_audio_seconds,
+        "max_text_chars": args.max_text_chars,
+        "group_by_target_length": args.group_by_target_length,
+    }
+    (output_dir / "device_info.json").write_text(json.dumps(startup_info, indent=2), encoding="utf-8")
+    print(json.dumps(startup_info, indent=2), flush=True)
     trainer.train(resume_from_checkpoint=args.resume_from_checkpoint)
     trainer.save_model(str(output_dir))
     processor.save_pretrained(str(output_dir))
@@ -310,9 +402,15 @@ def main() -> None:
         "speaker_model": args.speaker_model,
         "device": device,
         "sample_rate": TARGET_SAMPLE_RATE,
+        "raw_train_rows": raw_train_row_count,
+        "raw_eval_rows": raw_eval_row_count,
         "train_rows": len(train_rows),
         "eval_rows": len(eval_rows),
         "resume_from_checkpoint": args.resume_from_checkpoint,
+        "max_audio_seconds": args.max_audio_seconds,
+        "min_audio_seconds": args.min_audio_seconds,
+        "max_text_chars": args.max_text_chars,
+        "group_by_target_length": args.group_by_target_length,
         "device_info": device_info,
     }
     (output_dir / "artifact.json").write_text(json.dumps(artifact, indent=2), encoding="utf-8")

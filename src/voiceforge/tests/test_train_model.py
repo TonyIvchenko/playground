@@ -2,6 +2,7 @@ import numpy as np
 
 from src.voiceforge.scripts.train_model import (
     SpeechT5TTSDataCollator,
+    filter_manifest_rows,
     select_preview_rows,
     write_preview_manifest,
 )
@@ -73,3 +74,20 @@ def test_write_preview_manifest(tmp_path):
     payload = manifest_path.read_text(encoding="utf-8")
     assert "speaker_1" in payload
     assert "/generated.wav" in payload
+
+
+def test_filter_manifest_rows_applies_duration_and_text_limits():
+    rows = [
+        {"audio_path": "/a.wav", "text": "short", "audio_seconds": 3.0, "text_length": 5},
+        {"audio_path": "/b.wav", "text": "long enough", "audio_seconds": 14.0, "text_length": 11},
+        {"audio_path": "/c.wav", "text": "x" * 300, "audio_seconds": 4.0, "text_length": 300},
+    ]
+
+    filtered = filter_manifest_rows(
+        rows,
+        max_audio_seconds=12.0,
+        min_audio_seconds=1.0,
+        max_text_chars=200,
+    )
+
+    assert filtered == [rows[0]]

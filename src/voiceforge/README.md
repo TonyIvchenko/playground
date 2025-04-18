@@ -95,6 +95,12 @@ Resume a larger run later:
 python scripts/train_model.py --base-model models/speecht5-finetuned --device mps --epochs 3 --batch-size 2 --gradient-accumulation-steps 8 --resume-from-checkpoint models/speecht5-finetuned/checkpoint-8
 ```
 
+Use this Apple Silicon tuned command for a practical long local run:
+
+```bash
+python scripts/train_model.py --base-model models/speecht5-finetuned --device mps --epochs 2 --batch-size 2 --gradient-accumulation-steps 4 --max-audio-seconds 10 --max-text-chars 160 --group-by-target-length --mps-empty-cache-steps 25 --save-steps 200 --eval-steps 200 --preview-samples 4
+```
+
 After training, the Gradio app will automatically use `models/speecht5-finetuned` if the checkpoint exists.
 
 ## Verified local status
@@ -135,3 +141,6 @@ When running on Apple Silicon, VoiceForge now generates mel spectrograms on MPS 
 - `--resume-from-checkpoint` continues from a saved trainer checkpoint.
 - `--save-total-limit` prunes older checkpoints so the run does not grow forever.
 - After each training run, VoiceForge generates preview `.wav` files under `models/speecht5-finetuned/previews`.
+- `--max-audio-seconds` and `--max-text-chars` trim the worst outlier utterances, which matters a lot on Apple Silicon.
+- `--group-by-target-length` reduces padding waste for SpeechT5 batches.
+- `device_info.json` and `artifact.json` now record the requested device, resolved device, and filtered row counts for each run.
