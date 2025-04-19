@@ -4,9 +4,19 @@ Minimal multi-service playground.
 
 ## Services
 
-- `src/disasters`: Google Maps + Gradio service for wildfires and huricaines overlays, plus training/notebook tooling
+- `src/bert`: browser-side toxicity analyzer
+- `src/counterpoint`: browser-based argument ghostwriter
 - `src/ctscan`: chest CT semantic segmentation viewer with dataset builders, training scripts, and model search tooling
+- `src/debate`: browser-based argument sparring simulator
+- `src/disasters`: Google Maps + Gradio service for wildfires and huricaines overlays, plus training/notebook tooling
+- `src/facemesh`: browser-based MediaPipe face mesh demo
+- `src/manipulation`: browser-based manipulation-pattern analyzer
+- `src/memorypalace`: browser-based 3D memory palace builder
+- `src/realitycheck`: browser-based AI-likelihood analyzer for text, images, video, and URLs
+- `src/realitymix`: browser-based live neural style transfer
 - `src/test`: minimal Redis write-loop service used for basic runtime/container checks
+- `src/vibedj`: browser-based creative direction generator for writing
+- `src/voiceforge`: SpeechT5-based voice-cloning text-to-speech service
 
 ## Dependency Layout
 
@@ -90,6 +100,16 @@ The GitHub workflow currently checks four things on every push and pull request:
 
 ## Service Docs
 
+- `src/bert/README.md`: local run, browser model notes
+- `src/counterpoint/README.md`: local run, counterargument workflow, fallback notes
 - `src/disasters/README.md`: local run, training, tiles, notebooks, Docker, tests
+- `src/debate/README.md`: local run, sparring workflow, model notes
+- `src/facemesh/README.md`: local run, webcam demo notes
+- `src/manipulation/README.md`: local run, scoring caveats
+- `src/memorypalace/README.md`: local run, controls, notes
+- `src/realitycheck/README.md`: local run, input modes, caveats
+- `src/realitymix/README.md`: local run, live style-transfer notes
+- `src/vibedj/README.md`: local run, audio/model notes
+- `src/voiceforge/README.md`: local run, data prep, training, Docker, tests
 - `src/ctscan/README.md`: data ingest, legacy dataset build, model training/search, app run, tests
 - `src/test/README.md`: local run, Docker, tests
