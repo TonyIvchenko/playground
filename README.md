@@ -45,6 +45,18 @@ Use this as the quick repo-level reference. Service-specific env vars and caveat
 3. Root `environment.yml` installs root requirements plus all service requirements files.
 4. New service checklist: create `src/<service>/main.py`, `Dockerfile`, `requirements.txt`, `README.md`, add service tests under `src/<service>/tests`, then add the service requirements file to `environment.yml`.
 
+### New Browser App Checklist
+
+For browser-first apps that do not need FastAPI, Gradio, or Docker on day one:
+
+1. Create `src/<service>/main.py` as a thin static file server.
+2. Add `src/<service>/index.html`.
+3. Add `src/<service>/README.md` with local run instructions and app notes.
+4. Keep the Python entrypoint thin and put most product logic in the browser.
+5. Use `PORT` for local run consistency.
+6. Add the service to the root README service inventory once it exists.
+7. Add tests only when the app has meaningful Python behavior or a smoke path worth automating.
+
 ## Environment
 
 ```bash
