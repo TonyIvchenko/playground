@@ -18,6 +18,26 @@ Minimal multi-service playground.
 - `src/vibedj`: browser-based creative direction generator for writing
 - `src/voiceforge`: SpeechT5-based voice-cloning text-to-speech service
 
+### Service Inventory
+
+Use this as the quick repo-level reference. Service-specific env vars and caveats still live in each service README.
+
+| Service | Type | Run Command | Tests | Docker | Health Endpoint |
+| --- | --- | --- | --- | --- | --- |
+| `bert` | Static browser app | `make run bert 8080` | — | — | — |
+| `counterpoint` | Static browser app | `make run counterpoint 8080` | — | — | — |
+| `ctscan` | FastAPI + Gradio + ML service | `make run ctscan 8080` | `src/ctscan/tests` | `src/ctscan/Dockerfile` | `/health` |
+| `debate` | Static browser app | `make run debate 8080` | — | — | — |
+| `disasters` | FastAPI + Gradio + ML service | `make run disasters 8080` | `src/disasters/tests` | `src/disasters/Dockerfile` | `/health` |
+| `facemesh` | Static browser app | `make run facemesh 8080` | — | — | — |
+| `manipulation` | Static browser app | `make run manipulation 8080` | — | — | — |
+| `memorypalace` | Static browser app | `make run memorypalace 8080` | — | — | — |
+| `realitycheck` | Static browser app + local proxy endpoint | `make run realitycheck 8080` | — | — | — |
+| `realitymix` | Static browser app | `make run realitymix 8080` | — | — | — |
+| `test` | Redis worker service | `make run test` | `src/test/tests` | `src/test/Dockerfile` | — |
+| `vibedj` | Static browser app | `make run vibedj 8080` | — | — | — |
+| `voiceforge` | FastAPI + Gradio + TTS service | `make run voiceforge 8080` | `src/voiceforge/tests` | `src/voiceforge/Dockerfile` | `/health` |
+
 ## Dependency Layout
 
 1. Root `requirements.txt` contains only shared environment dependencies.
