@@ -22,6 +22,8 @@ Minimal multi-service playground.
 
 Use this as the quick repo-level reference. Service-specific env vars and caveats still live in each service README.
 
+For a filesystem-backed view of the same repo surface, run `python scripts/list_services.py`.
+
 | Service | Type | Run Command | Tests | Docker | Health Endpoint |
 | --- | --- | --- | --- | --- | --- |
 | `bert` | Static browser app | `make run bert 8080` | — | — | — |
