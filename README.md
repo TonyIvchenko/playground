@@ -148,9 +148,10 @@ Run `make update` first so the active `playground` env has `pytest` plus all ser
 Run the same service test targets the CI workflow uses:
 
 ```bash
-python -m pytest -q src/test/tests
-python -m pytest -q src/disasters/tests
-python -m pytest -q src/ctscan/tests
+make test test
+make test disasters
+make test ctscan
+make test voiceforge
 ```
 
 After `make update`, a plain root run also targets the same suites through `pytest.ini`:
@@ -158,6 +159,8 @@ After `make update`, a plain root run also targets the same suites through `pyte
 ```bash
 python -m pytest -q
 ```
+
+If a service does not have a `tests/` directory yet, `make test <service>` fails fast and tells you which service test targets currently exist.
 
 ## CI
 
