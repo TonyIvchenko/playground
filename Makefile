@@ -1,7 +1,7 @@
 app := $(word 2,$(MAKECMDGOALS))
 port := $(or $(word 3,$(MAKECMDGOALS)),8080)
 
-.PHONY: setup update run
+.PHONY: setup update run smoke
 
 setup: environment.yml
 	conda env create -f environment.yml
@@ -11,6 +11,9 @@ update: environment.yml
 
 run:
 	cd src/$(app) && PORT=$(port) python main.py
+
+smoke:
+	conda run -n playground python scripts/smoke_service.py $(app) --port $(port)
 
 %:
 	@:

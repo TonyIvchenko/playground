@@ -101,15 +101,24 @@ Use:
 make run <service> [port]
 ```
 
+For a quick local smoke check that starts a service, probes one endpoint, and shuts it back down, use:
+
+```bash
+make smoke <service> [port]
+```
+
 Examples:
 
 ```bash
 make run disasters 8080
 make run ctscan 8080
 make run test
+make smoke bert 8090
+make smoke voiceforge 8091
 ```
 
 If you omit the port for `disasters` or `ctscan`, `PORT` defaults to `8080`. The `test` service only needs `make run test`.
+`make smoke` currently supports the browser apps plus the web services with `/health`; the Redis-backed `test` service still uses its README-specific smoke flow.
 
 Set service-specific environment variables as needed:
 
