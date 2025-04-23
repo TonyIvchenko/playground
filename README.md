@@ -38,6 +38,33 @@ Use this as the quick repo-level reference. Service-specific env vars and caveat
 | `vibedj` | Static browser app | `make run vibedj 8080` | — | — | — |
 | `voiceforge` | FastAPI + Gradio + TTS service | `make run voiceforge 8080` | `src/voiceforge/tests` | `src/voiceforge/Dockerfile` | `/health` |
 
+### Repo Map
+
+The repo currently falls into three broad shapes:
+
+- Static browser apps:
+  - `bert`
+  - `counterpoint`
+  - `debate`
+  - `facemesh`
+  - `manipulation`
+  - `memorypalace`
+  - `realitycheck`
+  - `realitymix`
+  - `vibedj`
+- Python web apps:
+  - `ctscan`
+  - `disasters`
+  - `voiceforge`
+- Runtime and worker tooling:
+  - `test`
+
+Training-heavy or data-heavy areas currently live in:
+
+- `ctscan`
+- `disasters`
+- `voiceforge`
+
 ## Dependency Layout
 
 1. Root `requirements.txt` contains only shared environment dependencies.
