@@ -24,6 +24,7 @@ def test_health_and_predict_endpoint(make_ct_zip):
     health = client.get("/health")
     assert health.status_code == 200
     assert health.json()["status"] == "ok"
+    assert health.json()["service"] == "CT Scan"
 
     study_path = make_ct_zip()
     with study_path.open("rb") as handle:

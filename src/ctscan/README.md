@@ -1,4 +1,4 @@
-# CT Scan Service
+# CT Scan
 
 Chest CT semantic segmentation service.
 

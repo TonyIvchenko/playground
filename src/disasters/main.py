@@ -28,7 +28,7 @@ except ModuleNotFoundError:
 HOST = os.getenv("API_HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "8080"))
 GMAPS_API_KEY = os.getenv("GMAPS_API_KEY", "")
-SERVICE_NAME = os.getenv("SERVICE_NAME", "Natural Disasters Map")
+SERVICE_NAME = os.getenv("SERVICE_NAME", "Disasters")
 
 WILDFIRES_MODEL_PATH = Path(
     os.getenv("WILDFIRES_MODEL_PATH", str(Path(__file__).resolve().parent / "models" / "wildfires.pt"))
@@ -800,7 +800,7 @@ api = FastAPI(title=SERVICE_NAME)
 @api.get("/health")
 def health() -> dict[str, object]:
     return {
-        "service": "disasters",
+        "service": SERVICE_NAME,
         "status": "ok",
         "frames": len(FRAMES),
         "wildfires_model_version": WILDFIRES_MODEL_VERSION,

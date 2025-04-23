@@ -76,6 +76,7 @@ app = FastAPI(title="VoiceForge")
 @app.get("/health")
 def health() -> dict[str, object]:
     return {
+        "service": "VoiceForge",
         "status": "ok",
         "model_dir": str(MODEL_DIR),
         "model_ready": (MODEL_DIR / "config.json").exists(),

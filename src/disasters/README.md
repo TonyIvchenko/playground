@@ -1,4 +1,4 @@
-# Disasters Service
+# Disasters
 
 Unified Gradio app service that overlays wildfires and huricaines predictions on one Google Map.
 

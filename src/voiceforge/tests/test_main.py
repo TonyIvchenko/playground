@@ -18,3 +18,14 @@ def test_build_app_api_info_does_not_crash():
     info = demo.get_api_info()
 
     assert info == {"named_endpoints": {}, "unnamed_endpoints": {}}
+
+
+def test_health_endpoint_contract():
+    client = TestClient(app)
+
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert payload["service"] == "VoiceForge"

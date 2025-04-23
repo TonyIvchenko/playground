@@ -2,12 +2,26 @@ import pytest
 
 pytest.importorskip("torch")
 
+from fastapi.testclient import TestClient
+
+from src.disasters.main import api
 from src.disasters.main import (
     HURICAINES_MODEL_VERSION,
     WILDFIRES_MODEL_VERSION,
     predict_huricaines,
     predict_wildfires,
 )
+
+
+def test_health_endpoint_contract():
+    client = TestClient(api)
+
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert payload["service"] == "Disasters"
 
 
 def test_predict_wildfires_shape_and_values():

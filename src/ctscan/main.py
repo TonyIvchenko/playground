@@ -59,7 +59,7 @@ except ModuleNotFoundError:
 
 HOST = os.getenv("API_HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "8080"))
-SERVICE_NAME = os.getenv("SERVICE_NAME", "ctscan")
+SERVICE_NAME = os.getenv("SERVICE_NAME", "CT Scan")
 SAMPLES_MANIFEST_PATH = Path(__file__).resolve().parent / "data" / "ctscan" / "samples" / "samples.json"
 SAMPLE_CACHE_DIR = Path(__file__).resolve().parent / "data" / "ctscan" / "samples" / "cache"
 LOCAL_LEGACY_CT_ZIPS_PATH = Path(__file__).resolve().parent / "data" / "ctscan" / "raw" / "legacy_sources" / "plethora" / "ct_zips"
