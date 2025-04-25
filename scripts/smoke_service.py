@@ -26,7 +26,9 @@ def parse_args() -> argparse.Namespace:
         description="Start a Playground service, probe a minimal endpoint, and stop it again."
     )
     parser.add_argument("service", help="Service name under src/<service>.")
-    parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="Port to bind for the smoke run.")
+    parser.add_argument(
+        "--port", type=int, default=DEFAULT_PORT, help="Port to bind for the smoke run."
+    )
     parser.add_argument(
         "--timeout",
         type=float,
@@ -77,7 +79,14 @@ def terminate_process(process: subprocess.Popen[bytes]) -> None:
         process.wait(timeout=5)
 
 
-def poll_smoke(url: str, *, timeout: float, interval: float, process: subprocess.Popen[bytes], log_path: Path) -> None:
+def poll_smoke(
+    url: str,
+    *,
+    timeout: float,
+    interval: float,
+    process: subprocess.Popen[bytes],
+    log_path: Path,
+) -> None:
     deadline = time.monotonic() + timeout
     last_error = "service did not answer yet"
     while time.monotonic() < deadline:
@@ -125,7 +134,13 @@ def main() -> None:
         )
 
     try:
-        poll_smoke(url, timeout=args.timeout, interval=args.interval, process=process, log_path=log_path)
+        poll_smoke(
+            url,
+            timeout=args.timeout,
+            interval=args.interval,
+            process=process,
+            log_path=log_path,
+        )
     finally:
         terminate_process(process)
 

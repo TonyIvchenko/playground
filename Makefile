@@ -1,7 +1,7 @@
 app := $(word 2,$(MAKECMDGOALS))
 port := $(or $(word 3,$(MAKECMDGOALS)),8080)
 
-.PHONY: setup update run smoke test lint
+.PHONY: setup update run smoke test lint format
 
 setup: environment.yml
 	conda env create -f environment.yml
@@ -20,6 +20,9 @@ test:
 
 lint:
 	conda run -n playground python scripts/lint_repo.py
+
+format:
+	conda run -n playground python scripts/format_repo.py
 
 %:
 	@:

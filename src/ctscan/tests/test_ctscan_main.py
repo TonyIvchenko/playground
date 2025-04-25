@@ -10,7 +10,9 @@ import src.ctscan.main as ctscan_main
 
 def test_analyze_study_bytes_contract(make_ct_zip):
     study_path = make_ct_zip()
-    payload = ctscan_main.analyze_study_bytes(study_path.read_bytes(), age=63, sex="male")
+    payload = ctscan_main.analyze_study_bytes(
+        study_path.read_bytes(), age=63, sex="male"
+    )
     assert payload["version"] == "segmentation-v1"
     assert payload["backend"] in {"threshold", "lungmask"}
     assert payload["qc"]["status"] in {"ok", "rejected"}
@@ -51,7 +53,9 @@ def test_demo_injects_viewer_head():
     assert demo.head == ctscan_main.VIEWER_HEAD
 
 
-def test_auto_demo_manifest_from_legacy_ct_zips(tmp_path: Path, monkeypatch, make_ct_zip):
+def test_auto_demo_manifest_from_legacy_ct_zips(
+    tmp_path: Path, monkeypatch, make_ct_zip
+):
     samples_manifest = tmp_path / "samples" / "samples.json"
     ct_zips_dir = tmp_path / "ct_zips"
     ct_zips_dir.mkdir(parents=True, exist_ok=True)
@@ -66,4 +70,6 @@ def test_auto_demo_manifest_from_legacy_ct_zips(tmp_path: Path, monkeypatch, mak
     manifest = ctscan_main.load_samples_manifest()
     assert "demo_lung1-001" in manifest
     assert manifest["demo_lung1-001"]["study_zip"] == str(target_zip.resolve())
-    assert json.loads(samples_manifest.read_text(encoding="utf-8"))["demo_lung1-001"]["study_zip"] == str(target_zip.resolve())
+    assert json.loads(samples_manifest.read_text(encoding="utf-8"))["demo_lung1-001"][
+        "study_zip"
+    ] == str(target_zip.resolve())

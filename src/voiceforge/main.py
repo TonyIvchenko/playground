@@ -6,9 +6,17 @@ import gradio as gr
 import uvicorn
 
 try:
-    from model.speecht5 import DEFAULT_MODEL_DIR, load_speecht5_bundle, synthesize_to_temp_wav
+    from model.speecht5 import (
+        DEFAULT_MODEL_DIR,
+        load_speecht5_bundle,
+        synthesize_to_temp_wav,
+    )
 except ImportError:
-    from src.voiceforge.model.speecht5 import DEFAULT_MODEL_DIR, load_speecht5_bundle, synthesize_to_temp_wav
+    from src.voiceforge.model.speecht5 import (
+        DEFAULT_MODEL_DIR,
+        load_speecht5_bundle,
+        synthesize_to_temp_wav,
+    )
 
 
 PORT = int(os.getenv("PORT", "8080"))
@@ -24,7 +32,9 @@ def run_inference(reference_audio: str | None, text: str) -> tuple[str | None, s
 
     try:
         bundle = load_speecht5_bundle(model_dir=str(MODEL_DIR))
-        output_path, status = synthesize_to_temp_wav(text=text, reference_audio_path=reference_audio, bundle=bundle)
+        output_path, status = synthesize_to_temp_wav(
+            text=text, reference_audio_path=reference_audio, bundle=bundle
+        )
         return output_path, status
     except Exception as exc:  # noqa: BLE001
         return None, f"Voice synthesis failed: {exc}"

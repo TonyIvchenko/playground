@@ -172,6 +172,16 @@ make lint
 
 The first pass intentionally stays small and green: root helper scripts, service `main.py` entrypoints, and the health/app smoke tests we already maintain for `ctscan`, `disasters`, and `voiceforge`.
 
+## Format
+
+Run the matching formatter entrypoint with:
+
+```bash
+make format
+```
+
+The initial formatter scope matches `make lint`, so we keep formatting predictable while the older ML scripts and tests still have some style debt to burn down.
+
 ## CI
 
 The GitHub workflow currently checks four things on every push and pull request:

@@ -21,8 +21,12 @@ try:
     from models.huricaines import load_model_bundle as load_huricaines_model_bundle
     from models.wildfires import load_model_bundle as load_wildfires_model_bundle
 except ModuleNotFoundError:
-    from src.disasters.models.huricaines import load_model_bundle as load_huricaines_model_bundle
-    from src.disasters.models.wildfires import load_model_bundle as load_wildfires_model_bundle
+    from src.disasters.models.huricaines import (
+        load_model_bundle as load_huricaines_model_bundle,
+    )
+    from src.disasters.models.wildfires import (
+        load_model_bundle as load_wildfires_model_bundle,
+    )
 
 
 HOST = os.getenv("API_HOST", "0.0.0.0")
@@ -31,10 +35,16 @@ GMAPS_API_KEY = os.getenv("GMAPS_API_KEY", "")
 SERVICE_NAME = os.getenv("SERVICE_NAME", "Disasters")
 
 WILDFIRES_MODEL_PATH = Path(
-    os.getenv("WILDFIRES_MODEL_PATH", str(Path(__file__).resolve().parent / "models" / "wildfires.pt"))
+    os.getenv(
+        "WILDFIRES_MODEL_PATH",
+        str(Path(__file__).resolve().parent / "models" / "wildfires.pt"),
+    )
 )
 HURICAINES_MODEL_PATH = Path(
-    os.getenv("HURICAINES_MODEL_PATH", str(Path(__file__).resolve().parent / "models" / "huricaines.pt"))
+    os.getenv(
+        "HURICAINES_MODEL_PATH",
+        str(Path(__file__).resolve().parent / "models" / "huricaines.pt"),
+    )
 )
 
 WILDFIRES_TILES_DIR = Path(__file__).resolve().parent / "tiles" / "wildfires"
@@ -44,11 +54,19 @@ TILE_SIZE = 256
 SAMPLE_SIZE = 64
 
 
-wildfires_model, wildfires_mean, wildfires_std, WILDFIRES_MODEL_VERSION = load_wildfires_model_bundle(WILDFIRES_MODEL_PATH)
-huricaines_model, huricaines_mean, huricaines_std, HURICAINES_MODEL_VERSION = load_huricaines_model_bundle(HURICAINES_MODEL_PATH)
+wildfires_model, wildfires_mean, wildfires_std, WILDFIRES_MODEL_VERSION = (
+    load_wildfires_model_bundle(WILDFIRES_MODEL_PATH)
+)
+huricaines_model, huricaines_mean, huricaines_std, HURICAINES_MODEL_VERSION = (
+    load_huricaines_model_bundle(HURICAINES_MODEL_PATH)
+)
 
-WILDFIRES_MODEL_BUNDLE = torch.load(WILDFIRES_MODEL_PATH, map_location="cpu", weights_only=True)
-HURICAINES_MODEL_BUNDLE = torch.load(HURICAINES_MODEL_PATH, map_location="cpu", weights_only=True)
+WILDFIRES_MODEL_BUNDLE = torch.load(
+    WILDFIRES_MODEL_PATH, map_location="cpu", weights_only=True
+)
+HURICAINES_MODEL_BUNDLE = torch.load(
+    HURICAINES_MODEL_PATH, map_location="cpu", weights_only=True
+)
 
 
 def _load_overlay(
@@ -77,7 +95,9 @@ def _load_overlay(
             for year in range(int(config["start_year"]), int(config["end_year"]) + 1)
             for month in range(1, 13)
         ]
-        risk = np.zeros((len(frames), default_shape[0], default_shape[1]), dtype=np.float32)
+        risk = np.zeros(
+            (len(frames), default_shape[0], default_shape[1]), dtype=np.float32
+        )
         confidence = np.zeros_like(risk)
 
     return {
@@ -178,7 +198,7 @@ def _risk_level_huricaines(probability: float) -> str:
 
 
 def _tile_bounds(z: int, x: int, y: int) -> tuple[float, float, float, float]:
-    n = 2 ** z
+    n = 2**z
     lon_left = x / n * 360.0 - 180.0
     lon_right = (x + 1) / n * 360.0 - 180.0
     lat_top = np.degrees(np.arctan(np.sinh(np.pi * (1.0 - 2.0 * y / n))))
@@ -199,11 +219,22 @@ def _sample_layer(
     lon_min = float(config["lon_min"])
     lon_max = float(config["lon_max"])
 
-    if lat_top < lat_min or lat_bottom > lat_max or lon_right < lon_min or lon_left > lon_max:
-        return np.zeros((SAMPLE_SIZE, SAMPLE_SIZE), dtype=np.float32), np.zeros((SAMPLE_SIZE, SAMPLE_SIZE), dtype=bool)
+    if (
+        lat_top < lat_min
+        or lat_bottom > lat_max
+        or lon_right < lon_min
+        or lon_left > lon_max
+    ):
+        return np.zeros((SAMPLE_SIZE, SAMPLE_SIZE), dtype=np.float32), np.zeros(
+            (SAMPLE_SIZE, SAMPLE_SIZE), dtype=bool
+        )
 
-    row_lats = np.linspace(lat_top, lat_bottom, SAMPLE_SIZE, endpoint=False) + (lat_bottom - lat_top) / (2.0 * SAMPLE_SIZE)
-    col_lons = np.linspace(lon_left, lon_right, SAMPLE_SIZE, endpoint=False) + (lon_right - lon_left) / (2.0 * SAMPLE_SIZE)
+    row_lats = np.linspace(lat_top, lat_bottom, SAMPLE_SIZE, endpoint=False) + (
+        lat_bottom - lat_top
+    ) / (2.0 * SAMPLE_SIZE)
+    col_lons = np.linspace(lon_left, lon_right, SAMPLE_SIZE, endpoint=False) + (
+        lon_right - lon_left
+    ) / (2.0 * SAMPLE_SIZE)
 
     valid_rows = (row_lats >= lat_min) & (row_lats <= lat_max)
     valid_cols = (col_lons >= lon_min) & (col_lons <= lon_max)
@@ -222,7 +253,9 @@ def _sample_layer(
     return sampled, valid_mask
 
 
-def _colorize(sampled_risk: np.ndarray, sampled_conf: np.ndarray, valid_mask: np.ndarray) -> np.ndarray:
+def _colorize(
+    sampled_risk: np.ndarray, sampled_conf: np.ndarray, valid_mask: np.ndarray
+) -> np.ndarray:
     rgba = np.zeros((SAMPLE_SIZE, SAMPLE_SIZE, 4), dtype=np.uint8)
     low = sampled_risk < 0.33
     mid = (sampled_risk >= 0.33) & (sampled_risk < 0.66)
@@ -255,10 +288,16 @@ def _render_tile_png(hazard: str, frame_idx: int, z: int, x: int, y: int) -> byt
     risk_grid = overlay["risk"][frame_idx]
     conf_grid = np.clip(overlay["confidence"][frame_idx], 0.0, 1.0)
 
-    sampled_risk, valid_mask = _sample_layer(risk_grid, config=overlay["config"], z=z, x=x, y=y)
+    sampled_risk, valid_mask = _sample_layer(
+        risk_grid, config=overlay["config"], z=z, x=x, y=y
+    )
     sampled_conf, _ = _sample_layer(conf_grid, config=overlay["config"], z=z, x=x, y=y)
-    rgba_small = _colorize(sampled_risk=sampled_risk, sampled_conf=sampled_conf, valid_mask=valid_mask)
-    image = Image.fromarray(rgba_small, mode="RGBA").resize((TILE_SIZE, TILE_SIZE), resample=Image.Resampling.BILINEAR)
+    rgba_small = _colorize(
+        sampled_risk=sampled_risk, sampled_conf=sampled_conf, valid_mask=valid_mask
+    )
+    image = Image.fromarray(rgba_small, mode="RGBA").resize(
+        (TILE_SIZE, TILE_SIZE), resample=Image.Resampling.BILINEAR
+    )
 
     buffer = io.BytesIO()
     image.save(buffer, format="PNG", optimize=True)
@@ -276,7 +315,17 @@ def predict_wildfires(
     isi: float,
 ) -> dict[str, object]:
     x = torch.tensor(
-        [[float(temp_c), float(humidity_pct), float(wind_kph), float(ffmc), float(dmc), float(drought_code), float(isi)]],
+        [
+            [
+                float(temp_c),
+                float(humidity_pct),
+                float(wind_kph),
+                float(ffmc),
+                float(dmc),
+                float(drought_code),
+                float(isi),
+            ]
+        ],
         dtype=torch.float32,
     )
     x = (x - wildfires_mean) / wildfires_std
@@ -402,11 +451,15 @@ def _map_html() -> str:
         },
         "model_metrics": {
             "wildfires": {
-                "val_accuracy": _first_metric(WILDFIRES_MODEL_BUNDLE, ["val_accuracy", "accuracy"]),
+                "val_accuracy": _first_metric(
+                    WILDFIRES_MODEL_BUNDLE, ["val_accuracy", "accuracy"]
+                ),
                 "val_auc": _first_metric(WILDFIRES_MODEL_BUNDLE, ["val_auc", "auc"]),
             },
             "huricaines": {
-                "val_accuracy": _first_metric(HURICAINES_MODEL_BUNDLE, ["val_accuracy", "accuracy"]),
+                "val_accuracy": _first_metric(
+                    HURICAINES_MODEL_BUNDLE, ["val_accuracy", "accuracy"]
+                ),
                 "val_auc": _first_metric(HURICAINES_MODEL_BUNDLE, ["val_auc", "auc"]),
             },
         },
@@ -742,18 +795,33 @@ with gr.Blocks(title=SERVICE_NAME) as demo:
                         with gr.Row():
                             storm_id = gr.Textbox(label="Storm ID", value="AL09")
                             vmax_kt = gr.Number(label="Max Wind (kt)", value=70)
-                            min_pressure_mb = gr.Number(label="Min Pressure (mb)", value=980)
+                            min_pressure_mb = gr.Number(
+                                label="Min Pressure (mb)", value=980
+                            )
                             lat = gr.Number(label="Latitude", value=22.5)
                             lon = gr.Number(label="Longitude", value=-65.0)
                             month = gr.Number(label="Month", value=9)
-                            dvmax_6h = gr.Number(label="Recent Wind Change (kt per 6h)", value=5.0)
-                            dpres_6h = gr.Number(label="Recent Pressure Change (mb per 6h)", value=-3.0)
+                            dvmax_6h = gr.Number(
+                                label="Recent Wind Change (kt per 6h)", value=5.0
+                            )
+                            dpres_6h = gr.Number(
+                                label="Recent Pressure Change (mb per 6h)", value=-3.0
+                            )
 
                         huricaines_output = gr.JSON(label="Huricaines Prediction")
                         huricaines_run = gr.Button("Predict Huricaines")
                         huricaines_run.click(
                             fn=predict_huricaines,
-                            inputs=[storm_id, vmax_kt, min_pressure_mb, lat, lon, month, dvmax_6h, dpres_6h],
+                            inputs=[
+                                storm_id,
+                                vmax_kt,
+                                min_pressure_mb,
+                                lat,
+                                lon,
+                                month,
+                                dvmax_6h,
+                                dpres_6h,
+                            ],
                             outputs=huricaines_output,
                         )
 
@@ -772,7 +840,16 @@ with gr.Blocks(title=SERVICE_NAME) as demo:
                         wildfires_run = gr.Button("Predict Wildfires")
                         wildfires_run.click(
                             fn=predict_wildfires,
-                            inputs=[region_id, temp_c, humidity_pct, wind_kph, ffmc, dmc, drought_code, isi],
+                            inputs=[
+                                region_id,
+                                temp_c,
+                                humidity_pct,
+                                wind_kph,
+                                ffmc,
+                                dmc,
+                                drought_code,
+                                isi,
+                            ],
                             outputs=wildfires_output,
                         )
 
@@ -836,7 +913,9 @@ def tile(hazard: str, frame_idx: int, z: int, x: int, y: int) -> Response:
 
 
 @api.get("/tiles/{hazard}/{layer}/{frame_idx}/{z}/{x}/{y}.png")
-def tile_legacy(hazard: str, layer: str, frame_idx: int, z: int, x: int, y: int) -> Response:
+def tile_legacy(
+    hazard: str, layer: str, frame_idx: int, z: int, x: int, y: int
+) -> Response:
     # Backward-compatible path; the service now exposes one overlay per hazard.
     if layer not in {"risk", "activity", "confidence"}:
         raise HTTPException(status_code=404, detail="unknown layer")

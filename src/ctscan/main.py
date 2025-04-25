@@ -60,9 +60,21 @@ except ModuleNotFoundError:
 HOST = os.getenv("API_HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "8080"))
 SERVICE_NAME = os.getenv("SERVICE_NAME", "CT Scan")
-SAMPLES_MANIFEST_PATH = Path(__file__).resolve().parent / "data" / "ctscan" / "samples" / "samples.json"
-SAMPLE_CACHE_DIR = Path(__file__).resolve().parent / "data" / "ctscan" / "samples" / "cache"
-LOCAL_LEGACY_CT_ZIPS_PATH = Path(__file__).resolve().parent / "data" / "ctscan" / "raw" / "legacy_sources" / "plethora" / "ct_zips"
+SAMPLES_MANIFEST_PATH = (
+    Path(__file__).resolve().parent / "data" / "ctscan" / "samples" / "samples.json"
+)
+SAMPLE_CACHE_DIR = (
+    Path(__file__).resolve().parent / "data" / "ctscan" / "samples" / "cache"
+)
+LOCAL_LEGACY_CT_ZIPS_PATH = (
+    Path(__file__).resolve().parent
+    / "data"
+    / "ctscan"
+    / "raw"
+    / "legacy_sources"
+    / "plethora"
+    / "ct_zips"
+)
 DEFAULT_SAMPLE = ""
 METRICS_TABLE_COLUMNS = ["Issue", "Lung %", "Volume ml", "Current slice %"]
 LUNG_COLOR = "#10b981"
@@ -186,7 +198,14 @@ def _candidate_lidc_roots() -> list[Path]:
     env_root = os.getenv("CTSCAN_LIDC_ROOT", "").strip()
     if env_root:
         roots.append(Path(env_root))
-    roots.append(Path(__file__).resolve().parent / "data" / "ctscan" / "raw" / "lidc" / "LIDC-IDRI")
+    roots.append(
+        Path(__file__).resolve().parent
+        / "data"
+        / "ctscan"
+        / "raw"
+        / "lidc"
+        / "LIDC-IDRI"
+    )
     dedup: list[Path] = []
     seen: set[str] = set()
     for root in roots:
@@ -232,7 +251,11 @@ def _find_demo_lidc_series() -> list[Path]:
         if not root.exists():
             continue
         for dirpath, _, filenames in os.walk(root):
-            dcm_names = [name for name in filenames if name.lower().endswith(".dcm") and not name.startswith("._")]
+            dcm_names = [
+                name
+                for name in filenames
+                if name.lower().endswith(".dcm") and not name.startswith("._")
+            ]
             if len(dcm_names) < 32:
                 continue
             series_dir = Path(dirpath)
@@ -253,14 +276,18 @@ def _ensure_auto_demo_manifest() -> dict[str, dict[str, str]]:
             if key in manifest:
                 continue
             manifest[key] = {"study_zip": str(zip_path)}
-        SAMPLES_MANIFEST_PATH.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        SAMPLES_MANIFEST_PATH.write_text(
+            json.dumps(manifest, indent=2), encoding="utf-8"
+        )
         return manifest
     sample_zip = samples_dir / "auto_demo_lidc.zip"
     if not sample_zip.exists():
         series_files = _find_demo_lidc_series()
         if not series_files:
             return {}
-        with zipfile.ZipFile(sample_zip, "w", compression=zipfile.ZIP_STORED) as archive:
+        with zipfile.ZipFile(
+            sample_zip, "w", compression=zipfile.ZIP_STORED
+        ) as archive:
             for file_path in series_files:
                 archive.write(file_path, arcname=f"dicom/{file_path.name}")
     manifest = {"auto_demo_lidc": {"study_zip": str(sample_zip.resolve())}}
@@ -304,7 +331,9 @@ def _resolve_sample_path(sample_id: str) -> Path:
     if not study_path.is_absolute():
         study_path = (Path(__file__).resolve().parent / study_path).resolve()
     if not study_path.exists():
-        raise FileNotFoundError(f"Sample `{sample_id}` study zip is missing at {study_path}.")
+        raise FileNotFoundError(
+            f"Sample `{sample_id}` study zip is missing at {study_path}."
+        )
     return study_path
 
 
@@ -339,7 +368,9 @@ def analyze_study_bytes(
 
     lung_voxels = max(int(lung_mask.sum()), 1)
     damaged_voxels = int((labels > 0).sum())
-    voxel_volume_ml = float(study.spacing[0] * study.spacing[1] * study.spacing[2]) / 1000.0
+    voxel_volume_ml = (
+        float(study.spacing[0] * study.spacing[1] * study.spacing[2]) / 1000.0
+    )
     lung_volume_ml = float(lung_voxels) * voxel_volume_ml
     damaged_volume_ml = float(damaged_voxels) * voxel_volume_ml
     damaged_percent = float((damaged_voxels / lung_voxels) * 100.0)
@@ -406,7 +437,9 @@ def _sample_cache_key(sample_id: str, study_path: Path) -> str:
         "segmentation_backend": segmentation_backend_name(),
         "issue_backend": model_backend_name(),
     }
-    return hashlib.sha1(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()[:16]
+    return hashlib.sha1(
+        json.dumps(payload, sort_keys=True).encode("utf-8")
+    ).hexdigest()[:16]
 
 
 def _sample_cache_paths(sample_id: str, study_path: Path) -> tuple[Path, Path, Path]:
@@ -429,7 +462,7 @@ def _image_to_data_url(image: Image.Image, format_name: str = "PNG") -> str:
 def _overlay_image(mask, color: tuple[int, int, int]) -> Image.Image:
     rgba = Image.new("RGBA", (int(mask.shape[1]), int(mask.shape[0])), (0, 0, 0, 0))
     if bool(mask.any()):
-        alpha = (mask.astype("uint8") * 255)
+        alpha = mask.astype("uint8") * 255
         overlay = Image.merge(
             "RGBA",
             (
@@ -471,7 +504,9 @@ def _upload_cache_key(study_path: Path) -> str:
         "segmentation_backend": segmentation_backend_name(),
         "issue_backend": model_backend_name(),
     }
-    return hashlib.sha1(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()[:16]
+    return hashlib.sha1(
+        json.dumps(payload, sort_keys=True).encode("utf-8")
+    ).hexdigest()[:16]
 
 
 def _viewer_token_for_sample(sample_id: str, study_path: Path) -> str:
@@ -495,14 +530,18 @@ def _build_frontend_state(payload: dict[str, Any]) -> dict[str, Any]:
     issue_defs = supported_issues()
     issue_by_key = {str(item["key"]): item for item in issue_defs}
 
-    slice_stats_by_key: dict[str, list[float]] = {str(item["key"]): [] for item in issue_defs}
+    slice_stats_by_key: dict[str, list[float]] = {
+        str(item["key"]): [] for item in issue_defs
+    }
 
     for slice_index in range(int(labels.shape[0])):
         slice_rows = issue_slice_stats(labels, lung_mask, slice_index)
         slice_lookup = {str(row["issue_key"]): row for row in slice_rows}
         for issue in issue_defs:
             key = str(issue["key"])
-            slice_stats_by_key[key].append(round(float(slice_lookup.get(key, {}).get("slice_percent", 0.0)), 4))
+            slice_stats_by_key[key].append(
+                round(float(slice_lookup.get(key, {}).get("slice_percent", 0.0)), 4)
+            )
 
     rows = []
     for row in payload.get("issues", []):
@@ -519,7 +558,12 @@ def _build_frontend_state(payload: dict[str, Any]) -> dict[str, Any]:
             }
         )
 
-    default_slice = int(max(range(len(payload.get("slice_damage_percent", [])) or [0]), key=lambda idx: payload.get("slice_damage_percent", [0])[idx]))
+    default_slice = int(
+        max(
+            range(len(payload.get("slice_damage_percent", [])) or [0]),
+            key=lambda idx: payload.get("slice_damage_percent", [0])[idx],
+        )
+    )
     return {
         "slice_count": int(labels.shape[0]),
         "default_slice": default_slice,
@@ -549,11 +593,21 @@ def _write_viewer_assets(token: str, payload: dict[str, Any]) -> None:
 
     for slice_index in range(int(volume_hu.shape[0])):
         grayscale = window_slice(volume_hu[slice_index], "lung")
-        Image.fromarray(grayscale, mode="L").convert("RGB").save(base_dir / _viewer_slice_name(slice_index), format="PNG")
-        _overlay_image(lung_mask[slice_index], _hex_to_rgb(LUNG_COLOR)).save(lung_dir / _viewer_slice_name(slice_index), format="PNG")
+        Image.fromarray(grayscale, mode="L").convert("RGB").save(
+            base_dir / _viewer_slice_name(slice_index), format="PNG"
+        )
+        _overlay_image(lung_mask[slice_index], _hex_to_rgb(LUNG_COLOR)).save(
+            lung_dir / _viewer_slice_name(slice_index), format="PNG"
+        )
         for issue in issue_defs:
-            overlay = _overlay_image(labels[slice_index] == int(issue["id"]), _hex_to_rgb(str(issue["color"])))
-            overlay.save(finding_root / str(issue["key"]) / _viewer_slice_name(slice_index), format="PNG")
+            overlay = _overlay_image(
+                labels[slice_index] == int(issue["id"]),
+                _hex_to_rgb(str(issue["color"])),
+            )
+            overlay.save(
+                finding_root / str(issue["key"]) / _viewer_slice_name(slice_index),
+                format="PNG",
+            )
 
     state = {
         **viewer_state,
@@ -635,8 +689,8 @@ def _viewer_html(viewer_state: dict[str, Any]) -> str:
     <div class="ctscan-control">
       <label>Opacity</label>
       <div class="ctscan-slider-row">
-        <input class="ctscan-opacity" type="range" min="0" max="1" step="0.05" value="{viewer_state['default_opacity']}">
-        <span class="ctscan-opacity-value">{viewer_state['default_opacity']:.2f}</span>
+        <input class="ctscan-opacity" type="range" min="0" max="1" step="0.05" value="{viewer_state["default_opacity"]}">
+        <span class="ctscan-opacity-value">{viewer_state["default_opacity"]:.2f}</span>
       </div>
     </div>
   </div>
@@ -644,7 +698,7 @@ def _viewer_html(viewer_state: dict[str, Any]) -> str:
     <div class="ctscan-viewer">
       <img class="ctscan-base" src="{asset_root}/base/{_viewer_slice_name(default_slice)}" alt="Axial viewer">
       <img class="ctscan-overlay ctscan-lung" src="{asset_root}/lung/{_viewer_slice_name(default_slice)}" alt="Lung overlay" style="opacity:0">
-      {''.join(f'<img class="ctscan-overlay ctscan-finding" data-key="{row["key"]}" src="{asset_root}/findings/{row["key"]}/{_viewer_slice_name(default_slice)}" alt="{row["label"]} overlay" style="opacity:{viewer_state["default_opacity"]}">' for row in viewer_state["rows"])}
+      {"".join(f'<img class="ctscan-overlay ctscan-finding" data-key="{row["key"]}" src="{asset_root}/findings/{row["key"]}/{_viewer_slice_name(default_slice)}" alt="{row["label"]} overlay" style="opacity:{viewer_state["default_opacity"]}">' for row in viewer_state["rows"])}
     </div>
     <div class="ctscan-slider-row">
       <input class="ctscan-slice" type="range" min="0" max="{max(0, viewer_state["slice_count"] - 1)}" step="1" value="{default_slice}">
@@ -762,7 +816,9 @@ def render_upload_html(study_file: str | None) -> str:
 
 api = FastAPI(title=SERVICE_NAME)
 VIEWER_CACHE_DIR.mkdir(parents=True, exist_ok=True)
-api.mount("/viewer-cache", StaticFiles(directory=str(VIEWER_CACHE_DIR)), name="viewer-cache")
+api.mount(
+    "/viewer-cache", StaticFiles(directory=str(VIEWER_CACHE_DIR)), name="viewer-cache"
+)
 
 
 @api.get("/viewer/{token}", response_class=HTMLResponse)
@@ -796,7 +852,11 @@ async def predict(
 ) -> dict[str, Any]:
     if study_zip is None and not sample_id:
         raise HTTPException(status_code=400, detail="Provide study_zip or sample_id.")
-    study_bytes = await study_zip.read() if study_zip is not None else _study_bytes_from_inputs(None, sample_id)
+    study_bytes = (
+        await study_zip.read()
+        if study_zip is not None
+        else _study_bytes_from_inputs(None, sample_id)
+    )
     payload = analyze_study_bytes(
         study_bytes=study_bytes,
         age=age,
@@ -822,7 +882,9 @@ def build_demo() -> gr.Blocks:
         viewer = gr.HTML(value=_blank_viewer_html())
 
         demo.load(
-            fn=render_sample_cached_html if initial_sample else (lambda: _blank_viewer_html()),
+            fn=render_sample_cached_html
+            if initial_sample
+            else (lambda: _blank_viewer_html()),
             inputs=[sample_state] if initial_sample else None,
             outputs=[viewer],
             show_api=False,

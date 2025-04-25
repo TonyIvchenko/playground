@@ -89,13 +89,20 @@ class Handler(SimpleHTTPRequestHandler):
 
         parsed = urlparse(target)
         if parsed.scheme not in {"http", "https"}:
-            self.send_json({"error": "Only http and https URLs are supported."}, status=400)
+            self.send_json(
+                {"error": "Only http and https URLs are supported."}, status=400
+            )
             return
 
         try:
             request = Request(target, headers={"User-Agent": USER_AGENT})
             with urlopen(request, timeout=12) as response:
-                content_type = response.headers.get("Content-Type", "").split(";")[0].strip().lower()
+                content_type = (
+                    response.headers.get("Content-Type", "")
+                    .split(";")[0]
+                    .strip()
+                    .lower()
+                )
                 body = response.read()
         except Exception as exc:
             self.send_json({"error": f"Failed to fetch URL: {exc}"}, status=502)
@@ -139,13 +146,20 @@ class Handler(SimpleHTTPRequestHandler):
 
         parsed = urlparse(target)
         if parsed.scheme not in {"http", "https"}:
-            self.send_json({"error": "Only http and https URLs are supported."}, status=400)
+            self.send_json(
+                {"error": "Only http and https URLs are supported."}, status=400
+            )
             return
 
         try:
             request = Request(target, headers={"User-Agent": USER_AGENT})
             with urlopen(request, timeout=20) as response:
-                declared_type = response.headers.get("Content-Type", "").split(";")[0].strip().lower()
+                declared_type = (
+                    response.headers.get("Content-Type", "")
+                    .split(";")[0]
+                    .strip()
+                    .lower()
+                )
                 content_type = infer_media_content_type(target, declared_type)
                 body = response.read()
         except Exception as exc:

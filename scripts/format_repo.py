@@ -8,7 +8,7 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parents[1]
-LINT_TARGET_PATTERNS = [
+FORMAT_TARGET_PATTERNS = [
     "scripts",
     "src/*/main.py",
     "src/ctscan/tests/test_ctscan_main.py",
@@ -29,10 +29,10 @@ def expand_targets(patterns: Iterable[str]) -> list[str]:
 
 
 def main() -> int:
-    lint_targets = expand_targets(LINT_TARGET_PATTERNS)
-    command = [sys.executable, "-m", "ruff", "check", *lint_targets]
+    format_targets = expand_targets(FORMAT_TARGET_PATTERNS)
+    command = [sys.executable, "-m", "ruff", "format", *format_targets]
     print(
-        "Running " + " ".join(command[:4]) + " " + " ".join(lint_targets),
+        "Running " + " ".join(command[:4]) + " " + " ".join(format_targets),
         flush=True,
     )
     completed = subprocess.run(command, cwd=ROOT)
