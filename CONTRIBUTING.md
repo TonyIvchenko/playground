@@ -56,6 +56,7 @@ This repo is a multi-service playground. Keep changes small, explicit, and local
 ## Hygiene
 
 - Do not commit `.DS_Store`, `__pycache__`, local logs, or throwaway experiment outputs.
+- Let your editor follow the root `.editorconfig` so whitespace, final newlines, and indentation stay predictable.
 - Keep filenames, env vars, and user-facing service names consistent.
 - Prefer incremental changes that are easy to review and easy to revert.
 
