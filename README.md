@@ -162,6 +162,16 @@ python -m pytest -q
 
 If a service does not have a `tests/` directory yet, `make test <service>` fails fast and tells you which service test targets currently exist.
 
+## Lint
+
+Run the lightweight repo lint entrypoint with:
+
+```bash
+make lint
+```
+
+The first pass intentionally stays small and green: root helper scripts, service `main.py` entrypoints, and the health/app smoke tests we already maintain for `ctscan`, `disasters`, and `voiceforge`.
+
 ## CI
 
 The GitHub workflow currently checks four things on every push and pull request:
