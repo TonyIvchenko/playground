@@ -44,6 +44,8 @@ For a filesystem-backed view of the same repo surface, run `python scripts/list_
 
 The repo currently falls into three broad shapes:
 
+For the reasoning behind those shapes, see [ARCHITECTURE.md](/Users/toxa/git/playground/ARCHITECTURE.md).
+
 - Static browser apps:
   - `bert`
   - `counterpoint`
