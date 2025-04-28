@@ -25,6 +25,7 @@ Use this as the quick repo-level reference. Service-specific env vars and caveat
 For a filesystem-backed view of the same repo surface, run `python scripts/list_services.py`.
 To verify the minimum service docs and entrypoints exist, run `python scripts/check_service_files.py`.
 To verify Dockerized web services expose `/health`, run `python scripts/check_docker_health.py`.
+To scan tracked and unignored files for `.DS_Store`, `__pycache__`, logs, and large files, run `python scripts/check_repo_hygiene.py`.
 
 | Service | Type | Run Command | Tests | Docker | Health Endpoint |
 | --- | --- | --- | --- | --- | --- |
