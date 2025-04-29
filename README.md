@@ -134,6 +134,36 @@ Set service-specific environment variables as needed:
 For `test`, `REDIS_HOST`, `REDIS_KEY`, and `REDIS_VALUE` are trimmed at startup, and blank values are rejected.
 When you run `test` in Docker, use `REDIS_HOST=host.docker.internal` on Docker Desktop or `REDIS_HOST=127.0.0.1` with `--network host` on Linux.
 
+## Troubleshooting
+
+### Port Already In Use
+
+- Pass a different port to `make run <service> <port>` or `make smoke <service> <port>`.
+- If you are not sure what is listening, run `lsof -iTCP:<port> -sTCP:LISTEN`.
+
+### Missing Environment Variables
+
+- Start with the root README and the service README for the app you are running.
+- Common examples:
+  - `GMAPS_API_KEY` for `disasters`
+  - CT sample/model paths for `ctscan`
+  - `REDIS_*` settings for `test`
+- If a service boots but key features are missing, check the `/health` endpoint when it exists.
+
+### First-Run Model Or Asset Downloads
+
+- Some services need local models or generated assets before the full experience works.
+- `voiceforge` may need model files under `src/voiceforge/models`.
+- `ctscan` and `disasters` both have heavier data or tile assets than the browser-only apps.
+- If first run is slow, check the service README before assuming the app is hung.
+
+### Apple Silicon Notes
+
+- MPS can work for local ML tasks, but it is often much slower than CUDA for heavier training.
+- For `voiceforge`, expect training and model prep to be the slowest parts on Apple Silicon.
+- If a process is alive but feels stalled, check actual step progress before restarting it.
+- Browser-only apps are usually unaffected by these hardware differences.
+
 ## Docker
 
 Build Docker images from the repo root so each Dockerfile can copy the shared `src/` tree:
