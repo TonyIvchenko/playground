@@ -40,6 +40,13 @@ For browser-app error states, keep both the styling and wording consistent:
 - use `app-pill` plus `is-error` for compact pill-style error badges
 - prefer `Couldn't <action>.` wording over `Failed to ...` or `... failed`
 
+For browser-model loading states, keep the download pattern consistent too:
+
+- use `app-status` or `app-help` plus `is-loading` while browser models are loading
+- use `app-pill` plus `is-loading` for compact model-loading badges
+- prefer `Loading browser <thing> model…` for active initialization
+- prefer `Downloading browser <thing> model…` when a first-run asset download is in progress
+
 Apps can still define their own local aliases, but those aliases should map back
 to the shared roles here instead of inventing a brand new base token set each
 time.

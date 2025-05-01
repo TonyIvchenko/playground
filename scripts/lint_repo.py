@@ -40,6 +40,7 @@ def main() -> int:
         [sys.executable, "scripts/check_tracked_junk.py"],
         [sys.executable, "scripts/check_browser_app_headers.py"],
         [sys.executable, "scripts/check_browser_app_empty_states.py"],
+        [sys.executable, "scripts/check_browser_app_loading_states.py"],
         [sys.executable, "scripts/check_browser_app_error_states.py"],
         [sys.executable, "scripts/check_service_type_files.py"],
     ]

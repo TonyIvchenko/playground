@@ -311,12 +311,12 @@
         <section class="panel view active" id="text-view">
           <div class="row">
             <div class="stack">
-              <textarea id="text-input" placeholder="Loading text model..." disabled></textarea>
+              <textarea id="text-input" placeholder="Loading browser text model..." disabled></textarea>
               <div class="actions">
                 <button id="analyze-text-button" type="button" disabled>Analyze Text</button>
                 <button id="clear-text-button" class="secondary" type="button">Clear</button>
               </div>
-              <div class="help app-help" id="text-status">Loading text model…</div>
+              <div class="help app-help is-loading" id="text-status">Loading browser text model…</div>
             </div>
             <div class="score-card" id="text-card">
               <div class="score-pill neutral" id="text-pill">Waiting for text</div>
@@ -512,9 +512,10 @@
       reasonsElement.innerHTML = "";
     }
 
-    function setHelpMessage(element, message, isError = false) {
+    function setHelpMessage(element, message, { isError = false, isLoading = false } = {}) {
       element.textContent = message;
       element.classList.toggle("is-error", isError);
+      element.classList.toggle("is-loading", isLoading);
     }
 
     function summarizeTextHeuristics(text) {
@@ -696,8 +697,8 @@
         return imageClassifier;
       }
       if (!imageClassifierLoad) {
-        setHelpMessage(imageStatus, "Loading browser image model…");
-        setHelpMessage(videoStatus, "Loading browser image model…");
+        setHelpMessage(imageStatus, "Loading browser image model…", { isLoading: true });
+        setHelpMessage(videoStatus, "Loading browser image model…", { isLoading: true });
         imageClassifierLoad = (async () => {
           const attempts = HAS_WEBGPU
             ? [
@@ -729,8 +730,8 @@
 
           imageModelError = formatErrorMessage(lastError);
           imageModelVariant = null;
-          setHelpMessage(imageStatus, `Couldn't load the image model (${imageModelError}). Falling back to heuristics.`, true);
-          setHelpMessage(videoStatus, `Couldn't load the image model (${imageModelError}). Video analysis will fall back to heuristics.`, true);
+          setHelpMessage(imageStatus, `Couldn't load the image model (${imageModelError}). Falling back to heuristics.`, { isError: true });
+          setHelpMessage(videoStatus, `Couldn't load the image model (${imageModelError}). Video analysis will fall back to heuristics.`, { isError: true });
           return null;
         })();
       }
@@ -939,7 +940,7 @@
         await loadImageSource(currentImageObjectUrl, file.name, { revokeExistingObjectUrl: false });
       } catch (error) {
         console.error(error);
-        setHelpMessage(imageStatus, "Couldn't load the image.", true);
+      setHelpMessage(imageStatus, "Couldn't load the image.", { isError: true });
         clearCard("image", "Load error", formatErrorMessage(error), "error");
       }
     });
@@ -956,7 +957,7 @@
         await loadImageSource(proxyMediaUrl(targetUrl), targetUrl);
       } catch (error) {
         console.error(error);
-        setHelpMessage(imageStatus, "Couldn't load the image URL.", true);
+        setHelpMessage(imageStatus, "Couldn't load the image URL.", { isError: true });
         clearCard("image", "Load error", formatErrorMessage(error), "error");
       }
     });
@@ -978,7 +979,7 @@
         await loadVideoSource(currentVideoObjectUrl, file.name, { revokeExistingObjectUrl: false });
       } catch (error) {
         console.error(error);
-        setHelpMessage(videoStatus, "Couldn't load the video.", true);
+        setHelpMessage(videoStatus, "Couldn't load the video.", { isError: true });
         clearCard("video", "Load error", formatErrorMessage(error), "error");
       }
     });
@@ -995,7 +996,7 @@
         await loadVideoSource(proxyMediaUrl(targetUrl), targetUrl);
       } catch (error) {
         console.error(error);
-        setHelpMessage(videoStatus, "Couldn't load the video URL.", true);
+        setHelpMessage(videoStatus, "Couldn't load the video URL.", { isError: true });
         clearCard("video", "Load error", formatErrorMessage(error), "error");
       }
     });
@@ -1015,7 +1016,7 @@
     analyzeImageButton.addEventListener("click", () => {
       analyzeCurrentImage().catch((error) => {
         console.error(error);
-        setHelpMessage(imageStatus, "Couldn't analyze the image.", true);
+        setHelpMessage(imageStatus, "Couldn't analyze the image.", { isError: true });
         clearCard("image", "Analysis error", formatErrorMessage(error), "error");
       });
     });
@@ -1023,7 +1024,7 @@
     analyzeVideoButton.addEventListener("click", () => {
       analyzeCurrentVideo().catch((error) => {
         console.error(error);
-        setHelpMessage(videoStatus, "Couldn't analyze the video.", true);
+        setHelpMessage(videoStatus, "Couldn't analyze the video.", { isError: true });
         clearCard("video", "Analysis error", formatErrorMessage(error), "error");
       });
     });
@@ -1031,7 +1032,7 @@
     analyzeTextButton.addEventListener("click", () => {
       analyzeTextContent(textInput.value, "text").catch((error) => {
         console.error(error);
-        setHelpMessage(textStatus, "Couldn't analyze the text.", true);
+        setHelpMessage(textStatus, "Couldn't analyze the text.", { isError: true });
         clearCard("text", "Analysis error", formatErrorMessage(error), "error");
       });
     });
@@ -1061,7 +1062,7 @@
       } catch (error) {
         console.error(error);
         clearCard("url", "Fetch error", formatErrorMessage(error), "error");
-        setHelpMessage(urlStatus, "Couldn't analyze the URL.", true);
+        setHelpMessage(urlStatus, "Couldn't analyze the URL.", { isError: true });
       }
     });
 
@@ -1073,7 +1074,7 @@
       setHelpMessage(textStatus, "Text model ready.");
     } catch (error) {
       console.error(error);
-      setHelpMessage(textStatus, "Couldn't load the text model.", true);
+      setHelpMessage(textStatus, "Couldn't load the text model.", { isError: true });
       textInput.placeholder = "Couldn't load the text model.";
     }
   </script>

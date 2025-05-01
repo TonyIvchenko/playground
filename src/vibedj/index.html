@@ -373,8 +373,8 @@
 
         <aside class="side-card">
           <h2>Session</h2>
-          <div class="model-pill app-pill" id="model-pill">Loading model…</div>
-          <p class="status app-status" id="status-text">Loading browser sentiment model…</p>
+          <div class="model-pill app-pill is-loading" id="model-pill">Sentiment model loading</div>
+          <p class="status app-status is-loading" id="status-text">Loading browser sentiment model…</p>
           <div class="vibe-pill" id="vibe-pill">Ready to mix</div>
           <div class="metrics" id="metrics"></div>
         </aside>
@@ -779,19 +779,22 @@
       label: "Idle"
     };
 
-    function setStatus(message, isError = false) {
+    function setStatus(message, { isError = false, isLoading = false } = {}) {
       statusText.textContent = message;
       statusText.classList.toggle("is-error", isError);
+      statusText.classList.toggle("is-loading", isLoading);
     }
 
-    function setModelPill(message, isError = false) {
+    function setModelPill(message, { isError = false, isLoading = false } = {}) {
       modelPill.textContent = message;
       modelPill.classList.toggle("is-error", isError);
+      modelPill.classList.toggle("is-loading", isLoading);
     }
 
-    function setSoundtrackStatus(message, isError = false) {
+    function setSoundtrackStatus(message, { isError = false, isLoading = false } = {}) {
       soundtrackStatus.textContent = message;
       soundtrackStatus.classList.toggle("is-error", isError);
+      soundtrackStatus.classList.toggle("is-loading", isLoading);
     }
 
     function clamp(value, min, max) {
@@ -1230,8 +1233,8 @@
         return sentimentClassifier;
       }
       if (!sentimentLoad) {
-        setModelPill("Loading sentiment model");
-        setStatus("Loading browser sentiment model…");
+        setModelPill("Sentiment model loading", { isLoading: true });
+        setStatus("Loading browser sentiment model…", { isLoading: true });
         sentimentLoad = pipeline("text-classification", MODEL_ID, {
           device: "wasm",
           dtype: "q4",
@@ -1243,8 +1246,8 @@
           return classifier;
         }).catch((error) => {
           console.error(error);
-          setModelPill("Heuristic mode", true);
-          setStatus(`Couldn't load the model. VibeDJ is using heuristics only: ${String(error.message || error)}`, true);
+          setModelPill("Heuristic mode", { isError: true });
+          setStatus(`Couldn't load the model. VibeDJ is using heuristics only: ${String(error.message || error)}`, { isError: true });
           analyzeButton.disabled = false;
           return null;
         });
@@ -1435,7 +1438,7 @@
         setStatus("Mix ready.");
       } catch (error) {
         console.error(error);
-        setStatus(`Couldn't analyze the text. ${String(error.message || error)}`, true);
+        setStatus(`Couldn't analyze the text. ${String(error.message || error)}`, { isError: true });
       } finally {
         analyzeButton.disabled = false;
       }
@@ -1477,7 +1480,7 @@
         setStatus("Creative brief copied.");
       } catch (error) {
         console.error(error);
-        setStatus(`Couldn't copy the brief. ${String(error.message || error)}`, true);
+        setStatus(`Couldn't copy the brief. ${String(error.message || error)}`, { isError: true });
       }
     });
 
@@ -1495,7 +1498,7 @@
         setStatus("Live mix playing.");
       } catch (error) {
         console.error(error);
-        setSoundtrackStatus(`Couldn't play the mix. ${String(error.message || error)}`, true);
+        setSoundtrackStatus(`Couldn't play the mix. ${String(error.message || error)}`, { isError: true });
       }
     });
 
@@ -1531,7 +1534,7 @@
           setStatus("Remix playing.");
         } catch (error) {
           console.error(error);
-          setSoundtrackStatus(`Couldn't remix the set. ${String(error.message || error)}`, true);
+          setSoundtrackStatus(`Couldn't remix the set. ${String(error.message || error)}`, { isError: true });
         }
       } else {
         playButton.disabled = false;

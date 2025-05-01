@@ -80,6 +80,7 @@ jobs:
               - 'scripts/check_docker_smoke_docs.py'
               - 'scripts/check_browser_app_headers.py'
               - 'scripts/check_browser_app_empty_states.py'
+              - 'scripts/check_browser_app_loading_states.py'
               - 'scripts/check_browser_app_error_states.py'
               - 'scripts/check_service_type_files.py'
             config:
@@ -102,6 +103,7 @@ jobs:
               - 'tests/test_static_app_smokes.py'
               - 'scripts/check_browser_app_headers.py'
               - 'scripts/check_browser_app_empty_states.py'
+              - 'scripts/check_browser_app_loading_states.py'
               - 'scripts/check_browser_app_error_states.py'
               - 'scripts/browser_static_server.py'
               - 'scripts/poll_http_health.py'
@@ -286,6 +288,23 @@ jobs:
       - name: Check static app empty-state wording
         shell: bash
         run: python scripts/check_browser_app_empty_states.py
+
+  browser-app-loading-states:
+    needs: changes
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      needs.changes.outputs.static_apps == 'true' ||
+      needs.changes.outputs.shared_ci == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: browser-app-loading-states
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check static app loading-state wording
+        shell: bash
+        run: python scripts/check_browser_app_loading_states.py
 
   browser-app-error-states:
     needs: changes

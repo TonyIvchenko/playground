@@ -362,9 +362,10 @@
     let lastStylizeAt = 0;
     let styleObjectUrl = null;
 
-    function updateStatus(message, isError = false) {
+    function updateStatus(message, { isError = false, isLoading = false } = {}) {
       statusText.textContent = message;
       statusText.classList.toggle("is-error", isError);
+      statusText.classList.toggle("is-loading", isLoading);
     }
 
     function clamp(value, min, max) {
@@ -419,7 +420,7 @@
         return modelLoading;
       }
       modelLoading = (async () => {
-        updateStatus("Loading neural style transfer model…");
+        updateStatus("Loading browser style model…", { isLoading: true });
         await ensureBackend();
         model = new mi.ArbitraryStyleTransferNetwork();
         await model.initialize();
@@ -568,13 +569,13 @@
         } else {
           ensureModel().catch((error) => {
             console.error(error);
-            updateStatus(`Couldn't load the model. ${String(error.message || error)}`, true);
+            updateStatus(`Couldn't load the model. ${String(error.message || error)}`, { isError: true });
           });
           updateStatus("Camera live. Loading the style model for neural transfer.");
         }
       } catch (error) {
         console.error(error);
-        updateStatus(`Couldn't start the camera. ${String(error.message || error)}`, true);
+        updateStatus(`Couldn't start the camera. ${String(error.message || error)}`, { isError: true });
       } finally {
         startButton.disabled = false;
       }
@@ -590,7 +591,7 @@
         await loadStyleFile(file);
       } catch (error) {
         console.error(error);
-        updateStatus(`Couldn't load the style image. ${String(error.message || error)}`, true);
+        updateStatus(`Couldn't load the style image. ${String(error.message || error)}`, { isError: true });
       }
     });
 

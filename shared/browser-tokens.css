@@ -52,6 +52,17 @@
   --header-copy-max-width: 46rem;
 }
 
+@keyframes app-loading-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.62;
+  }
+}
+
 .app-header {
   display: grid;
   gap: var(--space-3);
@@ -121,9 +132,24 @@
     background-color 160ms ease;
 }
 
+.app-status.is-loading,
+.app-help.is-loading {
+  color: var(--color-info);
+  animation: app-loading-pulse 1.8s ease-in-out infinite;
+}
+
 .app-status.is-error,
 .app-help.is-error {
   color: var(--color-danger);
+  animation: none;
+}
+
+.app-pill.is-loading,
+.app-header-badge.is-loading {
+  border-color: rgba(29, 78, 216, 0.2);
+  background: var(--color-info-soft);
+  color: var(--color-info);
+  animation: app-loading-pulse 1.8s ease-in-out infinite;
 }
 
 .app-pill.is-error,
@@ -131,4 +157,5 @@
   border-color: rgba(185, 28, 28, 0.2);
   background: var(--color-danger-soft);
   color: var(--color-danger);
+  animation: none;
 }

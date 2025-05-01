@@ -345,7 +345,7 @@
         <button id="clear-button" class="secondary" type="button">Clear</button>
       </div>
 
-      <p class="status app-status" id="status-text">Loading browser models…</p>
+      <p class="status app-status is-loading" id="status-text">Loading browser models…</p>
 
       <div class="workspace">
         <section class="score-card">
@@ -353,8 +353,8 @@
           <div class="score-value" id="score-value">--</div>
           <p class="summary" id="summary-text">Paste text to begin.</p>
           <div class="models">
-            <div class="app-help" id="toxicity-status">Toxicity model: loading…</div>
-            <div class="app-help" id="sentiment-status">Sentiment model: loading…</div>
+            <div class="app-help is-loading" id="toxicity-status">Toxicity model loading…</div>
+            <div class="app-help is-loading" id="sentiment-status">Sentiment model loading…</div>
           </div>
         </section>
 
@@ -467,14 +467,16 @@
     let toxicityClassifier = null;
     let sentimentClassifier = null;
 
-    function setStatus(message, isError = false) {
+    function setStatus(message, { isError = false, isLoading = false } = {}) {
       statusText.textContent = message;
       statusText.classList.toggle("is-error", isError);
+      statusText.classList.toggle("is-loading", isLoading);
     }
 
-    function setModelStatus(element, message, isError = false) {
+    function setModelStatus(element, message, { isError = false, isLoading = false } = {}) {
       element.textContent = message;
       element.classList.toggle("is-error", isError);
+      element.classList.toggle("is-loading", isLoading);
     }
 
     function clamp(value, min, max) {
@@ -631,7 +633,7 @@
     }
 
     async function loadModels() {
-      setStatus("Loading browser models…");
+      setStatus("Loading browser models…", { isLoading: true });
       const unavailableModels = [];
       try {
         toxicityClassifier = await pipeline("text-classification", "Xenova/toxic-bert");
@@ -639,7 +641,7 @@
       } catch (error) {
         console.error(error);
         unavailableModels.push("the toxicity model");
-        setModelStatus(toxicityStatus, `Toxicity model: unavailable (${String(error.message || error)})`, true);
+        setModelStatus(toxicityStatus, `Toxicity model: unavailable (${String(error.message || error)})`, { isError: true });
       }
 
       try {
@@ -648,14 +650,14 @@
       } catch (error) {
         console.error(error);
         unavailableModels.push("the sentiment model");
-        setModelStatus(sentimentStatus, `Sentiment model: unavailable (${String(error.message || error)})`, true);
+        setModelStatus(sentimentStatus, `Sentiment model: unavailable (${String(error.message || error)})`, { isError: true });
       }
 
       textInput.disabled = false;
       textInput.placeholder = "Paste a newsletter, post, or group chat excerpt here...";
       analyzeButton.disabled = false;
       if (unavailableModels.length) {
-        setStatus(`Couldn't load ${unavailableModels.join(" and ")}. Heuristic analysis is still available.`, true);
+        setStatus(`Couldn't load ${unavailableModels.join(" and ")}. Heuristic analysis is still available.`, { isError: true });
       } else {
         setStatus("Models ready. Paste text and analyze.");
       }
@@ -741,7 +743,7 @@
         setStatus("Analysis complete.");
       } catch (error) {
         console.error(error);
-        setStatus(`Couldn't analyze the text. ${String(error.message || error)}`, true);
+        setStatus(`Couldn't analyze the text. ${String(error.message || error)}`, { isError: true });
       } finally {
         analyzeButton.disabled = false;
       }
@@ -768,7 +770,7 @@
     resetView();
     loadModels().catch((error) => {
       console.error(error);
-      setStatus(`Couldn't load the models. ${String(error.message || error)}`, true);
+      setStatus(`Couldn't load the models. ${String(error.message || error)}`, { isError: true });
       textInput.disabled = false;
       textInput.placeholder = "Paste text here...";
       analyzeButton.disabled = false;

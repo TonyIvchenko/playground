@@ -131,8 +131,8 @@
     </section>
 
     <section class="panel">
-      <textarea id="text-input" placeholder="Loading model..." disabled></textarea>
-      <div class="status app-status" id="status">Loading model…</div>
+      <textarea id="text-input" placeholder="Loading browser text model..." disabled></textarea>
+      <div class="status app-status is-loading" id="status">Loading browser text model…</div>
       <div class="result" id="result"></div>
     </section>
   </main>
@@ -150,9 +150,10 @@
     let requestId = 0;
     let debounceTimer = null;
 
-    function setStatus(message, isError = false) {
+    function setStatus(message, { isError = false, isLoading = false } = {}) {
       status.textContent = message;
       status.classList.toggle("is-error", isError);
+      status.classList.toggle("is-loading", isLoading);
     }
 
     function renderResult(predictions) {
@@ -204,7 +205,7 @@
       debounceTimer = setTimeout(() => {
         analyzeText(text, currentRequestId).catch((error) => {
           console.error(error);
-          setStatus("Couldn't analyze the text.", true);
+          setStatus("Couldn't analyze the text.", { isError: true });
         });
       }, 200);
     }
@@ -219,7 +220,7 @@
       setStatus("Model ready.");
     } catch (error) {
       console.error(error);
-      setStatus("Couldn't load the model.", true);
+      setStatus("Couldn't load the model.", { isError: true });
       input.placeholder = "Couldn't load the model.";
     }
 

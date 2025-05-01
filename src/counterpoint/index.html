@@ -335,7 +335,7 @@
           <div class="upload-row">
             <input id="file-input" type="file" accept=".txt,.md,.csv,.json,.html,.htm">
           </div>
-          <textarea id="position-input" placeholder="Loading browser model..." disabled></textarea>
+          <textarea id="position-input" placeholder="Loading browser generation model..." disabled></textarea>
         </section>
 
         <div class="output-grid">
@@ -397,8 +397,8 @@
         </div>
       </div>
 
-      <div class="pill app-pill" id="model-pill">Loading browser model...</div>
-      <p id="status" class="status app-status"></p>
+      <div class="pill app-pill is-loading" id="model-pill">Generation model loading</div>
+      <p id="status" class="status app-status is-loading">Loading browser generation model…</p>
     </section>
   </main>
 
@@ -434,14 +434,16 @@
     let ghostwriter = null;
     let modelReady = false;
 
-    function setStatus(message, isError = false) {
+    function setStatus(message, { isError = false, isLoading = false } = {}) {
       statusEl.textContent = message;
       statusEl.classList.toggle("is-error", isError);
+      statusEl.classList.toggle("is-loading", isLoading);
     }
 
-    function setModelPill(message, isError = false) {
+    function setModelPill(message, { isError = false, isLoading = false } = {}) {
       modelPill.textContent = message;
       modelPill.classList.toggle("is-error", isError);
+      modelPill.classList.toggle("is-loading", isLoading);
     }
 
     function normalizeWhitespace(text) {
@@ -552,13 +554,14 @@
     }
 
     async function ensureModel() {
-      setStatus("Loading browser model...");
-      setModelPill("Loading browser model...");
+      setStatus("Loading browser generation model…", { isLoading: true });
+      setModelPill("Generation model loading", { isLoading: true });
       try {
         ghostwriter = await pipeline("text2text-generation", "Xenova/flan-t5-small", {
           quantized: true,
           progress_callback: () => {
-            setModelPill("Downloading browser model...");
+            setStatus("Downloading browser generation model…", { isLoading: true });
+            setModelPill("Generation model downloading", { isLoading: true });
           }
         });
         modelReady = true;
@@ -572,8 +575,8 @@
         ghostwriter = null;
         positionInput.disabled = false;
         runButton.disabled = false;
-        setModelPill("Model unavailable: heuristic fallback", true);
-        setStatus("Couldn't load the browser model. Counterpoint will use heuristic templates for this run.", true);
+        setModelPill("Model unavailable: heuristic fallback", { isError: true });
+        setStatus("Couldn't load the browser model. Counterpoint will use heuristic templates for this run.", { isError: true });
       }
     }
 
@@ -654,7 +657,7 @@
     async function runGhostwriter() {
       const text = normalizeWhitespace(positionInput.value);
       if (!text) {
-        setStatus("Paste your position first.", true);
+        setStatus("Paste your position first.", { isError: true });
         return;
       }
 
@@ -671,7 +674,7 @@
       } catch (error) {
         console.error(error);
         renderPack(heuristicCounterpack(text));
-        setStatus("Couldn't build the counter-side. Counterpoint fell back to heuristic output.", true);
+        setStatus("Couldn't build the counter-side. Counterpoint fell back to heuristic output.", { isError: true });
       } finally {
         runButton.disabled = false;
         clearButton.disabled = false;
