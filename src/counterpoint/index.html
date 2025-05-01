@@ -397,8 +397,8 @@
         </div>
       </div>
 
-      <div class="pill" id="model-pill">Loading browser model...</div>
-      <p id="status" class="status"></p>
+      <div class="pill app-pill" id="model-pill">Loading browser model...</div>
+      <p id="status" class="status app-status"></p>
     </section>
   </main>
 
@@ -436,7 +436,12 @@
 
     function setStatus(message, isError = false) {
       statusEl.textContent = message;
-      statusEl.style.color = isError ? "#b42318" : "var(--muted)";
+      statusEl.classList.toggle("is-error", isError);
+    }
+
+    function setModelPill(message, isError = false) {
+      modelPill.textContent = message;
+      modelPill.classList.toggle("is-error", isError);
     }
 
     function normalizeWhitespace(text) {
@@ -548,18 +553,18 @@
 
     async function ensureModel() {
       setStatus("Loading browser model...");
-      modelPill.textContent = "Loading browser model...";
+      setModelPill("Loading browser model...");
       try {
         ghostwriter = await pipeline("text2text-generation", "Xenova/flan-t5-small", {
           quantized: true,
           progress_callback: () => {
-            modelPill.textContent = "Downloading browser model...";
+            setModelPill("Downloading browser model...");
           }
         });
         modelReady = true;
         positionInput.disabled = false;
         runButton.disabled = false;
-        modelPill.textContent = "Model ready: Xenova/flan-t5-small";
+        setModelPill("Model ready: Xenova/flan-t5-small");
         setStatus("Paste a position and build the counter-side.");
       } catch (error) {
         console.error(error);
@@ -567,8 +572,8 @@
         ghostwriter = null;
         positionInput.disabled = false;
         runButton.disabled = false;
-        modelPill.textContent = "Model unavailable: heuristic fallback";
-        setStatus("The browser model failed to load, so Counterpoint will use heuristic counterargument templates for this run.", true);
+        setModelPill("Model unavailable: heuristic fallback", true);
+        setStatus("Couldn't load the browser model. Counterpoint will use heuristic templates for this run.", true);
       }
     }
 
@@ -666,7 +671,7 @@
       } catch (error) {
         console.error(error);
         renderPack(heuristicCounterpack(text));
-        setStatus("Model generation failed, so Counterpoint fell back to heuristic output.", true);
+        setStatus("Couldn't build the counter-side. Counterpoint fell back to heuristic output.", true);
       } finally {
         runButton.disabled = false;
         clearButton.disabled = false;

@@ -220,6 +220,12 @@
       color: var(--neutral-text);
     }
 
+    .score-pill.error {
+      background: var(--color-danger-soft);
+      border-color: rgba(185, 28, 28, 0.2);
+      color: var(--color-danger);
+    }
+
     .big-score {
       font-size: 42px;
       font-weight: 800;
@@ -310,7 +316,7 @@
                 <button id="analyze-text-button" type="button" disabled>Analyze Text</button>
                 <button id="clear-text-button" class="secondary" type="button">Clear</button>
               </div>
-              <div class="help" id="text-status">Loading text model…</div>
+              <div class="help app-help" id="text-status">Loading text model…</div>
             </div>
             <div class="score-card" id="text-card">
               <div class="score-pill neutral" id="text-pill">Waiting for text</div>
@@ -336,7 +342,7 @@
               <div class="actions">
                 <button id="analyze-image-button" type="button" disabled>Analyze Image</button>
               </div>
-              <div class="help" id="image-status">Image model will load on the first image analysis.</div>
+              <div class="help app-help" id="image-status">Image model will load on the first image analysis.</div>
             </div>
             <div class="score-card" id="image-card">
               <div class="score-pill neutral" id="image-pill">Waiting for image</div>
@@ -362,7 +368,7 @@
               <div class="actions">
                 <button id="analyze-video-button" type="button" disabled>Analyze Video</button>
               </div>
-              <div class="help" id="video-status">Video analysis samples frames and runs the browser image model on them.</div>
+              <div class="help app-help" id="video-status">Video analysis samples frames and runs the browser image model on them.</div>
               <video id="hidden-video" class="hidden-video" playsinline muted></video>
               <canvas id="hidden-canvas" class="hidden-canvas"></canvas>
             </div>
@@ -382,7 +388,7 @@
               <div class="actions">
                 <button id="analyze-url-button" type="button">Fetch and Analyze URL</button>
               </div>
-              <div class="help" id="url-status">The local server fetches page text, then runs text analysis in the browser.</div>
+              <div class="help app-help" id="url-status">The local server fetches page text, then runs text analysis in the browser.</div>
             </div>
             <div class="score-card" id="url-card">
               <div class="score-pill neutral" id="url-pill">Waiting for URL</div>
@@ -493,17 +499,22 @@
       }
     }
 
-    function clearCard(prefix, label, summary) {
+    function clearCard(prefix, label, summary, tone = "neutral") {
       const pill = document.getElementById(`${prefix}-pill`);
       const scoreElement = document.getElementById(`${prefix}-score`);
       const summaryElement = document.getElementById(`${prefix}-summary`);
       const reasonsElement = document.getElementById(`${prefix}-reasons`);
 
-      pill.className = "score-pill neutral";
+      pill.className = `score-pill ${tone}`;
       pill.textContent = label;
       scoreElement.textContent = "--";
       summaryElement.textContent = summary;
       reasonsElement.innerHTML = "";
+    }
+
+    function setHelpMessage(element, message, isError = false) {
+      element.textContent = message;
+      element.classList.toggle("is-error", isError);
     }
 
     function summarizeTextHeuristics(text) {
@@ -532,14 +543,14 @@
       }
 
       if (!textClassifier) {
-        clearCard(prefix, "Model not ready", "The text model is still loading.");
+        clearCard(prefix, "Model loading", "The text model is still loading.");
         return;
       }
 
       if (prefix === "text") {
-        textStatus.textContent = pendingMessage;
+        setHelpMessage(textStatus, pendingMessage);
       } else {
-        urlStatus.textContent = pendingMessage;
+        setHelpMessage(urlStatus, pendingMessage);
       }
 
       const predictions = await textClassifier(trimmed, { top_k: null });
@@ -570,9 +581,9 @@
       );
 
       if (prefix === "text") {
-        textStatus.textContent = "Text analysis complete.";
+        setHelpMessage(textStatus, "Text analysis complete.");
       } else {
-        urlStatus.textContent = "URL analysis complete.";
+        setHelpMessage(urlStatus, "URL analysis complete.");
       }
     }
 
@@ -621,7 +632,7 @@
       return new Promise((resolve, reject) => {
         const image = new Image();
         image.onload = () => resolve(image);
-        image.onerror = () => reject(new Error("Failed to decode image."));
+        image.onerror = () => reject(new Error("Couldn't decode the image."));
         image.src = sourceUrl;
       });
     }
@@ -685,8 +696,8 @@
         return imageClassifier;
       }
       if (!imageClassifierLoad) {
-        imageStatus.textContent = "Loading browser image model…";
-        videoStatus.textContent = "Loading browser image model…";
+        setHelpMessage(imageStatus, "Loading browser image model…");
+        setHelpMessage(videoStatus, "Loading browser image model…");
         imageClassifierLoad = (async () => {
           const attempts = HAS_WEBGPU
             ? [
@@ -707,8 +718,8 @@
               imageClassifier = classifier;
               imageModelVariant = attempt.label;
               imageModelError = null;
-              imageStatus.textContent = `Image model ready (${attempt.label}).`;
-              videoStatus.textContent = `Video analysis will use the image model on sampled frames (${attempt.label}).`;
+              setHelpMessage(imageStatus, `Image model ready (${attempt.label}).`);
+              setHelpMessage(videoStatus, `Video analysis will use the image model on sampled frames (${attempt.label}).`);
               return classifier;
             } catch (error) {
               console.error(`Image model load failed for ${attempt.label}`, error);
@@ -718,8 +729,8 @@
 
           imageModelError = formatErrorMessage(lastError);
           imageModelVariant = null;
-          imageStatus.textContent = `Image model failed to load (${imageModelError}). Falling back to heuristics.`;
-          videoStatus.textContent = `Image model failed to load (${imageModelError}). Video analysis will fall back to heuristics.`;
+          setHelpMessage(imageStatus, `Couldn't load the image model (${imageModelError}). Falling back to heuristics.`, true);
+          setHelpMessage(videoStatus, `Couldn't load the image model (${imageModelError}). Video analysis will fall back to heuristics.`, true);
           return null;
         })();
       }
@@ -733,7 +744,7 @@
         return {
           score: fallback.score,
           label: fallback.score >= 0.5 ? "Likely AI-generated" : "Likely natural image",
-          summary: "The browser could not initialize the image model for this run, so it fell back to heuristics.",
+          summary: "The browser couldn't initialize the image model for this run, so it fell back to heuristics.",
           reasons: imageModelError
             ? [`Image model load error: ${imageModelError}.`, ...fallback.reasons]
             : fallback.reasons,
@@ -778,11 +789,14 @@
         return;
       }
 
-      imageStatus.textContent = "Analyzing image…";
+      setHelpMessage(imageStatus, "Analyzing image…");
       const image = await loadImageElementFromUrl(currentImageSource);
       const result = await classifyImageElement(image);
       setCard("image", result.score, result.label, result.summary, result.reasons);
-      imageStatus.textContent = result.usedFallback ? "Image analysis complete with heuristic fallback." : "Image analysis complete.";
+      setHelpMessage(
+        imageStatus,
+        result.usedFallback ? "Image analysis complete with heuristic fallback." : "Image analysis complete."
+      );
     }
 
     function waitForVideoEvent(element, eventName) {
@@ -803,7 +817,7 @@
         video.muted = true;
         video.playsInline = true;
         video.addEventListener("loadedmetadata", () => resolve(video), { once: true });
-        video.addEventListener("error", () => reject(new Error("Failed to load video.")), { once: true });
+        video.addEventListener("error", () => reject(new Error("Couldn't load the video.")), { once: true });
         video.load();
       });
     }
@@ -831,7 +845,7 @@
         return;
       }
 
-      videoStatus.textContent = "Loading video…";
+      setHelpMessage(videoStatus, "Loading video…");
       hiddenVideo.src = currentVideoSource;
       hiddenVideo.load();
       await waitForVideoEvent(hiddenVideo, "loadedmetadata");
@@ -843,7 +857,7 @@
       const frameScores = [];
       let usedFallback = false;
 
-      videoStatus.textContent = "Sampling frames and running the image model…";
+      setHelpMessage(videoStatus, "Sampling frames and running the image model…");
       for (const time of times) {
         await seekVideoTo(hiddenVideo, time);
         hiddenCanvas.width = hiddenVideo.videoWidth || 320;
@@ -878,7 +892,10 @@
           : "Video scoring samples frames and runs the browser image model on each one.",
         reasons,
       );
-      videoStatus.textContent = usedFallback ? "Video analysis complete with heuristic fallback." : "Video analysis complete.";
+      setHelpMessage(
+        videoStatus,
+        usedFallback ? "Video analysis complete with heuristic fallback." : "Video analysis complete."
+      );
     }
 
     async function loadImageSource(sourceUrl, label, { revokeExistingObjectUrl = true } = {}) {
@@ -889,7 +906,7 @@
       currentImageSource = sourceUrl;
       setPreviewContent(imagePreview, image);
       analyzeImageButton.disabled = false;
-      imageStatus.textContent = "Image ready.";
+      setHelpMessage(imageStatus, "Image ready.");
       clearCard("image", "Ready to analyze", label);
     }
 
@@ -901,7 +918,7 @@
       currentVideoSource = sourceUrl;
       setPreviewContent(videoPreview, video);
       analyzeVideoButton.disabled = false;
-      videoStatus.textContent = "Video ready.";
+      setHelpMessage(videoStatus, "Video ready.");
       clearCard("video", "Ready to analyze", label);
     }
 
@@ -922,8 +939,8 @@
         await loadImageSource(currentImageObjectUrl, file.name, { revokeExistingObjectUrl: false });
       } catch (error) {
         console.error(error);
-        imageStatus.textContent = "Failed to load image.";
-        clearCard("image", "Load failed", String(error.message || error));
+        setHelpMessage(imageStatus, "Couldn't load the image.", true);
+        clearCard("image", "Load error", formatErrorMessage(error), "error");
       }
     });
 
@@ -935,12 +952,12 @@
       }
 
       try {
-        imageStatus.textContent = "Fetching image URL through the local proxy…";
+        setHelpMessage(imageStatus, "Fetching image URL through the local proxy…");
         await loadImageSource(proxyMediaUrl(targetUrl), targetUrl);
       } catch (error) {
         console.error(error);
-        imageStatus.textContent = "Failed to load image URL.";
-        clearCard("image", "Load failed", String(error.message || error));
+        setHelpMessage(imageStatus, "Couldn't load the image URL.", true);
+        clearCard("image", "Load error", formatErrorMessage(error), "error");
       }
     });
 
@@ -961,8 +978,8 @@
         await loadVideoSource(currentVideoObjectUrl, file.name, { revokeExistingObjectUrl: false });
       } catch (error) {
         console.error(error);
-        videoStatus.textContent = "Failed to load video.";
-        clearCard("video", "Load failed", String(error.message || error));
+        setHelpMessage(videoStatus, "Couldn't load the video.", true);
+        clearCard("video", "Load error", formatErrorMessage(error), "error");
       }
     });
 
@@ -974,12 +991,12 @@
       }
 
       try {
-        videoStatus.textContent = "Fetching video URL through the local proxy…";
+        setHelpMessage(videoStatus, "Fetching video URL through the local proxy…");
         await loadVideoSource(proxyMediaUrl(targetUrl), targetUrl);
       } catch (error) {
         console.error(error);
-        videoStatus.textContent = "Failed to load video URL.";
-        clearCard("video", "Load failed", String(error.message || error));
+        setHelpMessage(videoStatus, "Couldn't load the video URL.", true);
+        clearCard("video", "Load error", formatErrorMessage(error), "error");
       }
     });
 
@@ -998,28 +1015,31 @@
     analyzeImageButton.addEventListener("click", () => {
       analyzeCurrentImage().catch((error) => {
         console.error(error);
-        imageStatus.textContent = "Image analysis failed.";
+        setHelpMessage(imageStatus, "Couldn't analyze the image.", true);
+        clearCard("image", "Analysis error", formatErrorMessage(error), "error");
       });
     });
 
     analyzeVideoButton.addEventListener("click", () => {
       analyzeCurrentVideo().catch((error) => {
         console.error(error);
-        videoStatus.textContent = "Video analysis failed.";
+        setHelpMessage(videoStatus, "Couldn't analyze the video.", true);
+        clearCard("video", "Analysis error", formatErrorMessage(error), "error");
       });
     });
 
     analyzeTextButton.addEventListener("click", () => {
       analyzeTextContent(textInput.value, "text").catch((error) => {
         console.error(error);
-        textStatus.textContent = "Text analysis failed.";
+        setHelpMessage(textStatus, "Couldn't analyze the text.", true);
+        clearCard("text", "Analysis error", formatErrorMessage(error), "error");
       });
     });
 
     clearTextButton.addEventListener("click", () => {
       textInput.value = "";
       clearCard("text", "Waiting for text", "Paste text to begin.");
-      textStatus.textContent = "Paste text to begin.";
+      setHelpMessage(textStatus, "Paste text to begin.");
     });
 
     analyzeUrlButton.addEventListener("click", async () => {
@@ -1029,19 +1049,19 @@
         return;
       }
 
-      urlStatus.textContent = "Fetching URL…";
+      setHelpMessage(urlStatus, "Fetching URL…");
       try {
         const response = await fetch(`/api/fetch?url=${encodeURIComponent(targetUrl)}`);
         const payload = await response.json();
         if (!response.ok) {
-          throw new Error(payload.error || "Fetch failed.");
+          throw new Error(payload.error || "Couldn't fetch the URL.");
         }
         const combined = [payload.title, payload.text].filter(Boolean).join("\n\n");
         await analyzeTextContent(combined, "url", "Analyzing fetched page text…");
       } catch (error) {
         console.error(error);
-        clearCard("url", "Fetch failed", String(error.message || error));
-        urlStatus.textContent = "URL analysis failed.";
+        clearCard("url", "Fetch error", formatErrorMessage(error), "error");
+        setHelpMessage(urlStatus, "Couldn't analyze the URL.", true);
       }
     });
 
@@ -1050,11 +1070,11 @@
       textInput.disabled = false;
       textInput.placeholder = "Paste text here.";
       analyzeTextButton.disabled = false;
-      textStatus.textContent = "Text model ready.";
+      setHelpMessage(textStatus, "Text model ready.");
     } catch (error) {
       console.error(error);
-      textStatus.textContent = "Failed to load text model.";
-      textInput.placeholder = "Text model failed to load.";
+      setHelpMessage(textStatus, "Couldn't load the text model.", true);
+      textInput.placeholder = "Couldn't load the text model.";
     }
   </script>
 </body>

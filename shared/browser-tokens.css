@@ -111,3 +111,24 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+
+.app-status,
+.app-help {
+  color: var(--color-ink-muted);
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+
+.app-status.is-error,
+.app-help.is-error {
+  color: var(--color-danger);
+}
+
+.app-pill.is-error,
+.app-header-badge.is-error {
+  border-color: rgba(185, 28, 28, 0.2);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}

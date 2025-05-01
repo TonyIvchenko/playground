@@ -59,6 +59,7 @@ This repo is a multi-service playground. Keep changes small, explicit, and local
 - For browser apps, load `/shared/browser-tokens.css` and reuse the shared spacing, type, radius, and color roles before inventing a new base token set.
 - Keep the browser-app top-of-page header structure aligned with the shared `app-header`, `app-kicker`, `app-title`, and `app-subtitle` classes; CI now checks that contract too.
 - Keep browser-app empty states action-oriented and consistent: use `Waiting for <thing>` for compact pills and `<action> to begin.` for the companion idle copy instead of `No ... yet` phrasing.
+- Keep browser-app error states consistent too: prefer `Couldn't <action>.` copy and shared `is-error` status or pill states instead of drifting back to `Failed to ...` phrasing.
 - Keep the scheduled `ML Smoke` workflow and `scripts/run_ml_smoke_jobs.py` aligned when heavier-service prep or training entrypoints change.
 - Keep each service README's `Local Run` section honest; CI now checks that those commands still match the expected startup path and that the process boots.
 - Keep `scripts/check_service_type_files.py` aligned with the repo's actual service types whenever a service changes shape or a new one is added.

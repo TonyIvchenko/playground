@@ -179,7 +179,7 @@
           <video class="input_video" playsinline></video>
           <canvas class="output_canvas"></canvas>
         </section>
-        <div class="status" id="status">Starting camera...</div>
+        <div class="status app-status" id="status">Starting camera...</div>
       </section>
       <section class="viewer reference-viewer">
         <section class="reference-stage">
@@ -191,7 +191,7 @@
           >
           <canvas id="reference-canvas"></canvas>
         </section>
-        <div class="reference-caption" id="reference-status">Loading reference image...</div>
+        <div class="reference-caption app-help" id="reference-status">Loading reference image...</div>
       </section>
       <aside class="panel">
         <h2>Controls</h2>
@@ -270,12 +270,14 @@
     const faceOvalIndexSet = buildIndexSetFromConnections(typeof FACEMESH_FACE_OVAL !== 'undefined' ? FACEMESH_FACE_OVAL : []);
     const anchorIndexSet = new Set(anchorIndices);
 
-    function setStatus(message) {
+    function setStatus(message, isError = false) {
       statusElement.textContent = message;
+      statusElement.classList.toggle('is-error', isError);
     }
 
-    function setReferenceStatus(message) {
+    function setReferenceStatus(message, isError = false) {
       referenceStatusElement.textContent = message;
+      referenceStatusElement.classList.toggle('is-error', isError);
     }
 
     function resizeCanvas() {
@@ -1542,7 +1544,7 @@
         await referenceFaceMesh.send({image: referenceImage});
       } catch (error) {
         console.error(error);
-        setReferenceStatus('Reference image mesh failed. Check the browser console.');
+        setReferenceStatus("Couldn't map the reference face. Check the browser console.", true);
       } finally {
         if (typeof referenceFaceMesh.close === 'function') {
           await referenceFaceMesh.close().catch((closeError) => {
@@ -1559,7 +1561,7 @@
     async function waitForReferenceImage() {
       if (referenceImage.complete) {
         if (referenceImage.naturalWidth === 0) {
-          setReferenceStatus('Reference image failed to load.');
+          setReferenceStatus("Couldn't load the reference image.", true);
         }
         return;
       }
@@ -1571,7 +1573,7 @@
         };
 
         const onError = () => {
-          setReferenceStatus('Reference image failed to load.');
+          setReferenceStatus("Couldn't load the reference image.", true);
           cleanup();
           resolve();
         };
@@ -1616,7 +1618,7 @@
 
         faceMesh.send({image: videoElement}).catch((error) => {
           console.error(error);
-          setStatus('Face mesh update failed. Check the browser console.');
+          setStatus("Couldn't update the face mesh. Check the browser console.", true);
         }).finally(() => {
           isProcessing = false;
         });
@@ -1649,7 +1651,7 @@
         });
       } catch (error) {
         console.error(error);
-        setStatus('Camera access failed. Open this page on localhost and allow the camera.');
+        setStatus("Couldn't access the camera. Open this page on localhost and allow camera access.", true);
       }
     }
 

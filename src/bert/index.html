@@ -132,7 +132,7 @@
 
     <section class="panel">
       <textarea id="text-input" placeholder="Loading model..." disabled></textarea>
-      <div class="status" id="status">Loading model…</div>
+      <div class="status app-status" id="status">Loading model…</div>
       <div class="result" id="result"></div>
     </section>
   </main>
@@ -150,8 +150,9 @@
     let requestId = 0;
     let debounceTimer = null;
 
-    function setStatus(message) {
+    function setStatus(message, isError = false) {
       status.textContent = message;
+      status.classList.toggle("is-error", isError);
     }
 
     function renderResult(predictions) {
@@ -203,7 +204,7 @@
       debounceTimer = setTimeout(() => {
         analyzeText(text, currentRequestId).catch((error) => {
           console.error(error);
-          setStatus("Analysis failed.");
+          setStatus("Couldn't analyze the text.", true);
         });
       }, 200);
     }
@@ -218,8 +219,8 @@
       setStatus("Model ready.");
     } catch (error) {
       console.error(error);
-      setStatus("Failed to load model.");
-      input.placeholder = "Model failed to load.";
+      setStatus("Couldn't load the model.", true);
+      input.placeholder = "Couldn't load the model.";
     }
 
     input.addEventListener("input", queueAnalysis);

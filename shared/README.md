@@ -34,6 +34,12 @@ For empty states, browser apps should keep the copy pattern consistent too:
 - use `<action> to begin.` for the companion instruction line
 - avoid `No ... yet` or `No ... loaded` phrasing when the app is simply idle
 
+For browser-app error states, keep both the styling and wording consistent:
+
+- use `app-status` or `app-help` plus `is-error` for status and helper text
+- use `app-pill` plus `is-error` for compact pill-style error badges
+- prefer `Couldn't <action>.` wording over `Failed to ...` or `... failed`
+
 Apps can still define their own local aliases, but those aliases should map back
 to the shared roles here instead of inventing a brand new base token set each
 time.

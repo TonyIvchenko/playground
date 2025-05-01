@@ -38,6 +38,7 @@ To reuse the shared HTTP health poller used by both local smoke checks and CI, r
 To fail fast on tracked `.DS_Store` or `__pycache__` paths, run `python scripts/check_tracked_junk.py`.
 To verify the browser apps still use the shared top-of-page header contract, run `python scripts/check_browser_app_headers.py`.
 To verify the browser apps still use the shared empty-state wording pattern, run `python scripts/check_browser_app_empty_states.py`.
+To verify the browser apps still use the shared error-state wording pattern, run `python scripts/check_browser_app_error_states.py`.
 To verify each service README's `Local Run` command still starts that service, run `python scripts/check_service_local_run.py --service <name>`.
 
 | Service | Type | Run Command | Tests | Docker | Health Endpoint |
@@ -141,9 +142,10 @@ For browser-first apps that do not need FastAPI, Gradio, or Docker on day one:
 4. Keep the Python entrypoint thin and put most product logic in the browser.
 5. Load the shared browser base tokens from `/shared/browser-tokens.css` before inventing a new spacing, type, or color foundation.
 6. Use the shared `app-header`, `app-kicker`, `app-title`, and `app-subtitle` classes for the top-of-page header so browser apps still feel related.
-7. Use `PORT` for local run consistency.
-8. Add the service to the root README service inventory once it exists.
-9. Add tests only when the app has meaningful Python behavior or a smoke path worth automating.
+7. Use shared error-state wording and styling too: prefer `Couldn't <action>.` copy plus shared `is-error` status or pill states.
+8. Use `PORT` for local run consistency.
+9. Add the service to the root README service inventory once it exists.
+10. Add tests only when the app has meaningful Python behavior or a smoke path worth automating.
 
 ## Environment
 
@@ -303,7 +305,7 @@ Run the lightweight repo lint entrypoint with:
 make lint
 ```
 
-The first pass intentionally stays small and green: root helper scripts, README markdown consistency, docs spelling, Docker smoke doc checks for containerized services, tracked JSON/YAML config linting, tracked junk-file checks, browser-app header and empty-state contract checks, type-specific service file checks, the shared browser token server/helper paths, service `main.py` entrypoints, the static browser-app smoke suite, and the health/app smoke tests we already maintain for `ctscan`, `disasters`, and `voiceforge`.
+The first pass intentionally stays small and green: root helper scripts, README markdown consistency, docs spelling, Docker smoke doc checks for containerized services, tracked JSON/YAML config linting, tracked junk-file checks, browser-app header, empty-state, and error-state contract checks, type-specific service file checks, the shared browser token server/helper paths, service `main.py` entrypoints, the static browser-app smoke suite, and the health/app smoke tests we already maintain for `ctscan`, `disasters`, and `voiceforge`.
 
 ## Format
 

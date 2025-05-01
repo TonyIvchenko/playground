@@ -373,8 +373,8 @@
 
         <aside class="side-card">
           <h2>Session</h2>
-          <div class="model-pill" id="model-pill">Loading model…</div>
-          <p class="status" id="status-text">Loading browser sentiment model…</p>
+          <div class="model-pill app-pill" id="model-pill">Loading model…</div>
+          <p class="status app-status" id="status-text">Loading browser sentiment model…</p>
           <div class="vibe-pill" id="vibe-pill">Ready to mix</div>
           <div class="metrics" id="metrics"></div>
         </aside>
@@ -389,7 +389,7 @@
             <button id="stop-button" class="secondary" type="button" disabled>Stop</button>
             <button id="remix-button" class="secondary" type="button" disabled>Remix</button>
           </div>
-          <p class="soundtrack-status" id="soundtrack-status">Generate a mix to begin.</p>
+          <p class="soundtrack-status app-status" id="soundtrack-status">Generate a mix to begin.</p>
           <div class="stage">
             <canvas id="stage-canvas" width="1000" height="360"></canvas>
           </div>
@@ -779,6 +779,21 @@
       label: "Idle"
     };
 
+    function setStatus(message, isError = false) {
+      statusText.textContent = message;
+      statusText.classList.toggle("is-error", isError);
+    }
+
+    function setModelPill(message, isError = false) {
+      modelPill.textContent = message;
+      modelPill.classList.toggle("is-error", isError);
+    }
+
+    function setSoundtrackStatus(message, isError = false) {
+      soundtrackStatus.textContent = message;
+      soundtrackStatus.classList.toggle("is-error", isError);
+    }
+
     function clamp(value, min, max) {
       return Math.max(min, Math.min(max, value));
     }
@@ -1063,7 +1078,7 @@
       playButton.disabled = !currentMix;
       stopButton.disabled = true;
       if (updateStatus && currentMix) {
-        soundtrackStatus.textContent = `Mix stopped. Ready at ${currentMix.bpm} BPM in ${currentMix.keyLabel}.`;
+        setSoundtrackStatus(`Mix stopped. Ready at ${currentMix.bpm} BPM in ${currentMix.keyLabel}.`);
       }
     }
 
@@ -1215,21 +1230,21 @@
         return sentimentClassifier;
       }
       if (!sentimentLoad) {
-        modelPill.textContent = "Loading sentiment model";
-        statusText.textContent = "Loading browser sentiment model…";
+        setModelPill("Loading sentiment model");
+        setStatus("Loading browser sentiment model…");
         sentimentLoad = pipeline("text-classification", MODEL_ID, {
           device: "wasm",
           dtype: "q4",
         }).then((classifier) => {
           sentimentClassifier = classifier;
-          modelPill.textContent = "Model ready";
-          statusText.textContent = "Model ready. Paste writing and spin the set.";
+          setModelPill("Model ready");
+          setStatus("Model ready. Paste writing and spin the set.");
           analyzeButton.disabled = false;
           return classifier;
         }).catch((error) => {
           console.error(error);
-          modelPill.textContent = "Heuristic mode";
-          statusText.textContent = `Model unavailable, using heuristics only: ${String(error.message || error)}`;
+          setModelPill("Heuristic mode", true);
+          setStatus(`Couldn't load the model. VibeDJ is using heuristics only: ${String(error.message || error)}`, true);
           analyzeButton.disabled = false;
           return null;
         });
@@ -1354,14 +1369,14 @@
     async function analyze() {
       const text = sourceText.value.trim();
       if (!text) {
-        statusText.textContent = "Paste writing first.";
+        setStatus("Paste writing first.");
         return;
       }
 
       stopPlayback(false);
       analyzeButton.disabled = true;
       copyButton.disabled = true;
-      statusText.textContent = "Reading tone and assembling the mix…";
+      setStatus("Reading tone and assembling the mix…");
 
       try {
         const sentiment = await sentimentScore(text);
@@ -1412,15 +1427,15 @@
         playButton.disabled = false;
         remixButton.disabled = false;
         stopButton.disabled = true;
-        soundtrackStatus.textContent = `Ready to play: ${mix.bpm} BPM in ${mix.keyLabel}.`;
+        setSoundtrackStatus(`Ready to play: ${mix.bpm} BPM in ${mix.keyLabel}.`);
         visualState.colors = mix.colors;
         visualState.mode = mix.mode;
         visualState.label = `${name} / ready`;
         visualState.bursts = [];
-        statusText.textContent = "Mix ready.";
+        setStatus("Mix ready.");
       } catch (error) {
         console.error(error);
-        statusText.textContent = `Analysis failed: ${String(error.message || error)}`;
+        setStatus(`Couldn't analyze the text. ${String(error.message || error)}`, true);
       } finally {
         analyzeButton.disabled = false;
       }
@@ -1443,8 +1458,8 @@
       currentMix = null;
       remixIndex = 0;
       stageSeed = 0;
-      statusText.textContent = "Cleared. Paste writing and spin the set.";
-      soundtrackStatus.textContent = "Generate a mix to begin.";
+      setStatus("Cleared. Paste writing and spin the set.");
+      setSoundtrackStatus("Generate a mix to begin.");
       visualState.colors = ["#dce7ff", "#fff1de", "#f8fbff"];
       visualState.mode = "embers";
       visualState.label = "Idle";
@@ -1459,10 +1474,10 @@
       }
       try {
         await navigator.clipboard.writeText(lastBrief);
-        statusText.textContent = "Creative brief copied.";
+        setStatus("Creative brief copied.");
       } catch (error) {
         console.error(error);
-        statusText.textContent = `Copy failed: ${String(error.message || error)}`;
+        setStatus(`Couldn't copy the brief. ${String(error.message || error)}`, true);
       }
     });
 
@@ -1476,17 +1491,17 @@
         window.Tone.Transport.start();
         playButton.disabled = true;
         stopButton.disabled = false;
-        soundtrackStatus.textContent = `Playing ${currentAnalysis.name} at ${currentMix.bpm} BPM in ${currentMix.keyLabel}.`;
-        statusText.textContent = "Live mix playing.";
+        setSoundtrackStatus(`Playing ${currentAnalysis.name} at ${currentMix.bpm} BPM in ${currentMix.keyLabel}.`);
+        setStatus("Live mix playing.");
       } catch (error) {
         console.error(error);
-        soundtrackStatus.textContent = `Playback failed: ${String(error.message || error)}`;
+        setSoundtrackStatus(`Couldn't play the mix. ${String(error.message || error)}`, true);
       }
     });
 
     stopButton.addEventListener("click", () => {
       stopPlayback();
-      statusText.textContent = "Playback stopped.";
+      setStatus("Playback stopped.");
     });
 
     remixButton.addEventListener("click", async () => {
@@ -1496,7 +1511,7 @@
       const shouldResume = Boolean(audioState);
       remixIndex += 1;
       currentMix = buildMixPlan(currentAnalysis.text, currentAnalysis.family, currentAnalysis.axes, currentAnalysis.palette, remixIndex);
-      soundtrackStatus.textContent = `Remixed: ${currentMix.bpm} BPM in ${currentMix.keyLabel}.`;
+      setSoundtrackStatus(`Remixed: ${currentMix.bpm} BPM in ${currentMix.keyLabel}.`);
       stageSeed = hashString(`${currentAnalysis.name}|${remixIndex}|${currentMix.keyLabel}`);
       visualState.colors = currentMix.colors;
       visualState.mode = currentMix.mode;
@@ -1513,10 +1528,10 @@
           window.Tone.Transport.start();
           playButton.disabled = true;
           stopButton.disabled = false;
-          statusText.textContent = "Remix playing.";
+          setStatus("Remix playing.");
         } catch (error) {
           console.error(error);
-          soundtrackStatus.textContent = `Remix failed: ${String(error.message || error)}`;
+          setSoundtrackStatus(`Couldn't remix the set. ${String(error.message || error)}`, true);
         }
       } else {
         playButton.disabled = false;
@@ -1530,7 +1545,7 @@
       button.addEventListener("click", () => {
         const key = button.dataset.sample;
         sourceText.value = SAMPLE_TEXTS[key] || "";
-        statusText.textContent = "Sample loaded. Spin the set when ready.";
+        setStatus("Sample loaded. Spin the set when ready.");
       });
     }
 

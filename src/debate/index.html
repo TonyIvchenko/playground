@@ -345,9 +345,9 @@
 
         <aside class="meta-card">
           <h2>Session</h2>
-          <div class="pill" id="model-pill">Loading model…</div>
+          <div class="pill app-pill" id="model-pill">Loading model…</div>
           <div class="metrics">
-            <div id="status-text">Loading browser generation model…</div>
+            <div class="app-status" id="status-text">Loading browser generation model…</div>
             <div id="claim-status">Add both sides to begin.</div>
           </div>
           <div class="points" id="claim-points"></div>
@@ -418,8 +418,14 @@
     let generatorLoad = null;
     let isRunning = false;
 
-    function setStatus(message) {
+    function setStatus(message, isError = false) {
       statusText.textContent = message;
+      statusText.classList.toggle("is-error", isError);
+    }
+
+    function setModelPill(message, isError = false) {
+      modelPill.textContent = message;
+      modelPill.classList.toggle("is-error", isError);
     }
 
     function sentences(text) {
@@ -524,14 +530,14 @@
         return generator;
       }
       if (!generatorLoad) {
-        modelPill.textContent = "Loading flan-t5-small";
+        setModelPill("Loading flan-t5-small");
         setStatus("Loading browser generation model…");
         generatorLoad = pipeline("text2text-generation", GENERATION_MODEL_ID, {
           device: "wasm",
           dtype: "q4",
         }).then((instance) => {
           generator = instance;
-          modelPill.textContent = "Model ready";
+          setModelPill("Model ready");
           setStatus("Model ready. Paste both sides and run the sparring session.");
           runButton.disabled = false;
           docA.disabled = false;
@@ -541,8 +547,8 @@
           return instance;
         }).catch((error) => {
           console.error(error);
-          modelPill.textContent = "Model failed";
-          setStatus(`Model load failed: ${String(error.message || error)}`);
+          setModelPill("Model unavailable", true);
+          setStatus(`Couldn't load the model. ${String(error.message || error)}`, true);
           throw error;
         });
       }
@@ -674,7 +680,7 @@
         setStatus("Sparring complete.");
       } catch (error) {
         console.error(error);
-        setStatus(`Sparring failed: ${String(error.message || error)}`);
+        setStatus(`Couldn't run sparring. ${String(error.message || error)}`, true);
       } finally {
         isRunning = false;
         runButton.disabled = false;
@@ -697,7 +703,7 @@
         await loadFileIntoTextarea(event.target.files?.[0], docA, "Point of view A");
       } catch (error) {
         console.error(error);
-        setStatus(`Could not read Point of view A: ${String(error.message || error)}`);
+        setStatus(`Couldn't read Point of view A. ${String(error.message || error)}`, true);
       }
     });
 
@@ -706,7 +712,7 @@
         await loadFileIntoTextarea(event.target.files?.[0], docB, "Point of view B");
       } catch (error) {
         console.error(error);
-        setStatus(`Could not read Point of view B: ${String(error.message || error)}`);
+        setStatus(`Couldn't read Point of view B. ${String(error.message || error)}`, true);
       }
     });
 

@@ -345,7 +345,7 @@
         <button id="clear-button" class="secondary" type="button">Clear</button>
       </div>
 
-      <p class="status" id="status-text">Loading browser models…</p>
+      <p class="status app-status" id="status-text">Loading browser models…</p>
 
       <div class="workspace">
         <section class="score-card">
@@ -353,8 +353,8 @@
           <div class="score-value" id="score-value">--</div>
           <p class="summary" id="summary-text">Paste text to begin.</p>
           <div class="models">
-            <div id="toxicity-status">Toxicity model: loading…</div>
-            <div id="sentiment-status">Sentiment model: loading…</div>
+            <div class="app-help" id="toxicity-status">Toxicity model: loading…</div>
+            <div class="app-help" id="sentiment-status">Sentiment model: loading…</div>
           </div>
         </section>
 
@@ -467,8 +467,14 @@
     let toxicityClassifier = null;
     let sentimentClassifier = null;
 
-    function setStatus(message) {
+    function setStatus(message, isError = false) {
       statusText.textContent = message;
+      statusText.classList.toggle("is-error", isError);
+    }
+
+    function setModelStatus(element, message, isError = false) {
+      element.textContent = message;
+      element.classList.toggle("is-error", isError);
     }
 
     function clamp(value, min, max) {
@@ -626,26 +632,33 @@
 
     async function loadModels() {
       setStatus("Loading browser models…");
+      const unavailableModels = [];
       try {
         toxicityClassifier = await pipeline("text-classification", "Xenova/toxic-bert");
-        toxicityStatus.textContent = "Toxicity model: ready";
+        setModelStatus(toxicityStatus, "Toxicity model: ready");
       } catch (error) {
         console.error(error);
-        toxicityStatus.textContent = `Toxicity model: failed (${String(error.message || error)})`;
+        unavailableModels.push("the toxicity model");
+        setModelStatus(toxicityStatus, `Toxicity model: unavailable (${String(error.message || error)})`, true);
       }
 
       try {
         sentimentClassifier = await pipeline("text-classification", "Xenova/distilbert-base-uncased-finetuned-sst-2-english");
-        sentimentStatus.textContent = "Sentiment model: ready";
+        setModelStatus(sentimentStatus, "Sentiment model: ready");
       } catch (error) {
         console.error(error);
-        sentimentStatus.textContent = `Sentiment model: failed (${String(error.message || error)})`;
+        unavailableModels.push("the sentiment model");
+        setModelStatus(sentimentStatus, `Sentiment model: unavailable (${String(error.message || error)})`, true);
       }
 
       textInput.disabled = false;
       textInput.placeholder = "Paste a newsletter, post, or group chat excerpt here...";
       analyzeButton.disabled = false;
-      setStatus("Models ready. Paste text and analyze.");
+      if (unavailableModels.length) {
+        setStatus(`Couldn't load ${unavailableModels.join(" and ")}. Heuristic analysis is still available.`, true);
+      } else {
+        setStatus("Models ready. Paste text and analyze.");
+      }
     }
 
     async function runModelSignals(text) {
@@ -728,7 +741,7 @@
         setStatus("Analysis complete.");
       } catch (error) {
         console.error(error);
-        setStatus(`Analysis failed: ${String(error.message || error)}`);
+        setStatus(`Couldn't analyze the text. ${String(error.message || error)}`, true);
       } finally {
         analyzeButton.disabled = false;
       }
@@ -755,7 +768,7 @@
     resetView();
     loadModels().catch((error) => {
       console.error(error);
-      setStatus(`Model load failed: ${String(error.message || error)}`);
+      setStatus(`Couldn't load the models. ${String(error.message || error)}`, true);
       textInput.disabled = false;
       textInput.placeholder = "Paste text here...";
       analyzeButton.disabled = false;

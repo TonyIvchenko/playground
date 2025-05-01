@@ -297,7 +297,7 @@
         <aside class="meta">
           <section class="card">
             <h2>Status</h2>
-            <div class="status" id="status-text">Upload a style image and start the camera to begin. The style model will download on first use.</div>
+            <div class="status app-status" id="status-text">Upload a style image and start the camera to begin. The style model will download on first use.</div>
           </section>
 
           <section class="card">
@@ -362,8 +362,9 @@
     let lastStylizeAt = 0;
     let styleObjectUrl = null;
 
-    function updateStatus(message) {
+    function updateStatus(message, isError = false) {
       statusText.textContent = message;
+      statusText.classList.toggle("is-error", isError);
     }
 
     function clamp(value, min, max) {
@@ -514,7 +515,7 @@
         updateStatus(`Stylizing live camera feed at ${fpsSelect.value} fps.`);
       } catch (error) {
         console.error(error);
-        updateStatus(`Stylization failed: ${String(error.message || error)}`);
+        updateStatus(`Couldn't stylize the live feed. ${String(error.message || error)}`, true);
       } finally {
         stylizeBusy = false;
       }
@@ -567,13 +568,13 @@
         } else {
           ensureModel().catch((error) => {
             console.error(error);
-            updateStatus(`Model load failed: ${String(error.message || error)}`);
+            updateStatus(`Couldn't load the model. ${String(error.message || error)}`, true);
           });
           updateStatus("Camera live. Loading the style model for neural transfer.");
         }
       } catch (error) {
         console.error(error);
-        updateStatus(`Camera start failed: ${String(error.message || error)}`);
+        updateStatus(`Couldn't start the camera. ${String(error.message || error)}`, true);
       } finally {
         startButton.disabled = false;
       }
@@ -589,7 +590,7 @@
         await loadStyleFile(file);
       } catch (error) {
         console.error(error);
-        updateStatus(`Style image failed to load: ${String(error.message || error)}`);
+        updateStatus(`Couldn't load the style image. ${String(error.message || error)}`, true);
       }
     });
 
