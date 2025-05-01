@@ -343,6 +343,7 @@
                 <button id="analyze-image-button" type="button" disabled>Analyze Image</button>
               </div>
               <div class="help app-help" id="image-status">Image model will load on the first image analysis.</div>
+              <div class="app-pill is-fallback" id="image-fallback-pill" hidden>Fallback mode active</div>
             </div>
             <div class="score-card" id="image-card">
               <div class="score-pill neutral" id="image-pill">Waiting for image</div>
@@ -369,6 +370,7 @@
                 <button id="analyze-video-button" type="button" disabled>Analyze Video</button>
               </div>
               <div class="help app-help" id="video-status">Video analysis samples frames and runs the browser image model on them.</div>
+              <div class="app-pill is-fallback" id="video-fallback-pill" hidden>Fallback mode active</div>
               <video id="hidden-video" class="hidden-video" playsinline muted></video>
               <canvas id="hidden-canvas" class="hidden-canvas"></canvas>
             </div>
@@ -422,6 +424,7 @@
     const loadImageUrlButton = document.getElementById("load-image-url-button");
     const imagePreview = document.getElementById("image-preview");
     const imageStatus = document.getElementById("image-status");
+    const imageFallbackPill = document.getElementById("image-fallback-pill");
     const analyzeImageButton = document.getElementById("analyze-image-button");
 
     const videoInput = document.getElementById("video-input");
@@ -429,6 +432,7 @@
     const loadVideoUrlButton = document.getElementById("load-video-url-button");
     const videoPreview = document.getElementById("video-preview");
     const videoStatus = document.getElementById("video-status");
+    const videoFallbackPill = document.getElementById("video-fallback-pill");
     const analyzeVideoButton = document.getElementById("analyze-video-button");
     const hiddenVideo = document.getElementById("hidden-video");
     const hiddenCanvas = document.getElementById("hidden-canvas");
@@ -516,6 +520,11 @@
       element.textContent = message;
       element.classList.toggle("is-error", isError);
       element.classList.toggle("is-loading", isLoading);
+    }
+
+    function setMediaFallbackPills(active) {
+      imageFallbackPill.hidden = !active;
+      videoFallbackPill.hidden = !active;
     }
 
     function summarizeTextHeuristics(text) {
@@ -719,6 +728,7 @@
               imageClassifier = classifier;
               imageModelVariant = attempt.label;
               imageModelError = null;
+              setMediaFallbackPills(false);
               setHelpMessage(imageStatus, `Image model ready (${attempt.label}).`);
               setHelpMessage(videoStatus, `Video analysis will use the image model on sampled frames (${attempt.label}).`);
               return classifier;
@@ -730,6 +740,7 @@
 
           imageModelError = formatErrorMessage(lastError);
           imageModelVariant = null;
+          setMediaFallbackPills(true);
           setHelpMessage(imageStatus, `Couldn't load the image model (${imageModelError}). Falling back to heuristics.`, { isError: true });
           setHelpMessage(videoStatus, `Couldn't load the image model (${imageModelError}). Video analysis will fall back to heuristics.`, { isError: true });
           return null;

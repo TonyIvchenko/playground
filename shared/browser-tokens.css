@@ -107,6 +107,7 @@
   line-height: 1.6;
 }
 
+.app-pill,
 .app-header-badge {
   display: inline-flex;
   align-items: center;
@@ -157,5 +158,13 @@
   border-color: rgba(185, 28, 28, 0.2);
   background: var(--color-danger-soft);
   color: var(--color-danger);
+  animation: none;
+}
+
+.app-pill.is-fallback,
+.app-header-badge.is-fallback {
+  border-color: rgba(180, 83, 9, 0.2);
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
   animation: none;
 }

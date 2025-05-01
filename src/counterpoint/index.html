@@ -398,6 +398,7 @@
       </div>
 
       <div class="pill app-pill is-loading" id="model-pill">Generation model loading</div>
+      <div class="app-pill is-fallback" id="fallback-pill" hidden>Fallback mode active</div>
       <p id="status" class="status app-status is-loading">Loading browser generation model…</p>
     </section>
   </main>
@@ -422,6 +423,7 @@
     const fileInput = document.getElementById("file-input");
     const positionInput = document.getElementById("position-input");
     const modelPill = document.getElementById("model-pill");
+    const fallbackPill = document.getElementById("fallback-pill");
     const statusEl = document.getElementById("status");
     const counterThesisEl = document.getElementById("counter-thesis");
     const openingAttackEl = document.getElementById("opening-attack");
@@ -433,6 +435,7 @@
 
     let ghostwriter = null;
     let modelReady = false;
+    let fallbackMode = false;
 
     function setStatus(message, { isError = false, isLoading = false } = {}) {
       statusEl.textContent = message;
@@ -444,6 +447,10 @@
       modelPill.textContent = message;
       modelPill.classList.toggle("is-error", isError);
       modelPill.classList.toggle("is-loading", isLoading);
+    }
+
+    function setFallbackPill(active) {
+      fallbackPill.hidden = !active;
     }
 
     function normalizeWhitespace(text) {
@@ -554,6 +561,8 @@
     }
 
     async function ensureModel() {
+      fallbackMode = false;
+      setFallbackPill(false);
       setStatus("Loading browser generation model…", { isLoading: true });
       setModelPill("Generation model loading", { isLoading: true });
       try {
@@ -572,10 +581,12 @@
       } catch (error) {
         console.error(error);
         modelReady = false;
+        fallbackMode = true;
         ghostwriter = null;
         positionInput.disabled = false;
         runButton.disabled = false;
-        setModelPill("Model unavailable: heuristic fallback", { isError: true });
+        setModelPill("Generation model unavailable", { isError: true });
+        setFallbackPill(true);
         setStatus("Couldn't load the browser model. Counterpoint will use heuristic templates for this run.", { isError: true });
       }
     }
@@ -685,7 +696,14 @@
       positionInput.value = "";
       fileInput.value = "";
       clearOutputs();
-      setStatus(modelReady ? "Paste a position and build the counter-side." : "Paste a position. Heuristic fallback is available even if the model is not.");
+      setStatus(
+        modelReady
+          ? "Paste a position and build the counter-side."
+          : fallbackMode
+            ? "Paste a position. Heuristic fallback is available even if the model is not."
+            : "Loading browser generation model…",
+        fallbackMode ? {} : { isLoading: true }
+      );
     }
 
     fileInput.addEventListener("change", async (event) => {

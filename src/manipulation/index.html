@@ -350,6 +350,7 @@
       <div class="workspace">
         <section class="score-card">
           <div class="pill neutral" id="risk-pill">Waiting for text</div>
+          <div class="app-pill is-fallback" id="fallback-pill" hidden>Fallback mode active</div>
           <div class="score-value" id="score-value">--</div>
           <p class="summary" id="summary-text">Paste text to begin.</p>
           <div class="models">
@@ -461,6 +462,7 @@
     const patternGrid = document.getElementById("pattern-grid");
     const evidenceList = document.getElementById("evidence-list");
     const evidenceEmpty = document.getElementById("evidence-empty");
+    const fallbackPill = document.getElementById("fallback-pill");
     const toxicityStatus = document.getElementById("toxicity-status");
     const sentimentStatus = document.getElementById("sentiment-status");
 
@@ -477,6 +479,10 @@
       element.textContent = message;
       element.classList.toggle("is-error", isError);
       element.classList.toggle("is-loading", isLoading);
+    }
+
+    function setFallbackPill(active) {
+      fallbackPill.hidden = !active;
     }
 
     function clamp(value, min, max) {
@@ -634,6 +640,7 @@
 
     async function loadModels() {
       setStatus("Loading browser models…", { isLoading: true });
+      setFallbackPill(false);
       const unavailableModels = [];
       try {
         toxicityClassifier = await pipeline("text-classification", "Xenova/toxic-bert");
@@ -657,8 +664,10 @@
       textInput.placeholder = "Paste a newsletter, post, or group chat excerpt here...";
       analyzeButton.disabled = false;
       if (unavailableModels.length) {
+        setFallbackPill(true);
         setStatus(`Couldn't load ${unavailableModels.join(" and ")}. Heuristic analysis is still available.`, { isError: true });
       } else {
+        setFallbackPill(false);
         setStatus("Models ready. Paste text and analyze.");
       }
     }

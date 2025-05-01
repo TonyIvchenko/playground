@@ -374,6 +374,7 @@
         <aside class="side-card">
           <h2>Session</h2>
           <div class="model-pill app-pill is-loading" id="model-pill">Sentiment model loading</div>
+          <div class="app-pill is-fallback" id="fallback-pill" hidden>Fallback mode active</div>
           <p class="status app-status is-loading" id="status-text">Loading browser sentiment model…</p>
           <div class="vibe-pill" id="vibe-pill">Ready to mix</div>
           <div class="metrics" id="metrics"></div>
@@ -739,6 +740,7 @@
     const clearButton = document.getElementById("clear-button");
     const copyButton = document.getElementById("copy-button");
     const modelPill = document.getElementById("model-pill");
+    const fallbackPill = document.getElementById("fallback-pill");
     const statusText = document.getElementById("status-text");
     const heroBadge = document.getElementById("hero-badge");
     const vibePill = document.getElementById("vibe-pill");
@@ -770,6 +772,7 @@
     let remixIndex = 0;
     let stageFrame = null;
     let stageSeed = 0;
+    let fallbackMode = false;
     const visualState = {
       colors: ["#dce7ff", "#fff1de", "#f8fbff"],
       mode: "embers",
@@ -795,6 +798,10 @@
       soundtrackStatus.textContent = message;
       soundtrackStatus.classList.toggle("is-error", isError);
       soundtrackStatus.classList.toggle("is-loading", isLoading);
+    }
+
+    function setFallbackPill(active) {
+      fallbackPill.hidden = !active;
     }
 
     function clamp(value, min, max) {
@@ -1233,6 +1240,8 @@
         return sentimentClassifier;
       }
       if (!sentimentLoad) {
+        fallbackMode = false;
+        setFallbackPill(false);
         setModelPill("Sentiment model loading", { isLoading: true });
         setStatus("Loading browser sentiment model…", { isLoading: true });
         sentimentLoad = pipeline("text-classification", MODEL_ID, {
@@ -1246,7 +1255,9 @@
           return classifier;
         }).catch((error) => {
           console.error(error);
-          setModelPill("Heuristic mode", { isError: true });
+          fallbackMode = true;
+          setModelPill("Sentiment model unavailable", { isError: true });
+          setFallbackPill(true);
           setStatus(`Couldn't load the model. VibeDJ is using heuristics only: ${String(error.message || error)}`, { isError: true });
           analyzeButton.disabled = false;
           return null;

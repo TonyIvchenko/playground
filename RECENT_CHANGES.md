@@ -39,6 +39,7 @@ Use it to answer questions like:
 - Standardized the browser-app top-of-page header pattern around shared header classes and added a header-contract check so the static apps keep the same kicker/title/subtitle structure.
 - Standardized browser-app empty-state wording around `Waiting for <thing>` labels plus `<action> to begin.` copy, and added a checker so the older `No ... yet/loaded` phrasing does not drift back in.
 - Standardized browser-model loading states around shared `is-loading` styling plus `Loading browser <thing> model…` copy, and added a checker so the older drifted loading phrases do not creep back in.
+- Standardized browser-app fallback badges around the shared `Fallback mode active` label plus `is-fallback` styling, and added a checker so heuristic-mode badge copy does not drift apart across apps.
 - Standardized browser-app error-state wording around `Couldn't <action>.` copy plus shared `is-error` styling hooks, and added a checker so the older `Failed to ...` phrasing does not drift back in.
 - Added helper scripts under `scripts/` for:
   - listing services

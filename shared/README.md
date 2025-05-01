@@ -47,6 +47,12 @@ For browser-model loading states, keep the download pattern consistent too:
 - prefer `Loading browser <thing> model…` for active initialization
 - prefer `Downloading browser <thing> model…` when a first-run asset download is in progress
 
+For browser-app fallback badges, use one shared degraded-mode pattern too:
+
+- use `app-pill` plus `is-fallback` for fallback-mode badges
+- prefer the exact label `Fallback mode active`
+- keep the badge separate from the error message so the badge communicates mode and the status line communicates cause
+
 Apps can still define their own local aliases, but those aliases should map back
 to the shared roles here instead of inventing a brand new base token set each
 time.

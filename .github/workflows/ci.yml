@@ -81,6 +81,7 @@ jobs:
               - 'scripts/check_browser_app_headers.py'
               - 'scripts/check_browser_app_empty_states.py'
               - 'scripts/check_browser_app_loading_states.py'
+              - 'scripts/check_browser_app_fallback_badges.py'
               - 'scripts/check_browser_app_error_states.py'
               - 'scripts/check_service_type_files.py'
             config:
@@ -104,6 +105,7 @@ jobs:
               - 'scripts/check_browser_app_headers.py'
               - 'scripts/check_browser_app_empty_states.py'
               - 'scripts/check_browser_app_loading_states.py'
+              - 'scripts/check_browser_app_fallback_badges.py'
               - 'scripts/check_browser_app_error_states.py'
               - 'scripts/browser_static_server.py'
               - 'scripts/poll_http_health.py'
@@ -305,6 +307,23 @@ jobs:
       - name: Check static app loading-state wording
         shell: bash
         run: python scripts/check_browser_app_loading_states.py
+
+  browser-app-fallback-badges:
+    needs: changes
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      needs.changes.outputs.static_apps == 'true' ||
+      needs.changes.outputs.shared_ci == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: browser-app-fallback-badges
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check static app fallback badges
+        shell: bash
+        run: python scripts/check_browser_app_fallback_badges.py
 
   browser-app-error-states:
     needs: changes
