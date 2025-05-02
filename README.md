@@ -98,6 +98,26 @@ make setup
 make update
 ```
 
+## First-Run Internet
+
+Some services need internet on first run because they download browser model assets or server-side model/data dependencies.
+
+- Confirmed browser-model first run downloads:
+  - `bert`
+  - `counterpoint`
+  - `debate`
+  - `realitymix`
+  - `vibedj`
+- Browser-model apps that also appear to load model assets at runtime based on current `index.html` imports:
+  - `manipulation`
+  - `realitycheck`
+- Heavier server-side setup paths that may download datasets or pretrained assets if they are not already cached locally:
+  - `voiceforge`
+  - `ctscan`
+  - `disasters`
+
+If you need a fully offline demo path, prefer services that are already cached locally or the simpler browser apps that do not depend on model downloads.
+
 ## Local Run
 
 Use:
