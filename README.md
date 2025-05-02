@@ -106,6 +106,26 @@ Use:
 make run <service> [port]
 ```
 
+### Fastest Local Commands
+
+Use this when you just want the shortest practical command to get a service up locally.
+
+| Service | Fastest Local Command | Notes |
+| --- | --- | --- |
+| `bert` | `make run bert 8080` | Static browser app. |
+| `counterpoint` | `make run counterpoint 8080` | Static browser app. |
+| `ctscan` | `make run ctscan 8080` | FastAPI + Gradio app; `/health` is available. |
+| `debate` | `make run debate 8080` | Static browser app. |
+| `disasters` | `make run disasters 8080` | FastAPI + Gradio app; set `GMAPS_API_KEY` first. |
+| `facemesh` | `make run facemesh 8080` | Static browser app. |
+| `manipulation` | `make run manipulation 8080` | Static browser app. |
+| `memorypalace` | `make run memorypalace 8080` | Static browser app. |
+| `realitycheck` | `make run realitycheck 8080` | Static browser app with local proxy endpoints. |
+| `realitymix` | `make run realitymix 8080` | Static browser app. |
+| `test` | `make run test` | Redis-backed worker; set `REDIS_*` vars first. |
+| `vibedj` | `make run vibedj 8080` | Static browser app. |
+| `voiceforge` | `make run voiceforge 8080` | FastAPI + Gradio app; local model files may be needed. |
+
 For a quick local smoke check that starts a service, probes one endpoint, and shuts it back down, use:
 
 ```bash
