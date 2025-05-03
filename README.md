@@ -2,6 +2,8 @@
 
 Minimal multi-service playground.
 
+For a rolling summary of notable repo-level changes, see [RECENT_CHANGES.md](/Users/toxa/git/playground/RECENT_CHANGES.md).
+
 ## Services
 
 - `src/bert`: browser-side toxicity analyzer
