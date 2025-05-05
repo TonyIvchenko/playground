@@ -74,6 +74,23 @@ Training-heavy or data-heavy areas currently live in:
 - `disasters`
 - `voiceforge`
 
+### Shippable Service Checklist
+
+Before a service should be treated as shippable in this repo, it should have:
+
+- a real `README.md` with local run instructions
+- a working `main.py` entrypoint
+- a clear place in the root service inventory
+- documented env vars for anything required at runtime
+- at least one practical smoke path:
+  - `GET /health` for web services, or
+  - a narrow local run path that is easy to verify
+- tests if the service has meaningful Python behavior
+- predictable output paths for generated data, logs, checkpoints, or previews
+- Docker support if the service is meant to be containerized or CI-smoked
+
+For browser-only demos, “shippable” can still mean lightweight. The bar is clarity and repeatability, not enterprise ceremony.
+
 ## Dependency Layout
 
 1. Root `requirements.txt` contains only shared environment dependencies.
