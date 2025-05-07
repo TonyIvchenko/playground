@@ -65,6 +65,8 @@ jobs:
             path: src/disasters/tests
           - name: ctscan
             path: src/ctscan/tests
+          - name: voiceforge
+            path: src/voiceforge/tests
     name: tests-${{ matrix.name }}
     steps:
       - name: Checkout

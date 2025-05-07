@@ -20,6 +20,7 @@ Use it to answer questions like:
 - Added `make smoke <service> [port]` for lightweight local smoke checks where the service can be started and probed automatically.
 - Added `make test <service>` so service test suites can be run without remembering raw pytest paths.
 - Added `make lint` and `make format` with a deliberately narrow Ruff-backed scope that is already green.
+- Extended CI and root pytest collection to include `src/voiceforge/tests`.
 - Added helper scripts under `scripts/` for:
   - listing services
   - checking required service files

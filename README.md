@@ -303,7 +303,7 @@ The initial formatter scope matches `make lint`, so we keep formatting predictab
 The GitHub workflow currently checks four things on every push and pull request:
 
 1. test collection from the repo root
-2. service test suites split across `src/test/tests`, `src/disasters/tests`, and `src/ctscan/tests`
+2. service test suites split across `src/test/tests`, `src/disasters/tests`, `src/ctscan/tests`, and `src/voiceforge/tests`
 3. container health smokes for `disasters` and `ctscan` via `GET /health`, including fresh image builds
 4. a Redis-backed runtime smoke for the `test` container, including a fresh image build
 

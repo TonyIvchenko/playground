@@ -36,6 +36,7 @@ This repo is a multi-service playground. Keep changes small, explicit, and local
   - `src/test/tests`
   - `src/disasters/tests`
   - `src/ctscan/tests`
+  - `src/voiceforge/tests`
 - Other services may still have local tests even if they are not yet included in root pytest collection.
 - Update or add tests when behavior changes, not only when bugs appear.
 
