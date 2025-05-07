@@ -51,6 +51,18 @@ jobs:
         shell: bash
         run: python -m pytest -q --collect-only
 
+  readme-code-paths:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: docs-readme-code-paths
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate README code block paths
+        shell: bash
+        run: python scripts/check_readme_code_paths.py
+
   service-tests:
     needs: collect
     runs-on: ubuntu-latest

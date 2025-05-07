@@ -46,6 +46,7 @@ This repo is a multi-service playground. Keep changes small, explicit, and local
 - Update docs in the same change when commands, env vars, endpoints, or workflows change.
 - Keep the root [README.md](/Users/toxa/git/playground/README.md) aligned with the actual service inventory.
 - Add a short note to [RECENT_CHANGES.md](/Users/toxa/git/playground/RECENT_CHANGES.md) when a repo-wide command, workflow, or user-visible service contract changes.
+- Keep README code blocks pointed at real repo-managed paths; CI validates those references now.
 - Keep service READMEs focused on how to run, test, and troubleshoot that service.
 - Prefer short, accurate docs over long aspirational docs.
 

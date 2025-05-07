@@ -28,6 +28,7 @@ For a filesystem-backed view of the same repo surface, run `python scripts/list_
 To verify the minimum service docs and entrypoints exist, run `python scripts/check_service_files.py`.
 To verify Dockerized web services expose `/health`, run `python scripts/check_docker_health.py`.
 To scan tracked and unignored files for `.DS_Store`, `__pycache__`, logs, and large files, run `python scripts/check_repo_hygiene.py`.
+To validate repo-managed paths referenced inside README code blocks, run `python scripts/check_readme_code_paths.py`.
 
 | Service | Type | Run Command | Tests | Docker | Health Endpoint |
 | --- | --- | --- | --- | --- | --- |
@@ -303,12 +304,13 @@ The initial formatter scope matches `make lint`, so we keep formatting predictab
 
 ## CI
 
-The GitHub workflow currently checks four things on every push and pull request:
+The GitHub workflow currently checks five things on every push and pull request:
 
 1. test collection from the repo root
-2. service test suites split across `tests/test_static_app_smokes.py`, `src/test/tests`, `src/disasters/tests`, `src/ctscan/tests`, and `src/voiceforge/tests`
-3. container health smokes for `disasters` and `ctscan` via `GET /health`, including fresh image builds
-4. a Redis-backed runtime smoke for the `test` container, including a fresh image build
+2. README code-block path validation for repo-managed paths like scripts, tests, notebooks, and service entrypoints
+3. service test suites split across `tests/test_static_app_smokes.py`, `src/test/tests`, `src/disasters/tests`, `src/ctscan/tests`, and `src/voiceforge/tests`
+4. container health smokes for `disasters` and `ctscan` via `GET /health`, including fresh image builds
+5. a Redis-backed runtime smoke for the `test` container, including a fresh image build
 
 ## Service Docs
 
