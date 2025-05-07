@@ -91,6 +91,28 @@ Before a service should be treated as shippable in this repo, it should have:
 
 For browser-only demos, “shippable” can still mean lightweight. The bar is clarity and repeatability, not enterprise ceremony.
 
+### Service Maturity
+
+Use this as a rough guide, not a hard promise. In this repo, “maturity” means local repeatability and documentation quality, not production readiness.
+
+- More operational:
+  - `ctscan`
+  - `disasters`
+  - `test`
+  - `voiceforge`
+- Usable demos and experiments:
+  - `bert`
+  - `counterpoint`
+  - `debate`
+  - `facemesh`
+  - `manipulation`
+  - `memorypalace`
+  - `realitycheck`
+  - `realitymix`
+  - `vibedj`
+
+The first group is where we currently have the strongest combination of tests, Docker or health-check support, and fuller run documentation. The second group is still useful, but it is better to think of those services as polished local demos rather than operational tools.
+
 ## Dependency Layout
 
 1. Root `requirements.txt` contains only shared environment dependencies.
