@@ -10,6 +10,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 FORMAT_TARGET_PATTERNS = [
     "scripts",
+    "tests/test_static_app_smokes.py",
     "src/*/main.py",
     "src/ctscan/tests/test_ctscan_main.py",
     "src/disasters/tests/test_disasters_main.py",

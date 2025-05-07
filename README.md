@@ -264,6 +264,7 @@ Run `make update` first so the active `playground` env has `pytest` plus all ser
 Run the same service test targets the CI workflow uses:
 
 ```bash
+python -m pytest -q tests/test_static_app_smokes.py
 make test test
 make test disasters
 make test ctscan
@@ -276,6 +277,8 @@ After `make update`, a plain root run also targets the same suites through `pyte
 python -m pytest -q
 ```
 
+The root suite also includes browser-app smoke coverage in [tests/test_static_app_smokes.py](/Users/toxa/git/playground/tests/test_static_app_smokes.py), which starts each static app locally and verifies `GET /` serves HTML.
+
 If a service does not have a `tests/` directory yet, `make test <service>` fails fast and tells you which service test targets currently exist.
 
 ## Lint
@@ -286,7 +289,7 @@ Run the lightweight repo lint entrypoint with:
 make lint
 ```
 
-The first pass intentionally stays small and green: root helper scripts, service `main.py` entrypoints, and the health/app smoke tests we already maintain for `ctscan`, `disasters`, and `voiceforge`.
+The first pass intentionally stays small and green: root helper scripts, service `main.py` entrypoints, the static browser-app smoke suite, and the health/app smoke tests we already maintain for `ctscan`, `disasters`, and `voiceforge`.
 
 ## Format
 
@@ -303,7 +306,7 @@ The initial formatter scope matches `make lint`, so we keep formatting predictab
 The GitHub workflow currently checks four things on every push and pull request:
 
 1. test collection from the repo root
-2. service test suites split across `src/test/tests`, `src/disasters/tests`, `src/ctscan/tests`, and `src/voiceforge/tests`
+2. service test suites split across `tests/test_static_app_smokes.py`, `src/test/tests`, `src/disasters/tests`, `src/ctscan/tests`, and `src/voiceforge/tests`
 3. container health smokes for `disasters` and `ctscan` via `GET /health`, including fresh image builds
 4. a Redis-backed runtime smoke for the `test` container, including a fresh image build
 

@@ -33,6 +33,7 @@ This repo is a multi-service playground. Keep changes small, explicit, and local
 
 - Run the narrowest relevant test suite for the service you changed.
 - Current root `pytest.ini` includes:
+  - `tests/test_static_app_smokes.py`
   - `src/test/tests`
   - `src/disasters/tests`
   - `src/ctscan/tests`

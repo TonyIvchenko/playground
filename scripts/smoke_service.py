@@ -61,6 +61,18 @@ def smoke_path(name: str) -> str:
     return "/"
 
 
+def expected_content_type(name: str) -> str:
+    if name in HEALTH_SERVICES:
+        return "application/json"
+    return "text/html"
+
+
+def expected_body_fragment(name: str) -> bytes | None:
+    if name in HEALTH_SERVICES:
+        return None
+    return b"<html"
+
+
 def tail_log(log_path: Path, lines: int = 20) -> str:
     if not log_path.exists():
         return ""
@@ -84,6 +96,8 @@ def poll_smoke(
     *,
     timeout: float,
     interval: float,
+    content_type: str,
+    body_fragment: bytes | None,
     process: subprocess.Popen[bytes],
     log_path: Path,
 ) -> None:
@@ -100,8 +114,31 @@ def poll_smoke(
             with urlopen(url, timeout=3) as response:
                 if response.status != 200:
                     last_error = f"unexpected status {response.status}"
-                else:
-                    return
+                    time.sleep(interval)
+                    continue
+
+                actual_content_type = (
+                    response.headers.get("Content-Type", "")
+                    .split(";")[0]
+                    .strip()
+                    .lower()
+                )
+                if actual_content_type != content_type:
+                    last_error = (
+                        "unexpected content type "
+                        f"{actual_content_type or 'unknown'} (expected {content_type})"
+                    )
+                    time.sleep(interval)
+                    continue
+
+                if body_fragment is not None:
+                    body = response.read(4096).lower()
+                    if body_fragment.lower() not in body:
+                        last_error = f"response body did not include expected fragment {body_fragment!r}"
+                        time.sleep(interval)
+                        continue
+
+                return
         except URLError as exc:
             last_error = str(exc.reason)
         except Exception as exc:  # noqa: BLE001
@@ -118,6 +155,8 @@ def main() -> None:
     args = parse_args()
     path = service_dir(args.service)
     url = f"http://127.0.0.1:{args.port}{smoke_path(args.service)}"
+    content_type = expected_content_type(args.service)
+    body_fragment = expected_body_fragment(args.service)
 
     log_path = Path(tempfile.gettempdir()) / f"playground-smoke-{args.service}.log"
     env = os.environ.copy()
@@ -138,6 +177,8 @@ def main() -> None:
             url,
             timeout=args.timeout,
             interval=args.interval,
+            content_type=content_type,
+            body_fragment=body_fragment,
             process=process,
             log_path=log_path,
         )

@@ -59,6 +59,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: static-apps
+            path: tests/test_static_app_smokes.py
           - name: test
             path: src/test/tests
           - name: disasters
