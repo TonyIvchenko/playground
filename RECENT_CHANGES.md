@@ -23,6 +23,7 @@ Use it to answer questions like:
 - Extended CI and root pytest collection to include `src/voiceforge/tests`.
 - Added a root static-app smoke suite so the browser-only apps are exercised in pytest and CI instead of relying only on manual local runs.
 - Added a CI-backed README code-block path checker so repo-managed file references in docs drift less easily.
+- Added a README markdown consistency linter and wired it into both CI and `make lint`.
 - Added helper scripts under `scripts/` for:
   - listing services
   - checking required service files

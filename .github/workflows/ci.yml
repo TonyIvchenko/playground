@@ -63,6 +63,18 @@ jobs:
         shell: bash
         run: python scripts/check_readme_code_paths.py
 
+  readme-markdown:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: docs-readme-markdown
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint README markdown consistency
+        shell: bash
+        run: python scripts/check_markdown_readmes.py
+
   service-tests:
     needs: collect
     runs-on: ubuntu-latest

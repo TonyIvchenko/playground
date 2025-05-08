@@ -31,13 +31,22 @@ def expand_targets(patterns: Iterable[str]) -> list[str]:
 
 def main() -> int:
     lint_targets = expand_targets(LINT_TARGET_PATTERNS)
-    command = [sys.executable, "-m", "ruff", "check", *lint_targets]
-    print(
-        "Running " + " ".join(command[:4]) + " " + " ".join(lint_targets),
-        flush=True,
-    )
-    completed = subprocess.run(command, cwd=ROOT)
-    return completed.returncode
+    commands = [
+        [sys.executable, "-m", "ruff", "check", *lint_targets],
+        [sys.executable, "scripts/check_markdown_readmes.py"],
+    ]
+    for command in commands:
+        if command[1:3] == ["-m", "ruff"]:
+            print(
+                "Running " + " ".join(command[:4]) + " " + " ".join(lint_targets),
+                flush=True,
+            )
+        else:
+            print("Running " + " ".join(command), flush=True)
+        completed = subprocess.run(command, cwd=ROOT)
+        if completed.returncode != 0:
+            return completed.returncode
+    return 0
 
 
 if __name__ == "__main__":

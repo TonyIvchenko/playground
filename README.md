@@ -29,6 +29,7 @@ To verify the minimum service docs and entrypoints exist, run `python scripts/ch
 To verify Dockerized web services expose `/health`, run `python scripts/check_docker_health.py`.
 To scan tracked and unignored files for `.DS_Store`, `__pycache__`, logs, and large files, run `python scripts/check_repo_hygiene.py`.
 To validate repo-managed paths referenced inside README code blocks, run `python scripts/check_readme_code_paths.py`.
+To lint README markdown structure, run `python scripts/check_markdown_readmes.py`.
 
 | Service | Type | Run Command | Tests | Docker | Health Endpoint |
 | --- | --- | --- | --- | --- | --- |
@@ -290,7 +291,7 @@ Run the lightweight repo lint entrypoint with:
 make lint
 ```
 
-The first pass intentionally stays small and green: root helper scripts, service `main.py` entrypoints, the static browser-app smoke suite, and the health/app smoke tests we already maintain for `ctscan`, `disasters`, and `voiceforge`.
+The first pass intentionally stays small and green: root helper scripts, README markdown consistency, service `main.py` entrypoints, the static browser-app smoke suite, and the health/app smoke tests we already maintain for `ctscan`, `disasters`, and `voiceforge`.
 
 ## Format
 
@@ -304,13 +305,14 @@ The initial formatter scope matches `make lint`, so we keep formatting predictab
 
 ## CI
 
-The GitHub workflow currently checks five things on every push and pull request:
+The GitHub workflow currently checks six things on every push and pull request:
 
 1. test collection from the repo root
 2. README code-block path validation for repo-managed paths like scripts, tests, notebooks, and service entrypoints
-3. service test suites split across `tests/test_static_app_smokes.py`, `src/test/tests`, `src/disasters/tests`, `src/ctscan/tests`, and `src/voiceforge/tests`
-4. container health smokes for `disasters` and `ctscan` via `GET /health`, including fresh image builds
-5. a Redis-backed runtime smoke for the `test` container, including a fresh image build
+3. README markdown consistency linting across the root and service READMEs
+4. service test suites split across `tests/test_static_app_smokes.py`, `src/test/tests`, `src/disasters/tests`, `src/ctscan/tests`, and `src/voiceforge/tests`
+5. container health smokes for `disasters` and `ctscan` via `GET /health`, including fresh image builds
+6. a Redis-backed runtime smoke for the `test` container, including a fresh image build
 
 ## Service Docs
 
