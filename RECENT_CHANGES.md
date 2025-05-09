@@ -24,6 +24,7 @@ Use it to answer questions like:
 - Added a root static-app smoke suite so the browser-only apps are exercised in pytest and CI instead of relying only on manual local runs.
 - Added a CI-backed README code-block path checker so repo-managed file references in docs drift less easily.
 - Added a README markdown consistency linter and wired it into both CI and `make lint`.
+- Added a lightweight docs spellcheck pass and cleaned up repeated user-facing `hurricanes` typos in prose.
 - Added helper scripts under `scripts/` for:
   - listing services
   - checking required service files

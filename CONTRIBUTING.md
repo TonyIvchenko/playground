@@ -48,6 +48,7 @@ This repo is a multi-service playground. Keep changes small, explicit, and local
 - Add a short note to [RECENT_CHANGES.md](/Users/toxa/git/playground/RECENT_CHANGES.md) when a repo-wide command, workflow, or user-visible service contract changes.
 - Keep README code blocks pointed at real repo-managed paths; CI validates those references now.
 - Keep README heading structure simple and consistent; CI now lints the markdown shape too.
+- Prefer correct prose spellings in docs even when legacy file or folder names are misspelled; keep the typo isolated to code paths, not user-facing text.
 - Keep service READMEs focused on how to run, test, and troubleshoot that service.
 - Prefer short, accurate docs over long aspirational docs.
 

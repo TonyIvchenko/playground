@@ -75,6 +75,18 @@ jobs:
         shell: bash
         run: python scripts/check_markdown_readmes.py
 
+  docs-spelling:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: docs-spelling
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check docs spelling
+        shell: bash
+        run: python scripts/check_docs_spelling.py
+
   service-tests:
     needs: collect
     runs-on: ubuntu-latest
