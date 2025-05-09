@@ -49,6 +49,7 @@ This repo is a multi-service playground. Keep changes small, explicit, and local
 - Keep README code blocks pointed at real repo-managed paths; CI validates those references now.
 - Keep README heading structure simple and consistent; CI now lints the markdown shape too.
 - Prefer correct prose spellings in docs even when legacy file or folder names are misspelled; keep the typo isolated to code paths, not user-facing text.
+- Keep tracked workflow and config files valid JSON/YAML; CI now checks syntax and duplicate keys for that small config surface.
 - Keep service READMEs focused on how to run, test, and troubleshoot that service.
 - Prefer short, accurate docs over long aspirational docs.
 

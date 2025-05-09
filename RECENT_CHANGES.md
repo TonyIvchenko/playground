@@ -25,6 +25,7 @@ Use it to answer questions like:
 - Added a CI-backed README code-block path checker so repo-managed file references in docs drift less easily.
 - Added a README markdown consistency linter and wired it into both CI and `make lint`.
 - Added a lightweight docs spellcheck pass and cleaned up repeated user-facing `hurricanes` typos in prose.
+- Added tracked JSON/YAML config linting for workflow and repo config files, including duplicate-key detection.
 - Added helper scripts under `scripts/` for:
   - listing services
   - checking required service files
