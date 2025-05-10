@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -32,7 +33,92 @@ env:
   PYTHONDONTWRITEBYTECODE: "1"
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: changes
+    outputs:
+      docs: ${{ steps.manual.outputs.docs || steps.filter.outputs.docs }}
+      config: ${{ steps.manual.outputs.config || steps.filter.outputs.config }}
+      shared_ci: ${{ steps.manual.outputs.shared_ci || steps.filter.outputs.shared_ci }}
+      static_apps: ${{ steps.manual.outputs.static_apps || steps.filter.outputs.static_apps }}
+      test_service: ${{ steps.manual.outputs.test_service || steps.filter.outputs.test_service }}
+      disasters: ${{ steps.manual.outputs.disasters || steps.filter.outputs.disasters }}
+      ctscan: ${{ steps.manual.outputs.ctscan || steps.filter.outputs.ctscan }}
+      voiceforge: ${{ steps.manual.outputs.voiceforge || steps.filter.outputs.voiceforge }}
+    steps:
+      - name: Mark all filters matched for manual runs
+        if: github.event_name == 'workflow_dispatch'
+        id: manual
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in docs config shared_ci static_apps test_service disasters ctscan voiceforge; do
+            echo "$key=true" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Checkout
+        if: github.event_name != 'workflow_dispatch'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed paths
+        if: github.event_name != 'workflow_dispatch'
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            docs:
+              - '*.md'
+              - 'src/**/README.md'
+              - 'scripts/check_readme_code_paths.py'
+              - 'scripts/check_markdown_readmes.py'
+              - 'scripts/check_docs_spelling.py'
+            config:
+              - '.github/**/*.yml'
+              - '.github/**/*.yaml'
+              - 'environment.yml'
+              - '.vscode/**/*.json'
+              - 'src/disasters/tiles/*/overlay.json'
+              - 'scripts/check_json_yaml_configs.py'
+            shared_ci:
+              - '.github/workflows/**'
+              - '.github/actions/**'
+              - 'pytest.ini'
+              - 'requirements.txt'
+              - 'environment.yml'
+            static_apps:
+              - 'tests/test_static_app_smokes.py'
+              - 'scripts/smoke_service.py'
+              - 'src/bert/**'
+              - 'src/counterpoint/**'
+              - 'src/debate/**'
+              - 'src/facemesh/**'
+              - 'src/manipulation/**'
+              - 'src/memorypalace/**'
+              - 'src/realitycheck/**'
+              - 'src/realitymix/**'
+              - 'src/vibedj/**'
+            test_service:
+              - 'src/test/**'
+            disasters:
+              - 'src/disasters/**'
+            ctscan:
+              - 'src/ctscan/**'
+            voiceforge:
+              - 'src/voiceforge/**'
+
   collect:
+    needs: changes
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      needs.changes.outputs.shared_ci == 'true' ||
+      needs.changes.outputs.static_apps == 'true' ||
+      needs.changes.outputs.test_service == 'true' ||
+      needs.changes.outputs.disasters == 'true' ||
+      needs.changes.outputs.ctscan == 'true' ||
+      needs.changes.outputs.voiceforge == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     name: tests-collect
@@ -52,6 +138,11 @@ jobs:
         run: python -m pytest -q --collect-only
 
   readme-code-paths:
+    needs: changes
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      needs.changes.outputs.docs == 'true' ||
+      needs.changes.outputs.shared_ci == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     name: docs-readme-code-paths
@@ -64,6 +155,11 @@ jobs:
         run: python scripts/check_readme_code_paths.py
 
   readme-markdown:
+    needs: changes
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      needs.changes.outputs.docs == 'true' ||
+      needs.changes.outputs.shared_ci == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     name: docs-readme-markdown
@@ -76,6 +172,11 @@ jobs:
         run: python scripts/check_markdown_readmes.py
 
   docs-spelling:
+    needs: changes
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      needs.changes.outputs.docs == 'true' ||
+      needs.changes.outputs.shared_ci == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     name: docs-spelling
@@ -88,6 +189,11 @@ jobs:
         run: python scripts/check_docs_spelling.py
 
   config-json-yaml:
+    needs: changes
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      needs.changes.outputs.config == 'true' ||
+      needs.changes.outputs.shared_ci == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     name: config-json-yaml
@@ -100,7 +206,17 @@ jobs:
         run: python scripts/check_json_yaml_configs.py
 
   service-tests:
-    needs: collect
+    needs:
+      - changes
+      - collect
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      needs.changes.outputs.shared_ci == 'true' ||
+      (matrix.name == 'static-apps' && needs.changes.outputs.static_apps == 'true') ||
+      (matrix.name == 'test' && needs.changes.outputs.test_service == 'true') ||
+      (matrix.name == 'disasters' && needs.changes.outputs.disasters == 'true') ||
+      (matrix.name == 'ctscan' && needs.changes.outputs.ctscan == 'true') ||
+      (matrix.name == 'voiceforge' && needs.changes.outputs.voiceforge == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -130,6 +246,12 @@ jobs:
         run: python -m pytest -q ${{ matrix.path }}
 
   container-smoke:
+    needs: changes
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      needs.changes.outputs.shared_ci == 'true' ||
+      (matrix.name == 'disasters' && needs.changes.outputs.disasters == 'true') ||
+      (matrix.name == 'ctscan' && needs.changes.outputs.ctscan == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
@@ -184,6 +306,11 @@ jobs:
         run: docker rm --force playground-${{ matrix.name }} || true
 
   test-container-smoke:
+    needs: changes
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      needs.changes.outputs.shared_ci == 'true' ||
+      needs.changes.outputs.test_service == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     name: smoke-redis-test

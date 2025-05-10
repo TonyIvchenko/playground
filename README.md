@@ -318,6 +318,8 @@ The GitHub workflow currently checks eight things on every push and pull request
 7. container health smokes for `disasters` and `ctscan` via `GET /health`, including fresh image builds
 8. a Redis-backed runtime smoke for the `test` container, including a fresh image build
 
+It now also uses changed-path filters so docs-only or config-only pushes can skip the heavier service-test and container-smoke jobs.
+
 ## Service Docs
 
 - `src/bert/README.md`: local run, browser model notes

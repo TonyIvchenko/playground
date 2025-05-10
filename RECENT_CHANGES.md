@@ -26,6 +26,7 @@ Use it to answer questions like:
 - Added a README markdown consistency linter and wired it into both CI and `make lint`.
 - Added a lightweight docs spellcheck pass and cleaned up repeated user-facing `hurricanes` typos in prose.
 - Added tracked JSON/YAML config linting for workflow and repo config files, including duplicate-key detection.
+- Added changed-path filtering in CI so docs-only or unrelated pushes can skip the heavier service-test and container-smoke jobs.
 - Added helper scripts under `scripts/` for:
   - listing services
   - checking required service files
