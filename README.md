@@ -307,7 +307,7 @@ The initial formatter scope matches `make lint`, so we keep formatting predictab
 
 ## CI
 
-The GitHub workflow currently checks eight things on every push and pull request:
+The GitHub workflow currently checks nine things on every push and pull request:
 
 1. test collection from the repo root
 2. README code-block path validation for repo-managed paths like scripts, tests, notebooks, and service entrypoints
@@ -317,6 +317,7 @@ The GitHub workflow currently checks eight things on every push and pull request
 6. service test suites split across `tests/test_static_app_smokes.py`, `src/test/tests`, `src/disasters/tests`, `src/ctscan/tests`, and `src/voiceforge/tests`
 7. container health smokes for `disasters` and `ctscan` via `GET /health`, including fresh image builds
 8. a Redis-backed runtime smoke for the `test` container, including a fresh image build
+9. an uploaded `workflow-summary` artifact plus job summary page that lists suite results, smoke outcomes, and skipped jobs
 
 It now also uses changed-path filters so docs-only or config-only pushes can skip the heavier service-test and container-smoke jobs.
 

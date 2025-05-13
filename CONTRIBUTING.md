@@ -51,6 +51,7 @@ This repo is a multi-service playground. Keep changes small, explicit, and local
 - Prefer correct prose spellings in docs even when legacy file or folder names are misspelled; keep the typo isolated to code paths, not user-facing text.
 - Keep tracked workflow and config files valid JSON/YAML; CI now checks syntax and duplicate keys for that small config surface.
 - Expect some GitHub Actions jobs to skip when your change only touches unrelated paths; that path filtering is intentional and keeps heavier jobs focused.
+- CI also publishes a `workflow-summary` artifact now, so repo-wide workflow changes should keep that summary useful and readable.
 - Keep service READMEs focused on how to run, test, and troubleshoot that service.
 - Prefer short, accurate docs over long aspirational docs.
 
