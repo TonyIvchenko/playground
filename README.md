@@ -320,6 +320,7 @@ The GitHub workflow currently checks nine things on every push and pull request:
 9. an uploaded `workflow-summary` artifact plus job summary page that lists suite results, smoke outcomes, and skipped jobs
 
 It now also uses changed-path filters so docs-only or config-only pushes can skip the heavier service-test and container-smoke jobs.
+The CI setup action now also caches the full shared Python dependency set, and Docker smoke builds use cached Buildx layers across runs.
 
 ## Service Docs
 

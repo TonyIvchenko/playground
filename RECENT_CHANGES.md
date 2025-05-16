@@ -28,6 +28,7 @@ Use it to answer questions like:
 - Added tracked JSON/YAML config linting for workflow and repo config files, including duplicate-key detection.
 - Added changed-path filtering in CI so docs-only or unrelated pushes can skip the heavier service-test and container-smoke jobs.
 - Added a workflow summary artifact and job summary page that report suite results, smoke results, and skipped jobs for each CI run.
+- Expanded CI caching to cover the full shared Python dependency set and Docker Buildx layer cache for image-based smoke jobs.
 - Added helper scripts under `scripts/` for:
   - listing services
   - checking required service files

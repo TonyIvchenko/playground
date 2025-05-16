@@ -16,6 +16,7 @@ runs:
           src/test/requirements.txt
           src/disasters/requirements.txt
           src/ctscan/requirements.txt
+          src/voiceforge/requirements.txt
 
     - name: Install dependencies
       shell: bash
@@ -27,4 +28,5 @@ runs:
           -r src/test/requirements.txt \
           -r src/disasters/requirements.txt \
           -r src/ctscan/requirements.txt \
+          -r src/voiceforge/requirements.txt \
           pytest
