@@ -33,6 +33,7 @@ Use it to answer questions like:
 - Added a shared HTTP health-polling script that is now used by both local smoke checks and CI web-smoke jobs.
 - Added a dedicated tracked-file guard in CI and `make lint` for `.DS_Store` and `__pycache__` regressions.
 - Added a separate scheduled `ML Smoke` workflow plus a reusable helper script for capped synthetic prep/train jobs across `ctscan`, `disasters`, and `voiceforge`.
+- Added a CI-backed Local Run checker so each service README's startup command is exercised against the real app process instead of drifting as doc-only text.
 - Added helper scripts under `scripts/` for:
   - listing services
   - checking required service files

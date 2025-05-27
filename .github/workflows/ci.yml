@@ -92,6 +92,7 @@ jobs:
               - 'environment.yml'
               - 'scripts/poll_http_health.py'
               - 'scripts/run_ml_smoke_jobs.py'
+              - 'scripts/check_service_local_run.py'
             static_apps:
               - 'tests/test_static_app_smokes.py'
               - 'scripts/poll_http_health.py'
@@ -241,6 +242,60 @@ jobs:
       - name: Check tracked junk files
         shell: bash
         run: python scripts/check_tracked_junk.py
+
+  readme-local-run:
+    needs: changes
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      needs.changes.outputs.shared_ci == 'true' ||
+      needs.changes.outputs.static_apps == 'true' ||
+      needs.changes.outputs.test_service == 'true' ||
+      needs.changes.outputs.disasters == 'true' ||
+      needs.changes.outputs.ctscan == 'true' ||
+      needs.changes.outputs.voiceforge == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: bert
+            port: 18100
+          - service: counterpoint
+            port: 18101
+          - service: ctscan
+            port: 18102
+          - service: debate
+            port: 18103
+          - service: disasters
+            port: 18104
+          - service: facemesh
+            port: 18105
+          - service: manipulation
+            port: 18106
+          - service: memorypalace
+            port: 18107
+          - service: realitycheck
+            port: 18108
+          - service: realitymix
+            port: 18109
+          - service: test
+            port: 18110
+          - service: vibedj
+            port: 18111
+          - service: voiceforge
+            port: 18112
+    name: local-run-${{ matrix.service }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python and dependencies
+        uses: ./.github/actions/setup-playground-python
+
+      - name: Check ${{ matrix.service }} README Local Run
+        shell: bash
+        run: python scripts/check_service_local_run.py --service ${{ matrix.service }} --port ${{ matrix.port }}
 
   service-tests:
     needs:
@@ -455,6 +510,7 @@ jobs:
       - docker-smoke-docs
       - config-json-yaml
       - tracked-junk
+      - readme-local-run
       - service-tests
       - container-smoke
       - test-container-smoke

@@ -35,6 +35,7 @@ To verify Dockerized service READMEs still document the expected smoke commands,
 To lint tracked JSON and YAML workflow/config files, run `python scripts/check_json_yaml_configs.py`.
 To reuse the shared HTTP health poller used by both local smoke checks and CI, run `python scripts/poll_http_health.py --url http://127.0.0.1:8080/health`.
 To fail fast on tracked `.DS_Store` or `__pycache__` paths, run `python scripts/check_tracked_junk.py`.
+To verify each service README's `Local Run` command still starts that service, run `python scripts/check_service_local_run.py --service <name>`.
 
 | Service | Type | Run Command | Tests | Docker | Health Endpoint |
 | --- | --- | --- | --- | --- | --- |
@@ -211,7 +212,7 @@ make smoke voiceforge 8091
 ```
 
 If you omit the port for `disasters` or `ctscan`, `PORT` defaults to `8080`. The `test` service only needs `make run test`.
-`make smoke` currently supports the browser apps plus the web services with `/health`; the Redis-backed `test` service still uses its README-specific smoke flow.
+`make smoke` currently supports the browser apps plus the web services with `/health`. The `test` service is still checked through the dedicated README-local-run path instead of the HTTP smoke helper because it is a Redis-backed worker, not a web app.
 
 Set service-specific environment variables as needed:
 
@@ -310,7 +311,7 @@ The initial formatter scope matches `make lint`, so we keep formatting predictab
 
 ## CI
 
-The GitHub workflow currently checks eleven things on every push and pull request:
+The GitHub workflow currently checks twelve things on every push and pull request:
 
 1. test collection from the repo root
 2. README code-block path validation for repo-managed paths like scripts, tests, notebooks, and service entrypoints
@@ -319,10 +320,11 @@ The GitHub workflow currently checks eleven things on every push and pull reques
 5. Docker smoke documentation checks for the Dockerized service READMEs
 6. tracked JSON/YAML workflow and config linting with syntax plus duplicate-key checks
 7. service test suites split across `tests/test_static_app_smokes.py`, `src/test/tests`, `src/disasters/tests`, `src/ctscan/tests`, and `src/voiceforge/tests`
-8. container health smokes for `disasters` and `ctscan` via `GET /health`, including fresh image builds
-9. a Redis-backed runtime smoke for the `test` container, including a fresh image build
-10. an uploaded `workflow-summary` artifact plus job summary page that lists suite results, smoke outcomes, and skipped jobs
-11. a tracked-file guard that fails if `.DS_Store` or `__pycache__` paths ever re-enter git
+8. a service-by-service Local Run check that verifies each service README still documents the expected startup command and that the app process actually boots
+9. container health smokes for `disasters` and `ctscan` via `GET /health`, including fresh image builds
+10. a Redis-backed runtime smoke for the `test` container, including a fresh image build
+11. an uploaded `workflow-summary` artifact plus job summary page that lists suite results, smoke outcomes, and skipped jobs
+12. a tracked-file guard that fails if `.DS_Store` or `__pycache__` paths ever re-enter git
 
 It now also uses changed-path filters so docs-only or config-only pushes can skip the heavier service-test and container-smoke jobs.
 The CI setup action now also caches the full shared Python dependency set, and Docker smoke builds use cached Buildx layers across runs.

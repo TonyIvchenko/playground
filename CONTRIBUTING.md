@@ -57,6 +57,7 @@ This repo is a multi-service playground. Keep changes small, explicit, and local
 - Do not let tracked `.DS_Store` files or tracked `__pycache__` directories creep back in; CI now has a dedicated guard for that.
 - Prefer reusing the shared health-polling script for HTTP readiness checks so local smoke commands and CI do not drift apart.
 - Keep the scheduled `ML Smoke` workflow and `scripts/run_ml_smoke_jobs.py` aligned when heavier-service prep or training entrypoints change.
+- Keep each service README's `Local Run` section honest; CI now checks that those commands still match the expected startup path and that the process boots.
 - Keep service READMEs focused on how to run, test, and troubleshoot that service.
 - Prefer short, accurate docs over long aspirational docs.
 
