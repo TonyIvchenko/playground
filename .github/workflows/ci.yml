@@ -76,6 +76,7 @@ jobs:
               - 'scripts/check_readme_code_paths.py'
               - 'scripts/check_markdown_readmes.py'
               - 'scripts/check_docs_spelling.py'
+              - 'scripts/check_docker_smoke_docs.py'
             config:
               - '.github/**/*.yml'
               - '.github/**/*.yaml'
@@ -190,6 +191,26 @@ jobs:
       - name: Check docs spelling
         shell: bash
         run: python scripts/check_docs_spelling.py
+
+  docker-smoke-docs:
+    needs: changes
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      needs.changes.outputs.docs == 'true' ||
+      needs.changes.outputs.ctscan == 'true' ||
+      needs.changes.outputs.disasters == 'true' ||
+      needs.changes.outputs.test_service == 'true' ||
+      needs.changes.outputs.voiceforge == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: docs-docker-smoke
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check documented Docker smoke commands
+        shell: bash
+        run: python scripts/check_docker_smoke_docs.py
 
   config-json-yaml:
     needs: changes
@@ -430,6 +451,7 @@ jobs:
       - readme-code-paths
       - readme-markdown
       - docs-spelling
+      - docker-smoke-docs
       - config-json-yaml
       - tracked-junk
       - service-tests

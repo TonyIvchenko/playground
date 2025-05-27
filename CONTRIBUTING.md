@@ -49,6 +49,7 @@ This repo is a multi-service playground. Keep changes small, explicit, and local
 - Keep README code blocks pointed at real repo-managed paths; CI validates those references now.
 - Keep README heading structure simple and consistent; CI now lints the markdown shape too.
 - Prefer correct prose spellings in docs even when legacy file or folder names are misspelled; keep the typo isolated to code paths, not user-facing text.
+- Keep Docker smoke snippets in Dockerized service READMEs aligned with the expected repo smoke flow; CI now checks those documented commands too.
 - Keep tracked workflow and config files valid JSON/YAML; CI now checks syntax and duplicate keys for that small config surface.
 - Expect some GitHub Actions jobs to skip when your change only touches unrelated paths; that path filtering is intentional and keeps heavier jobs focused.
 - CI also publishes a `workflow-summary` artifact now, so repo-wide workflow changes should keep that summary useful and readable.

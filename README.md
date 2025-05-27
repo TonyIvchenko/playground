@@ -31,6 +31,7 @@ To scan tracked and unignored files for `.DS_Store`, `__pycache__`, logs, and la
 To validate repo-managed paths referenced inside README code blocks, run `python scripts/check_readme_code_paths.py`.
 To lint README markdown structure, run `python scripts/check_markdown_readmes.py`.
 To run the lightweight docs spellcheck, run `python scripts/check_docs_spelling.py`.
+To verify Dockerized service READMEs still document the expected smoke commands, run `python scripts/check_docker_smoke_docs.py`.
 To lint tracked JSON and YAML workflow/config files, run `python scripts/check_json_yaml_configs.py`.
 To reuse the shared HTTP health poller used by both local smoke checks and CI, run `python scripts/poll_http_health.py --url http://127.0.0.1:8080/health`.
 To fail fast on tracked `.DS_Store` or `__pycache__` paths, run `python scripts/check_tracked_junk.py`.
@@ -295,7 +296,7 @@ Run the lightweight repo lint entrypoint with:
 make lint
 ```
 
-The first pass intentionally stays small and green: root helper scripts, README markdown consistency, docs spelling, tracked JSON/YAML config linting, tracked junk-file checks, service `main.py` entrypoints, the static browser-app smoke suite, and the health/app smoke tests we already maintain for `ctscan`, `disasters`, and `voiceforge`.
+The first pass intentionally stays small and green: root helper scripts, README markdown consistency, docs spelling, Docker smoke doc checks for containerized services, tracked JSON/YAML config linting, tracked junk-file checks, service `main.py` entrypoints, the static browser-app smoke suite, and the health/app smoke tests we already maintain for `ctscan`, `disasters`, and `voiceforge`.
 
 ## Format
 
@@ -309,18 +310,19 @@ The initial formatter scope matches `make lint`, so we keep formatting predictab
 
 ## CI
 
-The GitHub workflow currently checks ten things on every push and pull request:
+The GitHub workflow currently checks eleven things on every push and pull request:
 
 1. test collection from the repo root
 2. README code-block path validation for repo-managed paths like scripts, tests, notebooks, and service entrypoints
 3. README markdown consistency linting across the root and service READMEs
 4. lightweight docs spellchecking against a curated typo list
-5. tracked JSON/YAML workflow and config linting with syntax plus duplicate-key checks
-6. service test suites split across `tests/test_static_app_smokes.py`, `src/test/tests`, `src/disasters/tests`, `src/ctscan/tests`, and `src/voiceforge/tests`
-7. container health smokes for `disasters` and `ctscan` via `GET /health`, including fresh image builds
-8. a Redis-backed runtime smoke for the `test` container, including a fresh image build
-9. an uploaded `workflow-summary` artifact plus job summary page that lists suite results, smoke outcomes, and skipped jobs
-10. a tracked-file guard that fails if `.DS_Store` or `__pycache__` paths ever re-enter git
+5. Docker smoke documentation checks for the Dockerized service READMEs
+6. tracked JSON/YAML workflow and config linting with syntax plus duplicate-key checks
+7. service test suites split across `tests/test_static_app_smokes.py`, `src/test/tests`, `src/disasters/tests`, `src/ctscan/tests`, and `src/voiceforge/tests`
+8. container health smokes for `disasters` and `ctscan` via `GET /health`, including fresh image builds
+9. a Redis-backed runtime smoke for the `test` container, including a fresh image build
+10. an uploaded `workflow-summary` artifact plus job summary page that lists suite results, smoke outcomes, and skipped jobs
+11. a tracked-file guard that fails if `.DS_Store` or `__pycache__` paths ever re-enter git
 
 It now also uses changed-path filters so docs-only or config-only pushes can skip the heavier service-test and container-smoke jobs.
 The CI setup action now also caches the full shared Python dependency set, and Docker smoke builds use cached Buildx layers across runs.
