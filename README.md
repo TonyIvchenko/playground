@@ -32,6 +32,7 @@ To validate repo-managed paths referenced inside README code blocks, run `python
 To lint README markdown structure, run `python scripts/check_markdown_readmes.py`.
 To run the lightweight docs spellcheck, run `python scripts/check_docs_spelling.py`.
 To lint tracked JSON and YAML workflow/config files, run `python scripts/check_json_yaml_configs.py`.
+To reuse the shared HTTP health poller used by both local smoke checks and CI, run `python scripts/poll_http_health.py --url http://127.0.0.1:8080/health`.
 
 | Service | Type | Run Command | Tests | Docker | Health Endpoint |
 | --- | --- | --- | --- | --- | --- |
@@ -321,6 +322,7 @@ The GitHub workflow currently checks nine things on every push and pull request:
 
 It now also uses changed-path filters so docs-only or config-only pushes can skip the heavier service-test and container-smoke jobs.
 The CI setup action now also caches the full shared Python dependency set, and Docker smoke builds use cached Buildx layers across runs.
+The local `make smoke` flow and the CI web-smoke jobs now share the same HTTP health polling script instead of maintaining separate retry loops.
 
 ## Service Docs
 

@@ -89,8 +89,10 @@ jobs:
               - 'pytest.ini'
               - 'requirements.txt'
               - 'environment.yml'
+              - 'scripts/poll_http_health.py'
             static_apps:
               - 'tests/test_static_app_smokes.py'
+              - 'scripts/poll_http_health.py'
               - 'scripts/smoke_service.py'
               - 'src/bert/**'
               - 'src/counterpoint/**'
@@ -284,17 +286,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for attempt in $(seq 1 "$WEB_HEALTH_RETRIES"); do
-            status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' playground-${{ matrix.name }} 2>/dev/null || true)"
-            if [ "$status" = "healthy" ]; then
-              curl --fail --silent --show-error "http://127.0.0.1:${{ matrix.port }}/health" > /tmp/${{ matrix.name }}-health.json
-              cat /tmp/${{ matrix.name }}-health.json
-              exit 0
-            fi
-            sleep "$WEB_HEALTH_WAIT_SECONDS"
-          done
-          docker logs playground-${{ matrix.name }}
-          exit 1
+          python scripts/poll_http_health.py \
+            --url "http://127.0.0.1:${{ matrix.port }}/health" \
+            --timeout "$((WEB_HEALTH_RETRIES * WEB_HEALTH_WAIT_SECONDS))" \
+            --interval "$WEB_HEALTH_WAIT_SECONDS" \
+            --expect-content-type application/json \
+            --write-body /tmp/${{ matrix.name }}-health.json
+          cat /tmp/${{ matrix.name }}-health.json
 
       - name: Show ${{ matrix.name }} container logs
         if: failure()

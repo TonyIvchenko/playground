@@ -4,12 +4,10 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
+from poll_http_health import poll_url
 import subprocess
 import sys
 import tempfile
-import time
-from urllib.error import URLError
-from urllib.request import urlopen
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -91,62 +89,12 @@ def terminate_process(process: subprocess.Popen[bytes]) -> None:
         process.wait(timeout=5)
 
 
-def poll_smoke(
-    url: str,
-    *,
-    timeout: float,
-    interval: float,
-    content_type: str,
-    body_fragment: bytes | None,
-    process: subprocess.Popen[bytes],
-    log_path: Path,
-) -> None:
-    deadline = time.monotonic() + timeout
-    last_error = "service did not answer yet"
-    while time.monotonic() < deadline:
-        if process.poll() is not None:
-            details = tail_log(log_path)
-            raise RuntimeError(
-                "Service exited before the smoke probe succeeded.\n"
-                f"Log tail:\n{details or '(no log output)'}"
-            )
-        try:
-            with urlopen(url, timeout=3) as response:
-                if response.status != 200:
-                    last_error = f"unexpected status {response.status}"
-                    time.sleep(interval)
-                    continue
-
-                actual_content_type = (
-                    response.headers.get("Content-Type", "")
-                    .split(";")[0]
-                    .strip()
-                    .lower()
-                )
-                if actual_content_type != content_type:
-                    last_error = (
-                        "unexpected content type "
-                        f"{actual_content_type or 'unknown'} (expected {content_type})"
-                    )
-                    time.sleep(interval)
-                    continue
-
-                if body_fragment is not None:
-                    body = response.read(4096).lower()
-                    if body_fragment.lower() not in body:
-                        last_error = f"response body did not include expected fragment {body_fragment!r}"
-                        time.sleep(interval)
-                        continue
-
-                return
-        except URLError as exc:
-            last_error = str(exc.reason)
-        except Exception as exc:  # noqa: BLE001
-            last_error = str(exc)
-        time.sleep(interval)
+def process_abort_message(process: subprocess.Popen[bytes], log_path: Path) -> str | None:
+    if process.poll() is None:
+        return None
     details = tail_log(log_path)
-    raise RuntimeError(
-        f"Timed out waiting for {url}: {last_error}\n"
+    return (
+        "Service exited before the smoke probe succeeded.\n"
         f"Log tail:\n{details or '(no log output)'}"
     )
 
@@ -173,14 +121,13 @@ def main() -> None:
         )
 
     try:
-        poll_smoke(
+        poll_url(
             url,
             timeout=args.timeout,
             interval=args.interval,
-            content_type=content_type,
+            expect_content_type=content_type,
             body_fragment=body_fragment,
-            process=process,
-            log_path=log_path,
+            abort_message=lambda: process_abort_message(process, log_path),
         )
     finally:
         terminate_process(process)
