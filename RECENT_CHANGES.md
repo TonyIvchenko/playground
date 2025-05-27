@@ -32,6 +32,7 @@ Use it to answer questions like:
 - Expanded CI caching to cover the full shared Python dependency set and Docker Buildx layer cache for image-based smoke jobs.
 - Added a shared HTTP health-polling script that is now used by both local smoke checks and CI web-smoke jobs.
 - Added a dedicated tracked-file guard in CI and `make lint` for `.DS_Store` and `__pycache__` regressions.
+- Added a separate scheduled `ML Smoke` workflow plus a reusable helper script for capped synthetic prep/train jobs across `ctscan`, `disasters`, and `voiceforge`.
 - Added helper scripts under `scripts/` for:
   - listing services
   - checking required service files

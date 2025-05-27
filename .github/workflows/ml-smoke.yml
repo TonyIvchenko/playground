@@ -1,0 +1,68 @@
+name: ML Smoke
+
+on:
+  schedule:
+    - cron: '17 10 * * 1'
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Smoke job to run.
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - ctscan
+          - disasters
+          - voiceforge
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ml-smoke-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+
+jobs:
+  ml-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ctscan
+          - name: disasters
+          - name: voiceforge
+    if: |
+      github.event_name == 'schedule' ||
+      github.event.inputs.job == 'all' ||
+      github.event.inputs.job == matrix.name
+    name: ml-smoke-${{ matrix.name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python and dependencies
+        uses: ./.github/actions/setup-playground-python
+
+      - name: Run ${{ matrix.name }} smoke job
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/run_ml_smoke_jobs.py \
+            --job "${{ matrix.name }}" \
+            --workspace "${RUNNER_TEMP}/ml-smoke"
+          cat "${RUNNER_TEMP}/ml-smoke/${{ matrix.name }}/summary.json"
+
+      - name: Upload ${{ matrix.name }} smoke outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ml-smoke-${{ matrix.name }}
+          path: ${{ runner.temp }}/ml-smoke/${{ matrix.name }}
+          if-no-files-found: error

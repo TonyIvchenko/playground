@@ -91,6 +91,7 @@ jobs:
               - 'requirements.txt'
               - 'environment.yml'
               - 'scripts/poll_http_health.py'
+              - 'scripts/run_ml_smoke_jobs.py'
             static_apps:
               - 'tests/test_static_app_smokes.py'
               - 'scripts/poll_http_health.py'

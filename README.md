@@ -328,6 +328,8 @@ It now also uses changed-path filters so docs-only or config-only pushes can ski
 The CI setup action now also caches the full shared Python dependency set, and Docker smoke builds use cached Buildx layers across runs.
 The local `make smoke` flow and the CI web-smoke jobs now share the same HTTP health polling script instead of maintaining separate retry loops.
 
+There is also a separate scheduled `ML Smoke` workflow for the heavier services. It runs capped synthetic smoke jobs for `ctscan`, `disasters`, and `voiceforge` on a weekly schedule and on manual dispatch, and uploads each job's tiny outputs as artifacts for debugging.
+
 ## Service Docs
 
 - `src/bert/README.md`: local run, browser model notes
