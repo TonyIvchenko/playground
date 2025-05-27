@@ -208,6 +208,18 @@ jobs:
         shell: bash
         run: python scripts/check_json_yaml_configs.py
 
+  tracked-junk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: tracked-junk
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check tracked junk files
+        shell: bash
+        run: python scripts/check_tracked_junk.py
+
   service-tests:
     needs:
       - changes
@@ -419,6 +431,7 @@ jobs:
       - readme-markdown
       - docs-spelling
       - config-json-yaml
+      - tracked-junk
       - service-tests
       - container-smoke
       - test-container-smoke

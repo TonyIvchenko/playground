@@ -36,6 +36,7 @@ def main() -> int:
         [sys.executable, "scripts/check_markdown_readmes.py"],
         [sys.executable, "scripts/check_docs_spelling.py"],
         [sys.executable, "scripts/check_json_yaml_configs.py"],
+        [sys.executable, "scripts/check_tracked_junk.py"],
     ]
     for command in commands:
         if command[1:3] == ["-m", "ruff"]:

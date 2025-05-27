@@ -53,6 +53,7 @@ This repo is a multi-service playground. Keep changes small, explicit, and local
 - Expect some GitHub Actions jobs to skip when your change only touches unrelated paths; that path filtering is intentional and keeps heavier jobs focused.
 - CI also publishes a `workflow-summary` artifact now, so repo-wide workflow changes should keep that summary useful and readable.
 - Shared CI actions are also responsible for cache behavior now, so when dependencies or Docker build inputs change, keep the cache keys and dependency lists aligned.
+- Do not let tracked `.DS_Store` files or tracked `__pycache__` directories creep back in; CI now has a dedicated guard for that.
 - Prefer reusing the shared health-polling script for HTTP readiness checks so local smoke commands and CI do not drift apart.
 - Keep service READMEs focused on how to run, test, and troubleshoot that service.
 - Prefer short, accurate docs over long aspirational docs.

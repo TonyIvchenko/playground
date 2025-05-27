@@ -30,6 +30,7 @@ Use it to answer questions like:
 - Added a workflow summary artifact and job summary page that report suite results, smoke results, and skipped jobs for each CI run.
 - Expanded CI caching to cover the full shared Python dependency set and Docker Buildx layer cache for image-based smoke jobs.
 - Added a shared HTTP health-polling script that is now used by both local smoke checks and CI web-smoke jobs.
+- Added a dedicated tracked-file guard in CI and `make lint` for `.DS_Store` and `__pycache__` regressions.
 - Added helper scripts under `scripts/` for:
   - listing services
   - checking required service files
