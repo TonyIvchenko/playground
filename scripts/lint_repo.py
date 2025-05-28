@@ -38,6 +38,7 @@ def main() -> int:
         [sys.executable, "scripts/check_docker_smoke_docs.py"],
         [sys.executable, "scripts/check_json_yaml_configs.py"],
         [sys.executable, "scripts/check_tracked_junk.py"],
+        [sys.executable, "scripts/check_service_type_files.py"],
     ]
     for command in commands:
         if command[1:3] == ["-m", "ruff"]:

@@ -34,6 +34,7 @@ Use it to answer questions like:
 - Added a dedicated tracked-file guard in CI and `make lint` for `.DS_Store` and `__pycache__` regressions.
 - Added a separate scheduled `ML Smoke` workflow plus a reusable helper script for capped synthetic prep/train jobs across `ctscan`, `disasters`, and `voiceforge`.
 - Added a CI-backed Local Run checker so each service README's startup command is exercised against the real app process instead of drifting as doc-only text.
+- Added a type-aware service file check in CI and `make lint` so browser apps, Python web services, and the worker service keep their minimum file sets.
 - Added helper scripts under `scripts/` for:
   - listing services
   - checking required service files

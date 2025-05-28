@@ -26,6 +26,7 @@ Use this as the quick repo-level reference. Service-specific env vars and caveat
 
 For a filesystem-backed view of the same repo surface, run `python scripts/list_services.py`.
 To verify the minimum service docs and entrypoints exist, run `python scripts/check_service_files.py`.
+To verify each service directory has the minimum expected files for its service type, run `python scripts/check_service_type_files.py`.
 To verify Dockerized web services expose `/health`, run `python scripts/check_docker_health.py`.
 To scan tracked and unignored files for `.DS_Store`, `__pycache__`, logs, and large files, run `python scripts/check_repo_hygiene.py`.
 To validate repo-managed paths referenced inside README code blocks, run `python scripts/check_readme_code_paths.py`.
@@ -297,7 +298,7 @@ Run the lightweight repo lint entrypoint with:
 make lint
 ```
 
-The first pass intentionally stays small and green: root helper scripts, README markdown consistency, docs spelling, Docker smoke doc checks for containerized services, tracked JSON/YAML config linting, tracked junk-file checks, service `main.py` entrypoints, the static browser-app smoke suite, and the health/app smoke tests we already maintain for `ctscan`, `disasters`, and `voiceforge`.
+The first pass intentionally stays small and green: root helper scripts, README markdown consistency, docs spelling, Docker smoke doc checks for containerized services, tracked JSON/YAML config linting, tracked junk-file checks, type-specific service file checks, service `main.py` entrypoints, the static browser-app smoke suite, and the health/app smoke tests we already maintain for `ctscan`, `disasters`, and `voiceforge`.
 
 ## Format
 
@@ -311,7 +312,7 @@ The initial formatter scope matches `make lint`, so we keep formatting predictab
 
 ## CI
 
-The GitHub workflow currently checks twelve things on every push and pull request:
+The GitHub workflow currently checks thirteen things on every push and pull request:
 
 1. test collection from the repo root
 2. README code-block path validation for repo-managed paths like scripts, tests, notebooks, and service entrypoints
@@ -319,12 +320,13 @@ The GitHub workflow currently checks twelve things on every push and pull reques
 4. lightweight docs spellchecking against a curated typo list
 5. Docker smoke documentation checks for the Dockerized service READMEs
 6. tracked JSON/YAML workflow and config linting with syntax plus duplicate-key checks
-7. service test suites split across `tests/test_static_app_smokes.py`, `src/test/tests`, `src/disasters/tests`, `src/ctscan/tests`, and `src/voiceforge/tests`
-8. a service-by-service Local Run check that verifies each service README still documents the expected startup command and that the app process actually boots
-9. container health smokes for `disasters` and `ctscan` via `GET /health`, including fresh image builds
-10. a Redis-backed runtime smoke for the `test` container, including a fresh image build
-11. an uploaded `workflow-summary` artifact plus job summary page that lists suite results, smoke outcomes, and skipped jobs
-12. a tracked-file guard that fails if `.DS_Store` or `__pycache__` paths ever re-enter git
+7. a type-aware service file check that verifies each service directory still has the minimum expected files for its role
+8. service test suites split across `tests/test_static_app_smokes.py`, `src/test/tests`, `src/disasters/tests`, `src/ctscan/tests`, and `src/voiceforge/tests`
+9. a service-by-service Local Run check that verifies each service README still documents the expected startup command and that the app process actually boots
+10. container health smokes for `disasters` and `ctscan` via `GET /health`, including fresh image builds
+11. a Redis-backed runtime smoke for the `test` container, including a fresh image build
+12. an uploaded `workflow-summary` artifact plus job summary page that lists suite results, smoke outcomes, and skipped jobs
+13. a tracked-file guard that fails if `.DS_Store` or `__pycache__` paths ever re-enter git
 
 It now also uses changed-path filters so docs-only or config-only pushes can skip the heavier service-test and container-smoke jobs.
 The CI setup action now also caches the full shared Python dependency set, and Docker smoke builds use cached Buildx layers across runs.

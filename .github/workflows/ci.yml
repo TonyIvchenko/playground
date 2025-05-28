@@ -77,6 +77,7 @@ jobs:
               - 'scripts/check_markdown_readmes.py'
               - 'scripts/check_docs_spelling.py'
               - 'scripts/check_docker_smoke_docs.py'
+              - 'scripts/check_service_type_files.py'
             config:
               - '.github/**/*.yml'
               - '.github/**/*.yaml'
@@ -242,6 +243,27 @@ jobs:
       - name: Check tracked junk files
         shell: bash
         run: python scripts/check_tracked_junk.py
+
+  service-type-files:
+    needs: changes
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      needs.changes.outputs.shared_ci == 'true' ||
+      needs.changes.outputs.static_apps == 'true' ||
+      needs.changes.outputs.test_service == 'true' ||
+      needs.changes.outputs.disasters == 'true' ||
+      needs.changes.outputs.ctscan == 'true' ||
+      needs.changes.outputs.voiceforge == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: service-type-files
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check type-specific service files
+        shell: bash
+        run: python scripts/check_service_type_files.py
 
   readme-local-run:
     needs: changes
@@ -510,6 +532,7 @@ jobs:
       - docker-smoke-docs
       - config-json-yaml
       - tracked-junk
+      - service-type-files
       - readme-local-run
       - service-tests
       - container-smoke
