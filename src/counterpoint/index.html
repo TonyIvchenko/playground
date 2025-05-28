@@ -62,15 +62,7 @@
       gap: 10px;
     }
 
-    .hero h1 {
-      margin: 0;
-      font-family: "Fraunces", serif;
-      font-size: clamp(42px, 6vw, 72px);
-      line-height: 0.95;
-      letter-spacing: -0.05em;
-    }
-
-    .hero p,
+    .app-subtitle,
     .status,
     .hint,
     .body-copy {
@@ -284,13 +276,14 @@
 </head>
 <body>
   <main>
-    <section class="hero">
-      <div class="hero-top">
-        <div>
-          <h1>Counterpoint</h1>
-          <p>Paste your side of an argument and let the browser write the smartest opposition it can. Instead of cheering you on, it pressure-tests your weak spots so you can walk into the real conversation prepared.</p>
+    <section class="hero app-header">
+      <div class="hero-top app-header-top">
+        <div class="app-header-copy">
+          <div class="app-kicker">Playground Browser Lab</div>
+          <h1 class="app-title">Counterpoint</h1>
+          <p class="app-subtitle">Paste your side of an argument and let the browser write the smartest opposition it can. Instead of cheering you on, it pressure-tests your weak spots so you can walk into the real conversation prepared.</p>
         </div>
-        <div class="badge">Ghostwriter For Counterarguments</div>
+        <div class="badge app-header-badge">Ghostwriter For Counterarguments</div>
       </div>
     </section>
 

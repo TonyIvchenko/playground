@@ -56,9 +56,9 @@
       backdrop-filter: blur(10px);
     }
 
-    h1 {
+    .app-title {
       margin: 0 0 8px;
-      font-size: 34px;
+      font-size: clamp(40px, 6vw, 64px);
     }
 
     p {
@@ -281,9 +281,15 @@
 <body>
   <main>
     <section class="shell">
-      <section class="panel">
-        <h1>RealityCheck</h1>
-        <p>Browser-based AI-likelihood analyzer for text, images, video, and URLs. Treat results as signals, not proof.</p>
+      <section class="panel app-header">
+        <div class="app-header-top">
+          <div class="app-header-copy">
+            <div class="app-kicker">Playground Browser Lab</div>
+            <h1 class="app-title">RealityCheck</h1>
+            <p class="app-subtitle">Browser-based AI-likelihood analyzer for text, images, video, and URLs. Treat results as signals, not proof.</p>
+          </div>
+          <div class="app-header-badge">Signals, Not Proof</div>
+        </div>
       </section>
 
       <section class="panel">

@@ -56,14 +56,7 @@
       gap: 8px;
     }
 
-    h1 {
-      margin: 0;
-      font-size: clamp(38px, 5vw, 62px);
-      line-height: 0.95;
-      letter-spacing: -0.04em;
-    }
-
-    .hero p,
+    .app-subtitle,
     .status,
     .hint,
     .summary {
@@ -298,9 +291,12 @@
 </head>
 <body>
   <main>
-    <section class="hero">
-      <h1>Debate</h1>
-      <p>Drop in two competing points of view and let the browser simulate a hard argument. You get the live dialogue plus prep notes: what lands, what gets challenged, and what counteroffense to expect.</p>
+    <section class="hero app-header">
+      <div class="app-header-copy">
+        <div class="app-kicker">Playground Browser Lab</div>
+        <h1 class="app-title">Debate</h1>
+        <p class="app-subtitle">Drop in two competing points of view and let the browser simulate a hard argument. You get the live dialogue plus prep notes: what lands, what gets challenged, and what counteroffense to expect.</p>
+      </div>
     </section>
 
     <section class="panel">

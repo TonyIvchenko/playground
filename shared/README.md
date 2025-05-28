@@ -18,6 +18,16 @@ The shared stylesheet defines the base token groups for:
 - color roles
 - elevation shadows
 
+It also includes the shared top-of-page browser header classes:
+
+- `app-header`
+- `app-header-top`
+- `app-header-copy`
+- `app-kicker`
+- `app-title`
+- `app-subtitle`
+- `app-header-badge`
+
 Apps can still define their own local aliases, but those aliases should map back
 to the shared roles here instead of inventing a brand new base token set each
 time.

@@ -29,6 +29,8 @@
     .app {
       width: min(100vw, 1180px);
       padding: 24px;
+      display: grid;
+      gap: 20px;
     }
 
     .layout {
@@ -105,12 +107,12 @@
       line-height: 1.4;
     }
 
-    h1 {
+    .app-title {
       margin: 0 0 8px;
-      font-size: 32px;
+      font-size: clamp(40px, 6vw, 64px);
     }
 
-    p {
+    .app-subtitle {
       margin: 0 0 16px;
       color: #5f6d7b;
     }
@@ -161,8 +163,16 @@
 </head>
 <body>
   <main class="app">
-    <h1>Facemesh</h1>
-    <p>Allow camera access to see the MediaPipe face mesh grid drawn on your face.</p>
+    <section class="panel app-header">
+      <div class="app-header-top">
+        <div class="app-header-copy">
+          <div class="app-kicker">Playground Browser Lab</div>
+          <h1 class="app-title">Facemesh</h1>
+          <p class="app-subtitle">Allow camera access to see the MediaPipe face mesh grid drawn on your face.</p>
+        </div>
+        <div class="app-header-badge">Live Camera Demo</div>
+      </div>
+    </section>
     <div class="layout">
       <section class="viewer">
         <section class="stage">

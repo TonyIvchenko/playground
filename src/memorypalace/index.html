@@ -59,15 +59,7 @@
       gap: 10px;
     }
 
-    .hero h1 {
-      margin: 0;
-      font-family: "Fraunces", serif;
-      font-size: clamp(42px, 6vw, 70px);
-      line-height: 0.95;
-      letter-spacing: -0.05em;
-    }
-
-    .hero p,
+    .app-subtitle,
     .help,
     .status,
     .summary {
@@ -320,13 +312,14 @@
 </head>
 <body>
   <main>
-    <section class="hero">
-      <div class="hero-top">
-        <div>
-          <h1>MemoryPalace</h1>
-          <p>Turn rough notes into a chain of rooms you can actually walk through. Each room gets a title, a mnemonic anchor, and a wall summary so your recall has a place to live.</p>
+    <section class="hero app-header">
+      <div class="hero-top app-header-top">
+        <div class="app-header-copy">
+          <div class="app-kicker">Playground Browser Lab</div>
+          <h1 class="app-title">MemoryPalace</h1>
+          <p class="app-subtitle">Turn rough notes into a chain of rooms you can actually walk through. Each room gets a title, a mnemonic anchor, and a wall summary so your recall has a place to live.</p>
         </div>
-        <div class="hero-badge" id="hero-badge">No palace built yet</div>
+        <div class="hero-badge app-header-badge" id="hero-badge">No palace built yet</div>
       </div>
     </section>
 
