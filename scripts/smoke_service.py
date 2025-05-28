@@ -39,6 +39,18 @@ def parse_args() -> argparse.Namespace:
         default=1.0,
         help="Delay between probe attempts while the service is starting.",
     )
+    parser.add_argument(
+        "--path",
+        help="Optional path override for the smoke probe.",
+    )
+    parser.add_argument(
+        "--expect-content-type",
+        help="Optional content-type override for the smoke probe.",
+    )
+    parser.add_argument(
+        "--expect-body-fragment",
+        help="Optional body-fragment override for the smoke probe.",
+    )
     return parser.parse_args()
 
 
@@ -65,10 +77,10 @@ def expected_content_type(name: str) -> str:
     return "text/html"
 
 
-def expected_body_fragment(name: str) -> bytes | None:
+def expected_body_fragment(name: str) -> str | None:
     if name in HEALTH_SERVICES:
         return None
-    return b"<html"
+    return "<html"
 
 
 def tail_log(log_path: Path, lines: int = 20) -> str:
@@ -89,7 +101,9 @@ def terminate_process(process: subprocess.Popen[bytes]) -> None:
         process.wait(timeout=5)
 
 
-def process_abort_message(process: subprocess.Popen[bytes], log_path: Path) -> str | None:
+def process_abort_message(
+    process: subprocess.Popen[bytes], log_path: Path
+) -> str | None:
     if process.poll() is None:
         return None
     details = tail_log(log_path)
@@ -102,9 +116,10 @@ def process_abort_message(process: subprocess.Popen[bytes], log_path: Path) -> s
 def main() -> None:
     args = parse_args()
     path = service_dir(args.service)
-    url = f"http://127.0.0.1:{args.port}{smoke_path(args.service)}"
-    content_type = expected_content_type(args.service)
-    body_fragment = expected_body_fragment(args.service)
+    probe_path = args.path or smoke_path(args.service)
+    url = f"http://127.0.0.1:{args.port}{probe_path}"
+    content_type = args.expect_content_type or expected_content_type(args.service)
+    body_fragment = args.expect_body_fragment or expected_body_fragment(args.service)
 
     log_path = Path(tempfile.gettempdir()) / f"playground-smoke-{args.service}.log"
     env = os.environ.copy()
@@ -126,7 +141,7 @@ def main() -> None:
             timeout=args.timeout,
             interval=args.interval,
             expect_content_type=content_type,
-            body_fragment=body_fragment,
+            body_fragment=body_fragment.encode("utf-8") if body_fragment else None,
             abort_message=lambda: process_abort_message(process, log_path),
         )
     finally:

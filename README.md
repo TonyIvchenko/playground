@@ -137,9 +137,10 @@ For browser-first apps that do not need FastAPI, Gradio, or Docker on day one:
 2. Add `src/<service>/index.html`.
 3. Add `src/<service>/README.md` with local run instructions and app notes.
 4. Keep the Python entrypoint thin and put most product logic in the browser.
-5. Use `PORT` for local run consistency.
-6. Add the service to the root README service inventory once it exists.
-7. Add tests only when the app has meaningful Python behavior or a smoke path worth automating.
+5. Load the shared browser base tokens from `/shared/browser-tokens.css` before inventing a new spacing, type, or color foundation.
+6. Use `PORT` for local run consistency.
+7. Add the service to the root README service inventory once it exists.
+8. Add tests only when the app has meaningful Python behavior or a smoke path worth automating.
 
 ## Environment
 
@@ -214,6 +215,7 @@ make smoke voiceforge 8091
 
 If you omit the port for `disasters` or `ctscan`, `PORT` defaults to `8080`. The `test` service only needs `make run test`.
 `make smoke` currently supports the browser apps plus the web services with `/health`. The `test` service is still checked through the dedicated README-local-run path instead of the HTTP smoke helper because it is a Redis-backed worker, not a web app.
+Browser apps now also serve the shared token stylesheet at `/shared/browser-tokens.css`, so base browser UI tokens can stay aligned across the repo.
 
 Set service-specific environment variables as needed:
 
@@ -286,7 +288,7 @@ After `make update`, a plain root run also targets the same suites through `pyte
 python -m pytest -q
 ```
 
-The root suite also includes browser-app smoke coverage in [tests/test_static_app_smokes.py](/Users/toxa/git/playground/tests/test_static_app_smokes.py), which starts each static app locally and verifies `GET /` serves HTML.
+The root suite also includes browser-app smoke coverage in [tests/test_static_app_smokes.py](/Users/toxa/git/playground/tests/test_static_app_smokes.py), which starts each static app locally and verifies both `GET /` HTML and the shared `/shared/browser-tokens.css` asset.
 
 If a service does not have a `tests/` directory yet, `make test <service>` fails fast and tells you which service test targets currently exist.
 
@@ -298,7 +300,7 @@ Run the lightweight repo lint entrypoint with:
 make lint
 ```
 
-The first pass intentionally stays small and green: root helper scripts, README markdown consistency, docs spelling, Docker smoke doc checks for containerized services, tracked JSON/YAML config linting, tracked junk-file checks, type-specific service file checks, service `main.py` entrypoints, the static browser-app smoke suite, and the health/app smoke tests we already maintain for `ctscan`, `disasters`, and `voiceforge`.
+The first pass intentionally stays small and green: root helper scripts, README markdown consistency, docs spelling, Docker smoke doc checks for containerized services, tracked JSON/YAML config linting, tracked junk-file checks, type-specific service file checks, the shared browser token server/helper paths, service `main.py` entrypoints, the static browser-app smoke suite, and the health/app smoke tests we already maintain for `ctscan`, `disasters`, and `voiceforge`.
 
 ## Format
 

@@ -35,6 +35,7 @@ Use it to answer questions like:
 - Added a separate scheduled `ML Smoke` workflow plus a reusable helper script for capped synthetic prep/train jobs across `ctscan`, `disasters`, and `voiceforge`.
 - Added a CI-backed Local Run checker so each service README's startup command is exercised against the real app process instead of drifting as doc-only text.
 - Added a type-aware service file check in CI and `make lint` so browser apps, Python web services, and the worker service keep their minimum file sets.
+- Added a shared browser token stylesheet and a shared static-server helper so the browser apps can all serve the same base spacing, type, radius, and color roles from `/shared/browser-tokens.css`.
 - Added helper scripts under `scripts/` for:
   - listing services
   - checking required service files

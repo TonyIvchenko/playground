@@ -1,18 +1,19 @@
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-import os
+import sys
 
 
 ROOT = Path(__file__).resolve().parent
-PORT = int(os.environ.get("PORT", "8080"))
+REPO_ROOT = ROOT.parents[1]
 
 
-class Handler(SimpleHTTPRequestHandler):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=str(ROOT), **kwargs)
+def main() -> None:
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+
+    from scripts.browser_static_server import serve_static_app
+
+    serve_static_app("realitymix", ROOT)
 
 
 if __name__ == "__main__":
-    server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
-    print(f"Serving realitymix on http://127.0.0.1:{PORT}")
-    server.serve_forever()
+    main()

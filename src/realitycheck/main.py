@@ -9,11 +9,22 @@ from urllib.request import Request, urlopen
 import json
 import os
 import re
+import sys
 
 
 ROOT = Path(__file__).resolve().parent
+REPO_ROOT = ROOT.parents[1]
 PORT = int(os.environ.get("PORT", "8080"))
 USER_AGENT = "RealityCheck/1.0 (+http://127.0.0.1)"
+
+
+def try_serve_shared_asset(handler: SimpleHTTPRequestHandler) -> bool:
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+
+    from scripts.browser_static_server import serve_shared_asset
+
+    return serve_shared_asset(handler)
 
 
 def infer_media_content_type(url: str, declared_type: str) -> str:
@@ -71,6 +82,8 @@ class Handler(SimpleHTTPRequestHandler):
         super().__init__(*args, directory=str(ROOT), **kwargs)
 
     def do_GET(self) -> None:
+        if try_serve_shared_asset(self):
+            return
         parsed = urlparse(self.path)
         if parsed.path == "/api/fetch":
             self.handle_fetch(parsed.query)
@@ -79,6 +92,11 @@ class Handler(SimpleHTTPRequestHandler):
             self.handle_media(parsed.query)
             return
         super().do_GET()
+
+    def do_HEAD(self) -> None:
+        if try_serve_shared_asset(self):
+            return
+        super().do_HEAD()
 
     def handle_fetch(self, query: str) -> None:
         params = parse_qs(query)

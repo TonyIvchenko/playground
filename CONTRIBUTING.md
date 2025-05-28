@@ -56,6 +56,7 @@ This repo is a multi-service playground. Keep changes small, explicit, and local
 - Shared CI actions are also responsible for cache behavior now, so when dependencies or Docker build inputs change, keep the cache keys and dependency lists aligned.
 - Do not let tracked `.DS_Store` files or tracked `__pycache__` directories creep back in; CI now has a dedicated guard for that.
 - Prefer reusing the shared health-polling script for HTTP readiness checks so local smoke commands and CI do not drift apart.
+- For browser apps, load `/shared/browser-tokens.css` and reuse the shared spacing, type, radius, and color roles before inventing a new base token set.
 - Keep the scheduled `ML Smoke` workflow and `scripts/run_ml_smoke_jobs.py` aligned when heavier-service prep or training entrypoints change.
 - Keep each service README's `Local Run` section honest; CI now checks that those commands still match the expected startup path and that the process boots.
 - Keep `scripts/check_service_type_files.py` aligned with the repo's actual service types whenever a service changes shape or a new one is added.

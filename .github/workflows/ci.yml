@@ -72,6 +72,7 @@ jobs:
           filters: |
             docs:
               - '*.md'
+              - 'shared/**/*.md'
               - 'src/**/README.md'
               - 'scripts/check_readme_code_paths.py'
               - 'scripts/check_markdown_readmes.py'
@@ -96,8 +97,10 @@ jobs:
               - 'scripts/check_service_local_run.py'
             static_apps:
               - 'tests/test_static_app_smokes.py'
+              - 'scripts/browser_static_server.py'
               - 'scripts/poll_http_health.py'
               - 'scripts/smoke_service.py'
+              - 'shared/**'
               - 'src/bert/**'
               - 'src/counterpoint/**'
               - 'src/debate/**'
