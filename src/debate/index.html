@@ -348,7 +348,7 @@
           <div class="pill" id="model-pill">Loading model…</div>
           <div class="metrics">
             <div id="status-text">Loading browser generation model…</div>
-            <div id="claim-status">Point extraction waits for both sides.</div>
+            <div id="claim-status">Add both sides to begin.</div>
           </div>
           <div class="points" id="claim-points"></div>
         </aside>
@@ -688,8 +688,8 @@
       fileB.value = "";
       claimPoints.innerHTML = "";
       clearTranscript();
-      claimStatus.textContent = "Point extraction waits for both sides.";
-      setStatus("Cleared. Paste both sides to stage an argument.");
+      claimStatus.textContent = "Add both sides to begin.";
+      setStatus("Cleared. Paste both sides to begin.");
     });
 
     fileA.addEventListener("change", async (event) => {

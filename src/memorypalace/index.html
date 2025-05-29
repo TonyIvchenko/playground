@@ -319,7 +319,7 @@
           <h1 class="app-title">MemoryPalace</h1>
           <p class="app-subtitle">Turn rough notes into a chain of rooms you can actually walk through. Each room gets a title, a mnemonic anchor, and a wall summary so your recall has a place to live.</p>
         </div>
-        <div class="hero-badge app-header-badge" id="hero-badge">No palace built yet</div>
+        <div class="hero-badge app-header-badge" id="hero-badge">Ready to build</div>
       </div>
     </section>
 
@@ -346,7 +346,7 @@
         <aside class="info-card">
           <h2>Navigator</h2>
           <div class="status-pill" id="status-pill">Ready</div>
-          <p class="status" id="status-text">Build a palace to start walking.</p>
+          <p class="status" id="status-text">Build a palace to begin.</p>
           <div class="meta-grid">
             <section class="meta-block">
               <h3>Current Room</h3>
@@ -867,10 +867,10 @@ Go to market: start with finance and operations leaders, then expand into produc
 
     function updateRoomPanel(room) {
       if (!room) {
-        roomTitle.textContent = "None yet";
+        roomTitle.textContent = "Ready to build";
         roomBody.textContent = "Your current room details will appear here once the palace exists.";
         roomKeywords.innerHTML = "";
-        sceneHud.innerHTML = "<strong>No palace</strong>Build a palace to begin.";
+        sceneHud.innerHTML = "<strong>Ready to build</strong>Build a palace to begin.";
         return;
       }
       roomTitle.textContent = room.title;

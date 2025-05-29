@@ -315,7 +315,7 @@
             <div class="score-card" id="text-card">
               <div class="score-pill neutral" id="text-pill">Waiting for text</div>
               <div class="big-score" id="text-score">--</div>
-              <div class="details meta" id="text-summary">The browser-side classifier will load here.</div>
+              <div class="details meta" id="text-summary">Paste text to begin.</div>
               <div class="reasons" id="text-reasons"></div>
             </div>
           </div>
@@ -341,7 +341,7 @@
             <div class="score-card" id="image-card">
               <div class="score-pill neutral" id="image-pill">Waiting for image</div>
               <div class="big-score" id="image-score">--</div>
-              <div class="details meta" id="image-summary">No image loaded.</div>
+              <div class="details meta" id="image-summary">Upload an image to begin.</div>
               <div class="reasons" id="image-reasons"></div>
             </div>
           </div>
@@ -369,7 +369,7 @@
             <div class="score-card" id="video-card">
               <div class="score-pill neutral" id="video-pill">Waiting for video</div>
               <div class="big-score" id="video-score">--</div>
-              <div class="details meta" id="video-summary">No video loaded.</div>
+              <div class="details meta" id="video-summary">Upload a video to begin.</div>
               <div class="reasons" id="video-reasons"></div>
             </div>
           </div>
@@ -387,7 +387,7 @@
             <div class="score-card" id="url-card">
               <div class="score-pill neutral" id="url-pill">Waiting for URL</div>
               <div class="big-score" id="url-score">--</div>
-              <div class="details meta" id="url-summary">No URL analyzed.</div>
+              <div class="details meta" id="url-summary">Enter a URL to begin.</div>
               <div class="reasons" id="url-reasons"></div>
             </div>
           </div>
@@ -527,7 +527,7 @@
     async function analyzeTextContent(text, prefix, pendingMessage = "Analyzing text…") {
       const trimmed = text.trim();
       if (!trimmed) {
-        clearCard(prefix, "Waiting for text", "Enter text to analyze.");
+        clearCard(prefix, "Waiting for text", "Paste text to begin.");
         return;
       }
 
@@ -774,7 +774,7 @@
 
     async function analyzeCurrentImage() {
       if (!currentImageSource) {
-        clearCard("image", "Waiting for image", "Upload or load an image first.");
+        clearCard("image", "Waiting for image", "Upload or load an image to begin.");
         return;
       }
 
@@ -827,7 +827,7 @@
 
     async function analyzeCurrentVideo() {
       if (!currentVideoSource) {
-        clearCard("video", "Waiting for video", "Upload or load a video first.");
+        clearCard("video", "Waiting for video", "Upload or load a video to begin.");
         return;
       }
 
@@ -912,7 +912,7 @@
 
       if (!file) {
         imagePreview.textContent = "Upload an image or paste a direct image URL.";
-        clearCard("image", "Waiting for image", "No image loaded.");
+        clearCard("image", "Waiting for image", "Upload an image to begin.");
         return;
       }
 
@@ -951,7 +951,7 @@
 
       if (!file) {
         videoPreview.textContent = "Upload a video or paste a direct video URL.";
-        clearCard("video", "Waiting for video", "No video loaded.");
+        clearCard("video", "Waiting for video", "Upload a video to begin.");
         return;
       }
 
@@ -1018,14 +1018,14 @@
 
     clearTextButton.addEventListener("click", () => {
       textInput.value = "";
-      clearCard("text", "Waiting for text", "Enter text to analyze.");
-      textStatus.textContent = "Enter text to analyze.";
+      clearCard("text", "Waiting for text", "Paste text to begin.");
+      textStatus.textContent = "Paste text to begin.";
     });
 
     analyzeUrlButton.addEventListener("click", async () => {
       const targetUrl = urlInput.value.trim();
       if (!targetUrl) {
-        clearCard("url", "Waiting for URL", "Enter a URL first.");
+        clearCard("url", "Waiting for URL", "Enter a URL to begin.");
         return;
       }
 

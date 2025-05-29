@@ -375,7 +375,7 @@
           <h2>Session</h2>
           <div class="model-pill" id="model-pill">Loading model…</div>
           <p class="status" id="status-text">Loading browser sentiment model…</p>
-          <div class="vibe-pill" id="vibe-pill">No mix yet</div>
+          <div class="vibe-pill" id="vibe-pill">Ready to mix</div>
           <div class="metrics" id="metrics"></div>
         </aside>
       </div>
@@ -389,7 +389,7 @@
             <button id="stop-button" class="secondary" type="button" disabled>Stop</button>
             <button id="remix-button" class="secondary" type="button" disabled>Remix</button>
           </div>
-          <p class="soundtrack-status" id="soundtrack-status">Generate a mix first to hear it.</p>
+          <p class="soundtrack-status" id="soundtrack-status">Generate a mix to begin.</p>
           <div class="stage">
             <canvas id="stage-canvas" width="1000" height="360"></canvas>
           </div>
@@ -1430,7 +1430,7 @@
       stopPlayback(false);
       sourceText.value = "";
       heroBadge.textContent = "Waiting for text";
-      vibePill.textContent = "No mix yet";
+      vibePill.textContent = "Ready to mix";
       metrics.innerHTML = "";
       resultsShell.classList.add("hidden");
       briefShell.classList.add("hidden");
@@ -1444,7 +1444,7 @@
       remixIndex = 0;
       stageSeed = 0;
       statusText.textContent = "Cleared. Paste writing and spin the set.";
-      soundtrackStatus.textContent = "Generate a mix first to hear it.";
+      soundtrackStatus.textContent = "Generate a mix to begin.";
       visualState.colors = ["#dce7ff", "#fff1de", "#f8fbff"];
       visualState.mode = "embers";
       visualState.label = "Idle";

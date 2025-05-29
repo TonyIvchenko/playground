@@ -37,6 +37,7 @@ Use it to answer questions like:
 - Added a type-aware service file check in CI and `make lint` so browser apps, Python web services, and the worker service keep their minimum file sets.
 - Added a shared browser token stylesheet and a shared static-server helper so the browser apps can all serve the same base spacing, type, radius, and color roles from `/shared/browser-tokens.css`.
 - Standardized the browser-app top-of-page header pattern around shared header classes and added a header-contract check so the static apps keep the same kicker/title/subtitle structure.
+- Standardized browser-app empty-state wording around `Waiting for <thing>` labels plus `<action> to begin.` copy, and added a checker so the older `No ... yet/loaded` phrasing does not drift back in.
 - Added helper scripts under `scripts/` for:
   - listing services
   - checking required service files

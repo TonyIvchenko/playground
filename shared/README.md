@@ -28,6 +28,12 @@ It also includes the shared top-of-page browser header classes:
 - `app-subtitle`
 - `app-header-badge`
 
+For empty states, browser apps should keep the copy pattern consistent too:
+
+- use `Waiting for <thing>` for compact pills and badges
+- use `<action> to begin.` for the companion instruction line
+- avoid `No ... yet` or `No ... loaded` phrasing when the app is simply idle
+
 Apps can still define their own local aliases, but those aliases should map back
 to the shared roles here instead of inventing a brand new base token set each
 time.

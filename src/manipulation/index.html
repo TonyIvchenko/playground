@@ -351,7 +351,7 @@
         <section class="score-card">
           <div class="pill neutral" id="risk-pill">Waiting for text</div>
           <div class="score-value" id="score-value">--</div>
-          <p class="summary" id="summary-text">Paste text to score manipulation-related patterns.</p>
+          <p class="summary" id="summary-text">Paste text to begin.</p>
           <div class="models">
             <div id="toxicity-status">Toxicity model: loading…</div>
             <div id="sentiment-status">Sentiment model: loading…</div>
@@ -581,11 +581,11 @@
       riskPill.className = "pill neutral";
       riskPill.textContent = "Waiting for text";
       scoreValue.textContent = "--";
-      summaryText.textContent = "Paste text to score manipulation-related patterns.";
+      summaryText.textContent = "Paste text to begin.";
       renderPatterns(PATTERNS.map((pattern) => ({ ...pattern, score: 0, uniqueHits: [] })));
       evidenceList.innerHTML = "";
       evidenceEmpty.style.display = "block";
-      evidenceEmpty.textContent = "Matched snippets and model signals will show here.";
+      evidenceEmpty.textContent = "Analyze text to begin. Matched snippets and model signals will show here.";
     }
 
     function riskBucket(score) {

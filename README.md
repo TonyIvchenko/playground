@@ -37,6 +37,7 @@ To lint tracked JSON and YAML workflow/config files, run `python scripts/check_j
 To reuse the shared HTTP health poller used by both local smoke checks and CI, run `python scripts/poll_http_health.py --url http://127.0.0.1:8080/health`.
 To fail fast on tracked `.DS_Store` or `__pycache__` paths, run `python scripts/check_tracked_junk.py`.
 To verify the browser apps still use the shared top-of-page header contract, run `python scripts/check_browser_app_headers.py`.
+To verify the browser apps still use the shared empty-state wording pattern, run `python scripts/check_browser_app_empty_states.py`.
 To verify each service README's `Local Run` command still starts that service, run `python scripts/check_service_local_run.py --service <name>`.
 
 | Service | Type | Run Command | Tests | Docker | Health Endpoint |
@@ -302,7 +303,7 @@ Run the lightweight repo lint entrypoint with:
 make lint
 ```
 
-The first pass intentionally stays small and green: root helper scripts, README markdown consistency, docs spelling, Docker smoke doc checks for containerized services, tracked JSON/YAML config linting, tracked junk-file checks, browser-app header contract checks, type-specific service file checks, the shared browser token server/helper paths, service `main.py` entrypoints, the static browser-app smoke suite, and the health/app smoke tests we already maintain for `ctscan`, `disasters`, and `voiceforge`.
+The first pass intentionally stays small and green: root helper scripts, README markdown consistency, docs spelling, Docker smoke doc checks for containerized services, tracked JSON/YAML config linting, tracked junk-file checks, browser-app header and empty-state contract checks, type-specific service file checks, the shared browser token server/helper paths, service `main.py` entrypoints, the static browser-app smoke suite, and the health/app smoke tests we already maintain for `ctscan`, `disasters`, and `voiceforge`.
 
 ## Format
 
