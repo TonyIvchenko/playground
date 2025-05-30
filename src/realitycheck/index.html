@@ -157,7 +157,7 @@
       align-items: center;
     }
 
-    button {
+    .app-button {
       padding: 11px 16px;
       border: 0;
       border-radius: 12px;
@@ -167,12 +167,12 @@
       cursor: pointer;
     }
 
-    button.secondary {
+    .app-button.secondary {
       background: #edf2f8;
       color: #18202a;
     }
 
-    button:disabled {
+    .app-button:disabled {
       opacity: 0.55;
       cursor: not-allowed;
     }
@@ -300,10 +300,10 @@
 
       <section class="panel">
         <div class="toolbar" id="tabs">
-          <button class="tab active" data-view="text-view" type="button">Text</button>
-          <button class="tab" data-view="image-view" type="button">Image</button>
-          <button class="tab" data-view="video-view" type="button">Video</button>
-          <button class="tab" data-view="url-view" type="button">URL</button>
+          <button class="app-button tab active" data-view="text-view" type="button">Text</button>
+          <button class="app-button tab" data-view="image-view" type="button">Image</button>
+          <button class="app-button tab" data-view="video-view" type="button">Video</button>
+          <button class="app-button tab" data-view="url-view" type="button">URL</button>
         </div>
       </section>
 
@@ -313,8 +313,8 @@
             <div class="stack">
               <textarea id="text-input" placeholder="Loading browser text model..." disabled></textarea>
               <div class="actions">
-                <button id="analyze-text-button" type="button" disabled>Analyze Text</button>
-                <button id="clear-text-button" class="secondary" type="button">Clear</button>
+                <button id="analyze-text-button" class="app-button" type="button" disabled>Analyze Text</button>
+                <button id="clear-text-button" class="app-button secondary" type="button">Clear</button>
               </div>
               <div class="help app-help is-loading" id="text-status">Loading browser text model…</div>
             </div>
@@ -335,12 +335,12 @@
                 <div class="divider">or</div>
                 <input id="image-url-input" type="url" placeholder="https://example.com/image.jpg">
                 <div class="actions">
-                  <button id="load-image-url-button" class="secondary" type="button">Load Image URL</button>
+                  <button id="load-image-url-button" class="app-button secondary" type="button">Load Image URL</button>
                 </div>
               </div>
               <div class="preview" id="image-preview">Upload an image or paste a direct image URL.</div>
               <div class="actions">
-                <button id="analyze-image-button" type="button" disabled>Analyze Image</button>
+                <button id="analyze-image-button" class="app-button" type="button" disabled>Analyze Image</button>
               </div>
               <div class="help app-help" id="image-status">Image model will load on the first image analysis.</div>
               <div class="app-pill is-fallback" id="image-fallback-pill" hidden>Fallback mode active</div>
@@ -362,12 +362,12 @@
                 <div class="divider">or</div>
                 <input id="video-url-input" type="url" placeholder="https://example.com/video.mp4">
                 <div class="actions">
-                  <button id="load-video-url-button" class="secondary" type="button">Load Video URL</button>
+                  <button id="load-video-url-button" class="app-button secondary" type="button">Load Video URL</button>
                 </div>
               </div>
               <div class="preview" id="video-preview">Upload a video or paste a direct video URL.</div>
               <div class="actions">
-                <button id="analyze-video-button" type="button" disabled>Analyze Video</button>
+                <button id="analyze-video-button" class="app-button" type="button" disabled>Analyze Video</button>
               </div>
               <div class="help app-help" id="video-status">Video analysis samples frames and runs the browser image model on them.</div>
               <div class="app-pill is-fallback" id="video-fallback-pill" hidden>Fallback mode active</div>
@@ -388,7 +388,7 @@
             <div class="stack">
               <input id="url-input" type="url" placeholder="https://example.com/article">
               <div class="actions">
-                <button id="analyze-url-button" type="button">Fetch and Analyze URL</button>
+                <button id="analyze-url-button" class="app-button" type="button">Fetch and Analyze URL</button>
               </div>
               <div class="help app-help" id="url-status">The local server fetches page text, then runs text analysis in the browser.</div>
             </div>

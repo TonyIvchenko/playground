@@ -53,6 +53,13 @@ For browser-app fallback badges, use one shared degraded-mode pattern too:
 - prefer the exact label `Fallback mode active`
 - keep the badge separate from the error message so the badge communicates mode and the status line communicates cause
 
+For browser-app buttons, keep the keyboard interaction contract shared too:
+
+- give clickable buttons the shared `app-button` class
+- keep `app-button:focus-visible` available so keyboard users get the same focus ring across apps
+- layer local `secondary`, `ghost`, or `tab` styles on top of `app-button` instead of replacing the base class
+- use real `<button type="button">` controls for in-page actions instead of clickable generic elements
+
 Apps can still define their own local aliases, but those aliases should map back
 to the shared roles here instead of inventing a brand new base token set each
 time.

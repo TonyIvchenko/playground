@@ -107,6 +107,39 @@
   line-height: 1.6;
 }
 
+.app-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  font: inherit;
+  line-height: 1.2;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 140ms ease,
+    box-shadow 140ms ease,
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+.app-button:focus {
+  outline: none;
+}
+
+.app-button:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 1px var(--color-accent-contrast),
+    0 0 0 4px rgba(29, 78, 216, 0.24);
+}
+
+.app-button:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
 .app-pill,
 .app-header-badge {
   display: inline-flex;

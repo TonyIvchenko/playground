@@ -128,7 +128,7 @@
 
     select,
     textarea,
-    button {
+    .app-button {
       font: inherit;
       color: inherit;
     }
@@ -159,7 +159,7 @@
       box-shadow: 0 0 0 4px rgba(67, 118, 255, 0.1);
     }
 
-    button {
+    .app-button {
       border: 0;
       border-radius: 16px;
       padding: 12px 16px;
@@ -169,13 +169,13 @@
       font-weight: 600;
     }
 
-    button.secondary {
+    .app-button.secondary {
       background: var(--accent-soft);
       color: var(--ink);
       border: 1px solid var(--line);
     }
 
-    button:disabled {
+    .app-button:disabled {
       opacity: 0.62;
       cursor: not-allowed;
     }
@@ -319,8 +319,8 @@
           </select>
         </label>
 
-        <button id="run-button" type="button" disabled>Build Counter-Side</button>
-        <button id="clear-button" class="secondary" type="button">Clear</button>
+        <button id="run-button" class="app-button" type="button" disabled>Build Counter-Side</button>
+        <button id="clear-button" class="app-button secondary" type="button">Clear</button>
       </div>
 
       <div class="workspace">
@@ -328,9 +328,9 @@
           <h2>Your Position</h2>
           <p class="hint">Write the side you want to stress-test. Clear, concrete claims work best.</p>
           <div class="sample-row">
-            <button class="secondary sample-button" type="button" data-sample="remote">Remote Work</button>
-            <button class="secondary sample-button" type="button" data-sample="relationship">Relationship</button>
-            <button class="secondary sample-button" type="button" data-sample="negotiation">Salary</button>
+            <button class="app-button secondary sample-button" type="button" data-sample="remote">Remote Work</button>
+            <button class="app-button secondary sample-button" type="button" data-sample="relationship">Relationship</button>
+            <button class="app-button secondary sample-button" type="button" data-sample="negotiation">Salary</button>
           </div>
           <div class="upload-row">
             <input id="file-input" type="file" accept=".txt,.md,.csv,.json,.html,.htm">

@@ -152,7 +152,7 @@
       gap: 10px;
     }
 
-    button {
+    .app-button {
       border: 0;
       border-radius: 16px;
       padding: 12px 16px;
@@ -162,13 +162,13 @@
       font-weight: 600;
     }
 
-    button.secondary {
+    .app-button.secondary {
       background: #f3f6fb;
       color: var(--ink);
       border: 1px solid var(--line);
     }
 
-    button.ghost {
+    .app-button.ghost {
       background: rgba(24, 33, 43, 0.04);
       color: var(--ink);
       border: 1px solid var(--line);
@@ -331,15 +331,15 @@
             <p class="help">Paste bullet points, short paragraphs, or study notes. Blank lines create bigger room breaks; single lines become smaller rooms.</p>
           </div>
           <div class="sample-row">
-            <button class="ghost" data-sample="biology" type="button">Biology</button>
-            <button class="ghost" data-sample="history" type="button">History</button>
-            <button class="ghost" data-sample="pitch" type="button">Pitch deck</button>
+            <button class="app-button ghost" data-sample="biology" type="button">Biology</button>
+            <button class="app-button ghost" data-sample="history" type="button">History</button>
+            <button class="app-button ghost" data-sample="pitch" type="button">Pitch deck</button>
           </div>
           <textarea id="notes-input" placeholder="Paste notes here..."></textarea>
           <div class="actions">
-            <button id="build-button" type="button">Build Palace</button>
-            <button id="reset-view-button" class="secondary" type="button">Reset View</button>
-            <button id="sample-route-button" class="secondary" type="button">Show Route</button>
+            <button id="build-button" class="app-button" type="button">Build Palace</button>
+            <button id="reset-view-button" class="app-button secondary" type="button">Reset View</button>
+            <button id="sample-route-button" class="app-button secondary" type="button">Show Route</button>
           </div>
         </section>
 
@@ -850,7 +850,7 @@ Go to market: start with finance and operations leaders, then expand into produc
       roomData.forEach((room) => {
         const button = document.createElement("button");
         button.type = "button";
-        button.className = "chip";
+        button.className = "app-button chip";
         button.textContent = `${room.index + 1}. ${room.title}`;
         button.addEventListener("click", () => jumpToRoom(room.index));
         roomChips.appendChild(button);

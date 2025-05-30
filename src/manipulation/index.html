@@ -127,7 +127,7 @@
       box-shadow: 0 0 0 4px rgba(76, 132, 255, 0.12);
     }
 
-    button {
+    .app-button {
       padding: 12px 16px;
       border: 0;
       border-radius: 14px;
@@ -136,13 +136,13 @@
       color: #fff;
     }
 
-    button.secondary {
+    .app-button.secondary {
       background: #eef3f9;
       color: var(--ink);
       border: 1px solid var(--line);
     }
 
-    button:disabled {
+    .app-button:disabled {
       opacity: 0.6;
       cursor: not-allowed;
     }
@@ -300,7 +300,7 @@
       gap: 10px;
     }
 
-    .sample-buttons button {
+    .sample-buttons .app-button {
       background: #fff;
       color: var(--ink);
       border: 1px solid var(--line);
@@ -341,8 +341,8 @@
           <textarea id="text-input" placeholder="Loading browser models..." disabled></textarea>
         </label>
 
-        <button id="analyze-button" type="button" disabled>Analyze</button>
-        <button id="clear-button" class="secondary" type="button">Clear</button>
+        <button id="analyze-button" class="app-button" type="button" disabled>Analyze</button>
+        <button id="clear-button" class="app-button secondary" type="button">Clear</button>
       </div>
 
       <p class="status app-status is-loading" id="status-text">Loading browser models…</p>
@@ -362,9 +362,9 @@
         <section class="samples-card">
           <h2>Quick Samples</h2>
           <div class="sample-buttons">
-            <button type="button" data-sample="newsletter">Pushy Newsletter</button>
-            <button type="button" data-sample="community">Polarized Community Post</button>
-            <button type="button" data-sample="group_chat">Guilt-heavy Group Chat</button>
+            <button class="app-button secondary" type="button" data-sample="newsletter">Pushy Newsletter</button>
+            <button class="app-button secondary" type="button" data-sample="community">Polarized Community Post</button>
+            <button class="app-button secondary" type="button" data-sample="group_chat">Guilt-heavy Group Chat</button>
           </div>
           <p class="help">Use these to see the detector's breakdown before pasting your own text.</p>
         </section>

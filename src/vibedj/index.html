@@ -159,7 +159,7 @@
       gap: 10px;
     }
 
-    button {
+    .app-button {
       border: 0;
       border-radius: 16px;
       padding: 12px 16px;
@@ -169,19 +169,19 @@
       font-weight: 600;
     }
 
-    button.secondary {
+    .app-button.secondary {
       background: #f3f6fb;
       color: var(--ink);
       border: 1px solid var(--line);
     }
 
-    button.ghost {
+    .app-button.ghost {
       background: rgba(22, 32, 42, 0.04);
       color: var(--ink);
       border: 1px solid var(--line);
     }
 
-    button:disabled {
+    .app-button:disabled {
       opacity: 0.6;
       cursor: not-allowed;
     }
@@ -359,15 +359,15 @@
             <p class="help">Bring anything: a paragraph, manifesto, pitch, diary entry, or scene. The stronger the writing voice, the stronger the creative direction.</p>
           </div>
           <div class="sample-row">
-            <button class="ghost" data-sample="afterglow" type="button">Warm confession</button>
-            <button class="ghost" data-sample="pressure" type="button">Pressure memo</button>
-            <button class="ghost" data-sample="dream" type="button">Dream monologue</button>
+            <button class="app-button ghost" data-sample="afterglow" type="button">Warm confession</button>
+            <button class="app-button ghost" data-sample="pressure" type="button">Pressure memo</button>
+            <button class="app-button ghost" data-sample="dream" type="button">Dream monologue</button>
           </div>
           <textarea id="source-text" placeholder="Paste writing here..."></textarea>
           <div class="actions">
-            <button id="analyze-button" type="button" disabled>Spin The Set</button>
-            <button id="clear-button" class="secondary" type="button">Clear</button>
-            <button id="copy-button" class="secondary" type="button" disabled>Copy Brief</button>
+            <button id="analyze-button" class="app-button" type="button" disabled>Spin The Set</button>
+            <button id="clear-button" class="app-button secondary" type="button">Clear</button>
+            <button id="copy-button" class="app-button secondary" type="button" disabled>Copy Brief</button>
           </div>
         </section>
 
@@ -386,9 +386,9 @@
           <h2>Soundtrack</h2>
           <p class="summary" id="soundtrack-summary"></p>
           <div class="soundtrack-actions">
-            <button id="play-button" class="secondary" type="button" disabled>Play Mix</button>
-            <button id="stop-button" class="secondary" type="button" disabled>Stop</button>
-            <button id="remix-button" class="secondary" type="button" disabled>Remix</button>
+            <button id="play-button" class="app-button secondary" type="button" disabled>Play Mix</button>
+            <button id="stop-button" class="app-button secondary" type="button" disabled>Stop</button>
+            <button id="remix-button" class="app-button secondary" type="button" disabled>Remix</button>
           </div>
           <p class="soundtrack-status app-status" id="soundtrack-status">Generate a mix to begin.</p>
           <div class="stage">

@@ -90,14 +90,14 @@
     select,
     input[type="file"],
     input[type="range"],
-    button {
+    .app-button {
       width: 100%;
       font: inherit;
     }
 
     select,
     input[type="file"],
-    button {
+    .app-button {
       border: 1px solid var(--line);
       border-radius: 14px;
       padding: 12px 14px;
@@ -113,13 +113,13 @@
       accent-color: var(--accent-2);
     }
 
-    button {
+    .app-button {
       cursor: pointer;
       background: var(--accent);
       color: #fff;
     }
 
-    button:disabled {
+    .app-button:disabled {
       opacity: 0.58;
       cursor: not-allowed;
     }
@@ -290,7 +290,7 @@
           </select>
         </label>
 
-        <button id="start-button" type="button">Start Camera</button>
+        <button id="start-button" class="app-button" type="button">Start Camera</button>
       </div>
 
       <div class="viewer-grid">
