@@ -306,18 +306,11 @@
       border: 1px solid var(--line);
     }
 
-    @media (max-width: 960px) {
-      .controls,
-      .workspace,
-      .pattern-grid {
-        grid-template-columns: 1fr;
-      }
-    }
   </style>
 </head>
 <body>
-  <main>
-    <section class="hero app-header">
+  <main class="app-shell">
+    <section class="hero app-header app-panel">
       <div class="app-header-copy">
         <div class="app-kicker">Playground Browser Lab</div>
         <h1 class="app-title">Manipulation Detector</h1>
@@ -325,8 +318,8 @@
       </div>
     </section>
 
-    <section class="panel">
-      <div class="controls">
+    <section class="panel app-panel">
+      <div class="controls app-stack-md">
         <label>
           Source Type
           <select id="source-type">
@@ -347,7 +340,7 @@
 
       <p class="status app-status is-loading" id="status-text">Loading browser models…</p>
 
-      <div class="workspace">
+      <div class="workspace app-stack-md">
         <section class="score-card">
           <div class="pill neutral" id="risk-pill">Waiting for text</div>
           <div class="app-pill is-fallback" id="fallback-pill" hidden>Fallback mode active</div>
@@ -370,7 +363,7 @@
         </section>
       </div>
 
-      <section class="pattern-grid" id="pattern-grid"></section>
+      <section class="pattern-grid app-stack-md" id="pattern-grid"></section>
 
       <section class="evidence-card">
         <h2>Evidence</h2>

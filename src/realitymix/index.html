@@ -238,12 +238,7 @@
       line-height: 1.5;
     }
 
-    @media (max-width: 980px) {
-      .toolbar,
-      .viewer-grid {
-        grid-template-columns: 1fr;
-      }
-
+    @media (max-width: 64rem) {
       .canvas-wrap {
         min-height: 300px;
       }
@@ -251,8 +246,8 @@
   </style>
 </head>
 <body>
-  <main>
-    <section class="hero app-header">
+  <main class="app-shell">
+    <section class="hero app-header app-panel">
       <div class="app-header-copy">
         <div class="app-kicker">Playground Browser Lab</div>
         <h1 class="app-title">RealityMix</h1>
@@ -260,8 +255,8 @@
       </div>
     </section>
 
-    <section class="panel">
-      <div class="toolbar">
+    <section class="panel app-panel">
+      <div class="toolbar app-stack-md">
         <label>
           Style image
           <input id="style-input" type="file" accept="image/*">
@@ -293,7 +288,7 @@
         <button id="start-button" class="app-button" type="button">Start Camera</button>
       </div>
 
-      <div class="viewer-grid">
+      <div class="viewer-grid app-stack-md">
         <aside class="meta">
           <section class="card">
             <h2>Status</h2>

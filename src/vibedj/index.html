@@ -326,21 +326,11 @@
       display: none;
     }
 
-    @media (max-width: 1040px) {
-      .composer,
-      .result-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .swatches {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
   </style>
 </head>
 <body>
-  <main>
-    <section class="hero app-header">
+  <main class="app-shell">
+    <section class="hero app-header app-panel">
       <div class="hero-top app-header-top">
         <div class="app-header-copy">
           <div class="app-kicker">Playground Browser Lab</div>
@@ -351,8 +341,8 @@
       </div>
     </section>
 
-    <section class="panel">
-      <div class="composer">
+    <section class="panel app-panel">
+      <div class="composer app-stack-md">
         <section class="input-card">
           <div>
             <h2>Text Input</h2>
@@ -381,7 +371,7 @@
         </aside>
       </div>
 
-      <div class="result-grid hidden" id="results-shell">
+      <div class="result-grid app-stack-md hidden" id="results-shell">
         <section class="result-card">
           <h2>Soundtrack</h2>
           <p class="summary" id="soundtrack-summary"></p>
@@ -400,7 +390,7 @@
         <section class="result-card">
           <h2>Palette</h2>
           <p class="summary" id="palette-summary"></p>
-          <div class="swatches" id="palette-swatches"></div>
+          <div class="swatches app-two-up-md" id="palette-swatches"></div>
         </section>
 
         <section class="result-card">

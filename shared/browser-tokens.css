@@ -76,6 +76,15 @@
   align-items: flex-start;
 }
 
+.app-shell {
+  width: 100%;
+  margin-inline: auto;
+}
+
+.app-panel {
+  width: 100%;
+}
+
 .app-header-copy {
   display: grid;
   gap: var(--space-2);
@@ -200,4 +209,39 @@
   background: var(--color-warning-soft);
   color: var(--color-warning);
   animation: none;
+}
+
+@media (max-width: 64rem) {
+  .app-shell {
+    padding: var(--space-4) !important;
+    gap: var(--space-4) !important;
+  }
+
+  .app-panel {
+    padding: var(--space-4) !important;
+  }
+
+  .app-header-top {
+    gap: var(--space-3);
+    align-items: flex-start;
+  }
+
+  .app-stack-md {
+    grid-template-columns: 1fr !important;
+  }
+
+  .app-two-up-md {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 48rem) {
+  .app-shell {
+    padding: var(--space-3) !important;
+    gap: var(--space-3) !important;
+  }
+
+  .app-panel {
+    padding: var(--space-3) !important;
+  }
 }

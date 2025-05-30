@@ -277,17 +277,12 @@
       display: none;
     }
 
-    @media (max-width: 900px) {
-      .row {
-        grid-template-columns: 1fr;
-      }
-    }
   </style>
 </head>
 <body>
-  <main>
+  <main class="app-shell">
     <section class="shell">
-      <section class="panel app-header">
+      <section class="panel app-header app-panel">
         <div class="app-header-top">
           <div class="app-header-copy">
             <div class="app-kicker">Playground Browser Lab</div>
@@ -298,7 +293,7 @@
         </div>
       </section>
 
-      <section class="panel">
+      <section class="panel app-panel">
         <div class="toolbar" id="tabs">
           <button class="app-button tab active" data-view="text-view" type="button">Text</button>
           <button class="app-button tab" data-view="image-view" type="button">Image</button>
@@ -308,8 +303,8 @@
       </section>
 
       <section class="views">
-        <section class="panel view active" id="text-view">
-          <div class="row">
+        <section class="panel view active app-panel" id="text-view">
+          <div class="row app-stack-md">
             <div class="stack">
               <textarea id="text-input" placeholder="Loading browser text model..." disabled></textarea>
               <div class="actions">
@@ -327,8 +322,8 @@
           </div>
         </section>
 
-        <section class="panel view" id="image-view">
-          <div class="row">
+        <section class="panel view app-panel" id="image-view">
+          <div class="row app-stack-md">
             <div class="stack">
               <div class="source-stack">
                 <input id="image-input" type="file" accept="image/*">
@@ -354,8 +349,8 @@
           </div>
         </section>
 
-        <section class="panel view" id="video-view">
-          <div class="row">
+        <section class="panel view app-panel" id="video-view">
+          <div class="row app-stack-md">
             <div class="stack">
               <div class="source-stack">
                 <input id="video-input" type="file" accept="video/*">
@@ -383,8 +378,8 @@
           </div>
         </section>
 
-        <section class="panel view" id="url-view">
-          <div class="row">
+        <section class="panel view app-panel" id="url-view">
+          <div class="row app-stack-md">
             <div class="stack">
               <input id="url-input" type="url" placeholder="https://example.com/article">
               <div class="actions">

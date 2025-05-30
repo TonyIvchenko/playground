@@ -152,18 +152,13 @@
       font-size: 14px;
     }
 
-    @media (max-width: 840px) {
-      .layout {
-        grid-template-columns: 1fr;
-      }
-    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
 </head>
 <body>
-  <main class="app">
-    <section class="panel app-header">
+  <main class="app app-shell">
+    <section class="panel app-header app-panel">
       <div class="app-header-top">
         <div class="app-header-copy">
           <div class="app-kicker">Playground Browser Lab</div>
@@ -173,7 +168,7 @@
         <div class="app-header-badge">Live Camera Demo</div>
       </div>
     </section>
-    <div class="layout">
+    <div class="layout app-stack-md">
       <section class="viewer">
         <section class="stage">
           <video class="input_video" playsinline></video>
@@ -193,7 +188,7 @@
         </section>
         <div class="reference-caption app-help" id="reference-status">Loading reference image...</div>
       </section>
-      <aside class="panel">
+      <aside class="panel app-panel">
         <h2>Controls</h2>
         <label class="control">
           <input id="show-mesh" type="checkbox" checked>

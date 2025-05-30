@@ -44,6 +44,7 @@ def main() -> int:
         [sys.executable, "scripts/check_browser_app_fallback_badges.py"],
         [sys.executable, "scripts/check_browser_app_error_states.py"],
         [sys.executable, "scripts/check_browser_app_buttons.py"],
+        [sys.executable, "scripts/check_browser_app_mobile_layouts.py"],
         [sys.executable, "scripts/check_service_type_files.py"],
     ]
     for command in commands:

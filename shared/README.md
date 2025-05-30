@@ -60,6 +60,14 @@ For browser-app buttons, keep the keyboard interaction contract shared too:
 - layer local `secondary`, `ghost`, or `tab` styles on top of `app-button` instead of replacing the base class
 - use real `<button type="button">` controls for in-page actions instead of clickable generic elements
 
+For browser-app mobile layout, keep the spacing and collapse behavior shared too:
+
+- use `app-shell` on the top-level app container so mobile padding and gap collapse together
+- use `app-panel` on major hero and panel surfaces so panel padding tightens consistently on small screens
+- use `app-stack-md` for major grids that should collapse to one column at the shared medium breakpoint
+- use `app-two-up-md` for dense visual grids that should settle into two columns at the shared medium breakpoint
+- prefer the shared `64rem` and `48rem` breakpoints over one-off pixel breakpoints in each app
+
 Apps can still define their own local aliases, but those aliases should map back
 to the shared roles here instead of inventing a brand new base token set each
 time.

@@ -280,18 +280,11 @@
       line-height: 1.45;
     }
 
-    @media (max-width: 1040px) {
-      .controls,
-      .workspace,
-      .analysis-grid {
-        grid-template-columns: 1fr;
-      }
-    }
   </style>
 </head>
 <body>
-  <main>
-    <section class="hero app-header">
+  <main class="app-shell">
+    <section class="hero app-header app-panel">
       <div class="app-header-copy">
         <div class="app-kicker">Playground Browser Lab</div>
         <h1 class="app-title">Debate</h1>
@@ -299,8 +292,8 @@
       </div>
     </section>
 
-    <section class="panel">
-      <div class="controls">
+    <section class="panel app-panel">
+      <div class="controls app-stack-md">
         <label>
           Argument Type
           <select id="case-type">
@@ -324,7 +317,7 @@
         <button id="clear-button" class="app-button secondary" type="button">Clear</button>
       </div>
 
-      <div class="workspace">
+      <div class="workspace app-stack-md">
         <section class="doc-card">
           <h2>Point Of View A</h2>
           <p class="hint">This is your side or the side you want to stress-test.</p>

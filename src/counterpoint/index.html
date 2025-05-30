@@ -261,13 +261,7 @@
       min-height: 24px;
     }
 
-    @media (max-width: 1120px) {
-      .controls,
-      .workspace,
-      .output-grid {
-        grid-template-columns: 1fr;
-      }
-
+    @media (max-width: 64rem) {
       textarea {
         min-height: 320px;
       }
@@ -275,8 +269,8 @@
   </style>
 </head>
 <body>
-  <main>
-    <section class="hero app-header">
+  <main class="app-shell">
+    <section class="hero app-header app-panel">
       <div class="hero-top app-header-top">
         <div class="app-header-copy">
           <div class="app-kicker">Playground Browser Lab</div>
@@ -287,8 +281,8 @@
       </div>
     </section>
 
-    <section class="panel">
-      <div class="controls">
+    <section class="panel app-panel">
+      <div class="controls app-stack-md">
         <label>
           Arena
           <select id="arena-select">
@@ -323,7 +317,7 @@
         <button id="clear-button" class="app-button secondary" type="button">Clear</button>
       </div>
 
-      <div class="workspace">
+      <div class="workspace app-stack-md">
         <section class="input-card">
           <h2>Your Position</h2>
           <p class="hint">Write the side you want to stress-test. Clear, concrete claims work best.</p>
@@ -338,7 +332,7 @@
           <textarea id="position-input" placeholder="Loading browser generation model..." disabled></textarea>
         </section>
 
-        <div class="output-grid">
+        <div class="output-grid app-stack-md">
           <section class="card">
             <div>
               <h2>Counter Thesis</h2>

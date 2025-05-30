@@ -299,11 +299,7 @@
       pointer-events: none;
     }
 
-    @media (max-width: 1040px) {
-      .builder {
-        grid-template-columns: 1fr;
-      }
-
+    @media (max-width: 64rem) {
       .scene-shell {
         min-height: 500px;
       }
@@ -311,8 +307,8 @@
   </style>
 </head>
 <body>
-  <main>
-    <section class="hero app-header">
+  <main class="app-shell">
+    <section class="hero app-header app-panel">
       <div class="hero-top app-header-top">
         <div class="app-header-copy">
           <div class="app-kicker">Playground Browser Lab</div>
@@ -323,8 +319,8 @@
       </div>
     </section>
 
-    <section class="panel">
-      <div class="builder">
+    <section class="panel app-panel">
+      <div class="builder app-stack-md">
         <section class="input-card">
           <div>
             <h2>Notes</h2>
