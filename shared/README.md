@@ -18,6 +18,17 @@ The shared stylesheet defines the base token groups for:
 - color roles
 - elevation shadows
 
+It also owns the shared browser font-loading and default type contract:
+
+- the Google Fonts import for the shared body, display, accent, and mono families lives here
+- browser apps should let `body` inherit the shared `--font-body` default instead of redefining page-level font stacks
+- browser apps should use the shared typography utilities for exceptions:
+  - `app-font-body`
+  - `app-font-display`
+  - `app-font-accent`
+  - `app-font-mono`
+- browser apps should not keep local `@import` font blocks in each `index.html`
+
 It also includes the shared top-of-page browser header classes:
 
 - `app-header`

@@ -45,6 +45,7 @@ To verify the browser apps still use the shared button and focus-ring contract, 
 To verify the browser apps still use the shared mobile spacing and breakpoint contract, run `python scripts/check_browser_app_mobile_layouts.py`.
 To verify the motion-heavy browser apps still honor reduced-motion preferences, run `python scripts/check_browser_app_reduced_motion.py`.
 To verify the browser apps still use the shared footer contract for caveats, privacy notes, and local-only disclaimers, run `python scripts/check_browser_app_footers.py`.
+To verify the browser apps still use the shared typography contract instead of local font imports or one-off font stacks, run `python scripts/check_browser_app_typography.py`.
 To verify each service README's `Local Run` command still starts that service, run `python scripts/check_service_local_run.py --service <name>`.
 
 | Service | Type | Run Command | Tests | Docker | Health Endpoint |

@@ -45,6 +45,7 @@ Use it to answer questions like:
 - Standardized browser-app mobile spacing around shared `app-shell` and `app-panel` spacing plus shared responsive helpers, and added a checker so one-off pixel breakpoints do not drift back in.
 - Added reduced-motion handling for the heaviest browser motion loops plus a checker so decorative animation and camera-effect apps keep honoring `prefers-reduced-motion`.
 - Standardized browser-app footers around shared `Caveats`, `Privacy`, and `Local only` blocks, and added a checker so disclaimer copy stays predictable across the static apps.
+- Standardized browser-app typography around one shared font-loading path and one shared body/default type contract, and added a checker so page-local font imports and one-off browser stacks do not drift back in.
 - Added helper scripts under `scripts/` for:
   - listing services
   - checking required service files

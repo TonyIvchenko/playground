@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap");
+
 :root {
   color-scheme: light;
   --font-body: "IBM Plex Sans", "Segoe UI", sans-serif;
@@ -50,6 +52,39 @@
   --shadow-soft: 0 14px 36px rgba(34, 52, 76, 0.1);
   --shadow-strong: 0 20px 46px rgba(28, 40, 56, 0.12);
   --header-copy-max-width: 46rem;
+}
+
+body {
+  font-family: var(--font-body);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+code,
+pre,
+kbd,
+samp,
+.app-font-mono {
+  font-family: var(--font-mono);
+}
+
+.app-font-body {
+  font-family: var(--font-body);
+}
+
+.app-font-display {
+  font-family: var(--font-display);
+}
+
+.app-font-accent {
+  font-family: var(--font-accent);
 }
 
 @keyframes app-loading-pulse {
