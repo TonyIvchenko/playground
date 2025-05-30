@@ -135,6 +135,23 @@
       <div class="status app-status is-loading" id="status">Loading browser text model…</div>
       <div class="result" id="result"></div>
     </section>
+
+    <footer class="app-footer app-panel" aria-label="Usage notes">
+      <div class="app-footer-grid app-stack-md">
+        <section class="app-footer-block">
+          <p class="app-footer-kicker">Caveats</p>
+          <p class="app-footer-copy">Scores are directional moderation signals, not context-aware rulings or policy decisions.</p>
+        </section>
+        <section class="app-footer-block">
+          <p class="app-footer-kicker">Privacy</p>
+          <p class="app-footer-copy">Pasted text stays in this tab while the browser classifier runs.</p>
+        </section>
+        <section class="app-footer-block">
+          <p class="app-footer-kicker">Local only</p>
+          <p class="app-footer-copy">The classifier loads in the browser, then inference happens locally on this device.</p>
+        </section>
+      </div>
+    </footer>
   </main>
   <script type="module">
     import { env, pipeline } from "https://cdn.jsdelivr.net/npm/@xenova/transformers";

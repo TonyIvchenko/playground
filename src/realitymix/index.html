@@ -326,6 +326,23 @@
     <img id="style-image" class="hidden" alt="style source">
     <canvas id="content-canvas" class="hidden"></canvas>
     <canvas id="style-canvas" class="hidden"></canvas>
+
+    <footer class="app-footer app-panel" aria-label="Usage notes">
+      <div class="app-footer-grid app-stack-md">
+        <section class="app-footer-block">
+          <p class="app-footer-kicker">Caveats</p>
+          <p class="app-footer-copy">Style transfer favors mood over exact structure, color, or identity preservation.</p>
+        </section>
+        <section class="app-footer-block">
+          <p class="app-footer-kicker">Privacy</p>
+          <p class="app-footer-copy">Camera frames and style images stay on this device while the browser model runs.</p>
+        </section>
+        <section class="app-footer-block">
+          <p class="app-footer-kicker">Local only</p>
+          <p class="app-footer-copy">The style model runs in your browser after loading. No remote render service is involved.</p>
+        </section>
+      </div>
+    </footer>
   </main>
 
   <script>

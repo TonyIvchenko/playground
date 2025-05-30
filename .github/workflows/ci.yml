@@ -86,6 +86,7 @@ jobs:
               - 'scripts/check_browser_app_buttons.py'
               - 'scripts/check_browser_app_mobile_layouts.py'
               - 'scripts/check_browser_app_reduced_motion.py'
+              - 'scripts/check_browser_app_footers.py'
               - 'scripts/check_service_type_files.py'
             config:
               - '.github/**/*.yml'
@@ -113,6 +114,7 @@ jobs:
               - 'scripts/check_browser_app_buttons.py'
               - 'scripts/check_browser_app_mobile_layouts.py'
               - 'scripts/check_browser_app_reduced_motion.py'
+              - 'scripts/check_browser_app_footers.py'
               - 'scripts/browser_static_server.py'
               - 'scripts/poll_http_health.py'
               - 'scripts/smoke_service.py'
@@ -398,6 +400,23 @@ jobs:
       - name: Check static app reduced-motion handling
         shell: bash
         run: python scripts/check_browser_app_reduced_motion.py
+
+  browser-app-footers:
+    needs: changes
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      needs.changes.outputs.static_apps == 'true' ||
+      needs.changes.outputs.shared_ci == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: browser-app-footers
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check static app footer contract
+        shell: bash
+        run: python scripts/check_browser_app_footers.py
 
   service-type-files:
     needs: changes

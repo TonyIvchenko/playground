@@ -75,6 +75,13 @@ For motion-heavy browser apps, honor reduced-motion preferences too:
 - prefer static redraws, direct jumps, or lower-frequency updates for decorative visuals
 - keep the user-facing status copy honest when reduced motion changes how an effect behaves
 
+For browser-app footers, keep the caveat and privacy contract shared too:
+
+- use one shared footer shell with `app-footer`, `app-footer-grid`, `app-footer-block`, `app-footer-kicker`, and `app-footer-copy`
+- keep the three footer labels consistent: `Caveats`, `Privacy`, and `Local only`
+- keep the copy short and app-specific instead of repeating generic boilerplate
+- use the footer for disclaimers and privacy expectations, not for live status updates
+
 Apps can still define their own local aliases, but those aliases should map back
 to the shared roles here instead of inventing a brand new base token set each
 time.
