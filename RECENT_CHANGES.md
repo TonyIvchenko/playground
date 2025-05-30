@@ -43,6 +43,7 @@ Use it to answer questions like:
 - Standardized browser-app error-state wording around `Couldn't <action>.` copy plus shared `is-error` styling hooks, and added a checker so the older `Failed to ...` phrasing does not drift back in.
 - Standardized browser-app buttons around a shared `app-button` class plus one keyboard-visible `:focus-visible` ring, and added a checker so unlabeled one-off button markup does not drift back in.
 - Standardized browser-app mobile spacing around shared `app-shell` and `app-panel` spacing plus shared responsive helpers, and added a checker so one-off pixel breakpoints do not drift back in.
+- Added reduced-motion handling for the heaviest browser motion loops plus a checker so decorative animation and camera-effect apps keep honoring `prefers-reduced-motion`.
 - Added helper scripts under `scripts/` for:
   - listing services
   - checking required service files

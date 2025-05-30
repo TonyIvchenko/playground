@@ -438,6 +438,7 @@ Go to market: start with finance and operations leaders, then expand into produc
     const sceneHud = document.getElementById("scene-hud");
     const sceneShell = document.getElementById("scene-shell");
     const canvas = document.getElementById("palace-canvas");
+    const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -473,6 +474,10 @@ Go to market: start with finance and operations leaders, then expand into produc
       pitch: 0,
       keys: new Set()
     };
+
+    function prefersReducedMotion() {
+      return reducedMotionQuery.matches;
+    }
 
     function clamp(value, min, max) {
       return Math.max(min, Math.min(max, value));
@@ -908,8 +913,20 @@ Go to market: start with finance and operations leaders, then expand into produc
       if (!room) {
         return;
       }
+      const targetPosition = new THREE.Vector3(0, 1.75, room.centerZ + 4.2);
+      if (prefersReducedMotion()) {
+        camera.position.copy(targetPosition);
+        controls.yaw = 0;
+        controls.pitch = 0;
+        camera.rotation.set(0, 0, 0);
+        jumpTarget = null;
+        updateCurrentRoom(true);
+        statusPill.textContent = `Room ${index + 1}`;
+        statusText.textContent = `Jumped directly to room ${index + 1} because reduced motion is enabled.`;
+        return;
+      }
       jumpTarget = {
-        position: new THREE.Vector3(0, 1.75, room.centerZ + 4.2),
+        position: targetPosition,
         yaw: 0,
         pitch: 0
       };
@@ -975,6 +992,7 @@ Go to market: start with finance and operations leaders, then expand into produc
     function animate(now = 0) {
       requestAnimationFrame(animate);
       const delta = 0.016;
+      const reducedMotion = prefersReducedMotion();
 
       const forward = new THREE.Vector3(Math.sin(controls.yaw), 0, -Math.cos(controls.yaw));
       const right = new THREE.Vector3(Math.cos(controls.yaw), 0, Math.sin(controls.yaw));
@@ -994,12 +1012,20 @@ Go to market: start with finance and operations leaders, then expand into produc
       controls.pitch = clamp(controls.pitch, -0.72, 0.72);
 
       if (jumpTarget) {
-        camera.position.lerp(jumpTarget.position, 0.08);
-        controls.yaw += (jumpTarget.yaw - controls.yaw) * 0.08;
-        controls.pitch += (jumpTarget.pitch - controls.pitch) * 0.08;
-        if (camera.position.distanceTo(jumpTarget.position) < 0.08) {
+        if (reducedMotion) {
+          camera.position.copy(jumpTarget.position);
+          controls.yaw = jumpTarget.yaw;
+          controls.pitch = jumpTarget.pitch;
           jumpTarget = null;
           statusPill.textContent = `Room ${currentRoomIndex + 1}`;
+        } else {
+          camera.position.lerp(jumpTarget.position, 0.08);
+          controls.yaw += (jumpTarget.yaw - controls.yaw) * 0.08;
+          controls.pitch += (jumpTarget.pitch - controls.pitch) * 0.08;
+          if (camera.position.distanceTo(jumpTarget.position) < 0.08) {
+            jumpTarget = null;
+            statusPill.textContent = `Room ${currentRoomIndex + 1}`;
+          }
         }
       } else {
         const speed = controls.keys.has("shift") ? 0.28 : 0.18;
@@ -1021,15 +1047,17 @@ Go to market: start with finance and operations leaders, then expand into produc
       const minBack = -Math.max(10, corridorLength) + 2;
       camera.position.x = clamp(camera.position.x, -4.2, 4.2);
       camera.position.z = clamp(camera.position.z, minBack, maxForward);
-      camera.position.y = 1.75 + Math.sin(now * 0.0026) * 0.012;
+      camera.position.y = reducedMotion ? 1.75 : 1.75 + Math.sin(now * 0.0026) * 0.012;
       camera.rotation.set(controls.pitch, controls.yaw, 0);
 
-      roomData.forEach((room, index) => {
-        room.anchor.rotation.y += 0.004 + index * 0.0002;
-        room.glow.rotation.z += 0.003;
-      });
+      if (!reducedMotion) {
+        roomData.forEach((room, index) => {
+          room.anchor.rotation.y += 0.004 + index * 0.0002;
+          room.glow.rotation.z += 0.003;
+        });
 
-      dustGroup.rotation.y = now * 0.00002;
+        dustGroup.rotation.y = now * 0.00002;
+      }
 
       updateCurrentRoom();
       if (currentRoomIndex >= 0) {

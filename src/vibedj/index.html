@@ -238,6 +238,12 @@
       transition: width 280ms ease;
     }
 
+    @media (prefers-reduced-motion: reduce) {
+      .metric-fill {
+        transition: none;
+      }
+    }
+
     .result-grid {
       display: grid;
       gap: 16px;
@@ -752,6 +758,7 @@
     const soundtrackStatus = document.getElementById("soundtrack-status");
     const stageCanvas = document.getElementById("stage-canvas");
     const stageContext = stageCanvas.getContext("2d");
+    const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 
     let sentimentClassifier = null;
     let sentimentLoad = null;
@@ -776,6 +783,10 @@
       statusText.textContent = message;
       statusText.classList.toggle("is-error", isError);
       statusText.classList.toggle("is-loading", isLoading);
+    }
+
+    function prefersReducedMotion() {
+      return reducedMotionQuery.matches;
     }
 
     function setModelPill(message, { isError = false, isLoading = false } = {}) {
@@ -854,6 +865,9 @@
       if (visualState.bursts.length > 48) {
         visualState.bursts.shift();
       }
+      if (prefersReducedMotion()) {
+        renderStageFrame(performance.now(), { animate: false });
+      }
     }
 
     function setBackground(colors) {
@@ -901,7 +915,7 @@
       setBackground(palette.swatches.map(([, hex]) => hex));
     }
 
-    function drawStage(timestamp) {
+    function renderStageFrame(timestamp = 0, { animate = true } = {}) {
       resizeStage();
       const width = stageCanvas.width;
       const height = stageCanvas.height;
@@ -917,8 +931,8 @@
 
       const centerX = width * 0.5;
       const centerY = height * 0.52;
-      const time = timestamp * 0.001;
-      const pulse = visualState.pulse;
+      const time = animate ? timestamp * 0.001 : 0;
+      const pulse = animate ? visualState.pulse : Math.min(visualState.pulse, 0.16);
 
       stageContext.save();
       stageContext.globalAlpha = 0.16;
@@ -961,8 +975,13 @@
         stageContext.stroke();
       }
 
-      visualState.bursts = visualState.bursts.filter((burst) => timestamp - burst.born < 1800);
-      for (const burst of visualState.bursts) {
+      const bursts = animate
+        ? visualState.bursts.filter((burst) => timestamp - burst.born < 1800)
+        : [];
+      if (animate) {
+        visualState.bursts = bursts;
+      }
+      for (const burst of bursts) {
         const age = (timestamp - burst.born) / 1800;
         const radius = 14 + age * (width * 0.18) * burst.strength;
         const alpha = 0.38 * (1 - age);
@@ -983,11 +1002,33 @@
       stageContext.font = `${Math.max(20, width * 0.022)}px Space Grotesk`;
       stageContext.fillText(visualState.label, 28, 36);
 
-      visualState.pulse *= visualState.playing ? 0.94 : 0.9;
+      if (animate) {
+        visualState.pulse *= visualState.playing ? 0.94 : 0.9;
+      }
+    }
+
+    function drawStage(timestamp) {
+      renderStageFrame(timestamp, { animate: true });
       stageFrame = requestAnimationFrame(drawStage);
     }
 
+    function refreshStageMotionPreference() {
+      if (prefersReducedMotion()) {
+        if (stageFrame) {
+          cancelAnimationFrame(stageFrame);
+          stageFrame = null;
+        }
+        renderStageFrame(performance.now(), { animate: false });
+        return;
+      }
+      startStage();
+    }
+
     function startStage() {
+      if (prefersReducedMotion()) {
+        renderStageFrame(performance.now(), { animate: false });
+        return;
+      }
       if (!stageFrame) {
         stageFrame = requestAnimationFrame(drawStage);
       }
@@ -1075,6 +1116,7 @@
         audioState = null;
       }
       visualState.playing = false;
+      refreshStageMotionPreference();
       playButton.disabled = !currentMix;
       stopButton.disabled = true;
       if (updateStatus && currentMix) {
@@ -1191,6 +1233,7 @@
       visualState.mode = plan.mode;
       visualState.playing = true;
       visualState.label = `${mixName} / ${plan.bpm} BPM / ${plan.keyLabel}`;
+      refreshStageMotionPreference();
     }
 
     function chooseFamily(axes) {
@@ -1436,6 +1479,7 @@
         visualState.mode = mix.mode;
         visualState.label = `${name} / ready`;
         visualState.bursts = [];
+        refreshStageMotionPreference();
         setStatus("Mix ready.");
       } catch (error) {
         console.error(error);
@@ -1470,6 +1514,7 @@
       visualState.bursts = [];
       visualState.playing = false;
       setBackground(["#dce7ff", "#fff1de", "#f8fbff"]);
+      refreshStageMotionPreference();
     });
 
     copyButton.addEventListener("click", async () => {
@@ -1521,6 +1566,7 @@
       visualState.mode = currentMix.mode;
       visualState.label = `${currentAnalysis.name} / remixed`;
       visualState.bursts = [];
+      refreshStageMotionPreference();
       renderList(soundtrackList, [
         ["Live loop", `Browser-generated preview in ${currentMix.keyLabel} at ${currentMix.bpm} BPM`],
         ...SOUNDTRACK_LIBRARY[currentAnalysis.family].items
@@ -1554,6 +1600,7 @@
     }
 
     sourceText.value = SAMPLE_TEXTS.afterglow;
+    reducedMotionQuery.addEventListener?.("change", refreshStageMotionPreference);
     startStage();
     ensureSentiment();
   </script>

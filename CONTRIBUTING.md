@@ -64,6 +64,7 @@ This repo is a multi-service playground. Keep changes small, explicit, and local
 - Keep browser-app error states consistent too: prefer `Couldn't <action>.` copy and shared `is-error` status or pill states instead of drifting back to `Failed to ...` phrasing.
 - Keep browser-app buttons on the shared interaction contract too: use the `app-button` class and preserve the shared `:focus-visible` ring so keyboard navigation feels consistent across apps.
 - Keep browser-app mobile layout on the shared responsive contract too: use `app-shell`, `app-panel`, and the shared `64rem` / `48rem` breakpoints instead of reintroducing one-off pixel breakpoints.
+- Keep motion-heavy browser apps honest about reduced motion too: honor `prefers-reduced-motion`, simplify decorative loops or camera effects where possible, and keep the status copy aligned with that behavior.
 - Keep the scheduled `ML Smoke` workflow and `scripts/run_ml_smoke_jobs.py` aligned when heavier-service prep or training entrypoints change.
 - Keep each service README's `Local Run` section honest; CI now checks that those commands still match the expected startup path and that the process boots.
 - Keep `scripts/check_service_type_files.py` aligned with the repo's actual service types whenever a service changes shape or a new one is added.

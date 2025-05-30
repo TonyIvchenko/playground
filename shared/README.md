@@ -68,6 +68,13 @@ For browser-app mobile layout, keep the spacing and collapse behavior shared too
 - use `app-two-up-md` for dense visual grids that should settle into two columns at the shared medium breakpoint
 - prefer the shared `64rem` and `48rem` breakpoints over one-off pixel breakpoints in each app
 
+For motion-heavy browser apps, honor reduced-motion preferences too:
+
+- use `window.matchMedia("(prefers-reduced-motion: reduce)")` in animation or camera loops
+- simplify non-essential motion when reduced motion is active instead of only slowing it down a little
+- prefer static redraws, direct jumps, or lower-frequency updates for decorative visuals
+- keep the user-facing status copy honest when reduced motion changes how an effect behaves
+
 Apps can still define their own local aliases, but those aliases should map back
 to the shared roles here instead of inventing a brand new base token set each
 time.

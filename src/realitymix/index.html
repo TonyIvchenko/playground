@@ -355,12 +355,18 @@
     let stylizeBusy = false;
     let animationFrameId = 0;
     let lastStylizeAt = 0;
+    let lastPreviewAt = 0;
     let styleObjectUrl = null;
+    const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 
     function updateStatus(message, { isError = false, isLoading = false } = {}) {
       statusText.textContent = message;
       statusText.classList.toggle("is-error", isError);
       statusText.classList.toggle("is-loading", isLoading);
+    }
+
+    function prefersReducedMotion() {
+      return reducedMotionQuery.matches;
     }
 
     function clamp(value, min, max) {
@@ -376,7 +382,8 @@
     }
 
     function getUpdateIntervalMs() {
-      return 1000 / Number(fpsSelect.value);
+      const baseInterval = 1000 / Number(fpsSelect.value);
+      return prefersReducedMotion() ? Math.max(baseInterval, 1000) : baseInterval;
     }
 
     function syncUiMetrics() {
@@ -508,10 +515,14 @@
         drawRawCameraFrame();
         const imageData = await model.stylize(contentCanvas, styleCanvas, getStrength());
         outputCtx.putImageData(imageData, 0, 0);
-        updateStatus(`Stylizing live camera feed at ${fpsSelect.value} fps.`);
+        updateStatus(
+          prefersReducedMotion()
+            ? "Stylizing reduced-motion snapshots."
+            : `Stylizing live camera feed at ${fpsSelect.value} fps.`
+        );
       } catch (error) {
         console.error(error);
-        updateStatus(`Couldn't stylize the live feed. ${String(error.message || error)}`, true);
+        updateStatus(`Couldn't stylize the live feed. ${String(error.message || error)}`, { isError: true });
       } finally {
         stylizeBusy = false;
       }
@@ -526,12 +537,26 @@
     }
 
     async function renderLoop(now) {
+      const reducedMotion = prefersReducedMotion();
+      if (reducedMotion && now - lastPreviewAt < getUpdateIntervalMs()) {
+        animationFrameId = requestAnimationFrame(renderLoop);
+        return;
+      }
       if (!styleImage.src || !modelReady) {
         drawLivePreview();
       } else {
         await stylizeFrame(now);
       }
+      lastPreviewAt = now;
       animationFrameId = requestAnimationFrame(renderLoop);
+    }
+
+    function syncMotionPreference() {
+      lastPreviewAt = 0;
+      lastStylizeAt = 0;
+      if (stream && video.readyState >= 2) {
+        drawLivePreview();
+      }
     }
 
     async function startCamera() {
@@ -557,16 +582,26 @@
         fitCanvasToVideo();
         drawLivePreview();
         cancelAnimationFrame(animationFrameId);
+        lastPreviewAt = 0;
+        lastStylizeAt = 0;
         animationFrameId = requestAnimationFrame(renderLoop);
 
         if (!styleImage.src) {
-          updateStatus("Camera live. Upload a style image to start stylizing.");
+          updateStatus(
+            prefersReducedMotion()
+              ? "Camera live in reduced-motion mode. Upload a style image for slower snapshot updates."
+              : "Camera live. Upload a style image to start stylizing."
+          );
         } else {
           ensureModel().catch((error) => {
             console.error(error);
             updateStatus(`Couldn't load the model. ${String(error.message || error)}`, { isError: true });
           });
-          updateStatus("Camera live. Loading the style model for neural transfer.");
+          updateStatus(
+            prefersReducedMotion()
+              ? "Camera live in reduced-motion mode. Loading the style model for slower snapshot updates."
+              : "Camera live. Loading the style model for neural transfer."
+          );
         }
       } catch (error) {
         console.error(error);
@@ -611,11 +646,16 @@
     fpsSelect.addEventListener("change", () => {
       syncUiMetrics();
       if (styleImage.src) {
-        updateStatus(`Update rate set to ${fpsSelect.value} fps.`);
+        updateStatus(
+          prefersReducedMotion()
+            ? "Reduced motion keeps live updates in snapshot mode."
+            : `Update rate set to ${fpsSelect.value} fps.`
+        );
       }
     });
 
     startButton.addEventListener("click", startCamera);
+    reducedMotionQuery.addEventListener?.("change", syncMotionPreference);
     syncUiMetrics();
 
     if (!navigator.mediaDevices?.getUserMedia) {

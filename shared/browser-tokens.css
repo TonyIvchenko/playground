@@ -245,3 +245,18 @@
     padding: var(--space-3) !important;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .app-button,
+  .app-pill,
+  .app-header-badge,
+  .app-status,
+  .app-help {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .app-button:not(:disabled):hover {
+    transform: none;
+  }
+}
