@@ -48,6 +48,7 @@ def main() -> int:
         [sys.executable, "scripts/check_browser_app_reduced_motion.py"],
         [sys.executable, "scripts/check_browser_app_footers.py"],
         [sys.executable, "scripts/check_browser_app_typography.py"],
+        [sys.executable, "scripts/check_browser_app_help_drawers.py"],
         [sys.executable, "scripts/check_service_type_files.py"],
     ]
     for command in commands:

@@ -93,6 +93,14 @@ For browser-app footers, keep the caveat and privacy contract shared too:
 - keep the copy short and app-specific instead of repeating generic boilerplate
 - use the footer for disclaimers and privacy expectations, not for live status updates
 
+For browser-app help affordances, keep the disclosure pattern shared too:
+
+- use one shared drawer shell with `app-help-drawer`, `app-help-toggle`, `app-help-grid`, `app-help-block`, `app-help-kicker`, and `app-help-list`
+- prefer the exact summary label `Help & Shortcuts`
+- keep the three drawer labels consistent: `How to use`, `Best results`, and `Shortcuts`
+- use `app-keycap` and `app-key-row` for real keyboard shortcuts when an app has them
+- if an app has no special keyboard behavior yet, say that plainly instead of inventing fake shortcuts
+
 Apps can still define their own local aliases, but those aliases should map back
 to the shared roles here instead of inventing a brand new base token set each
 time.

@@ -46,6 +46,7 @@ Use it to answer questions like:
 - Added reduced-motion handling for the heaviest browser motion loops plus a checker so decorative animation and camera-effect apps keep honoring `prefers-reduced-motion`.
 - Standardized browser-app footers around shared `Caveats`, `Privacy`, and `Local only` blocks, and added a checker so disclaimer copy stays predictable across the static apps.
 - Standardized browser-app typography around one shared font-loading path and one shared body/default type contract, and added a checker so page-local font imports and one-off browser stacks do not drift back in.
+- Standardized browser-app help affordances around a shared `Help & Shortcuts` drawer, and added a checker so discoverability and shortcut copy stay consistent across the static apps.
 - Added helper scripts under `scripts/` for:
   - listing services
   - checking required service files
