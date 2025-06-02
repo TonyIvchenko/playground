@@ -68,6 +68,7 @@ This repo is a multi-service playground. Keep changes small, explicit, and local
 - Keep browser-app caveat/privacy notes in the shared footer too: use the shared footer classes plus the consistent `Caveats`, `Privacy`, and `Local only` labels instead of scattering one-off disclaimer blocks around each page.
 - Keep browser-app typography centralized too: load fonts through `shared/browser-tokens.css`, let the shared body font be the default, and use `app-font-display`, `app-font-accent`, or `app-font-mono` utilities instead of page-local font imports or one-off stacks.
 - Keep browser-app help discoverable too: use the shared `Help & Shortcuts` drawer with the consistent `How to use`, `Best results`, and `Shortcuts` labels instead of burying guidance in random one-off paragraphs.
+- Keep browser-app text contrast above the audited floor too: muted helper text, warning accents, and disabled text should stay at or above WCAG AA for normal text, and the contrast checker should move with any intentional palette change.
 - Keep the scheduled `ML Smoke` workflow and `scripts/run_ml_smoke_jobs.py` aligned when heavier-service prep or training entrypoints change.
 - Keep each service README's `Local Run` section honest; CI now checks that those commands still match the expected startup path and that the process boots.
 - Keep `scripts/check_service_type_files.py` aligned with the repo's actual service types whenever a service changes shape or a new one is added.

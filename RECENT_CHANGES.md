@@ -47,6 +47,7 @@ Use it to answer questions like:
 - Standardized browser-app footers around shared `Caveats`, `Privacy`, and `Local only` blocks, and added a checker so disclaimer copy stays predictable across the static apps.
 - Standardized browser-app typography around one shared font-loading path and one shared body/default type contract, and added a checker so page-local font imports and one-off browser stacks do not drift back in.
 - Standardized browser-app help affordances around a shared `Help & Shortcuts` drawer, and added a checker so discoverability and shortcut copy stay consistent across the static apps.
+- Added a browser-app contrast audit plus a few darker muted and warning colors so small helper text and disabled states stay above the accessibility floor.
 - Added helper scripts under `scripts/` for:
   - listing services
   - checking required service files
