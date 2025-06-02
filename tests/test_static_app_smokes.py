@@ -90,3 +90,38 @@ def test_static_app_serves_shared_browser_tokens(service: str) -> None:
     )
     assert f"Smoke check passed for '{service}'" in result.stdout
     assert f"http://127.0.0.1:{port}/shared/browser-tokens.css" in result.stdout
+
+
+@pytest.mark.parametrize("service", STATIC_SERVICES)
+def test_static_app_serves_shared_browser_starter(service: str) -> None:
+    port = pick_free_port()
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/smoke_service.py",
+            service,
+            "--port",
+            str(port),
+            "--timeout",
+            "20",
+            "--interval",
+            "0.5",
+            "--path",
+            "/shared/browser-starter.css",
+            "--expect-content-type",
+            "text/css",
+            "--expect-body-fragment",
+            "app-starter-shell",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, (
+        f"Shared starter smoke failed for {service}\n"
+        f"stdout:\n{result.stdout}\n"
+        f"stderr:\n{result.stderr}"
+    )
+    assert f"Smoke check passed for '{service}'" in result.stdout
+    assert f"http://127.0.0.1:{port}/shared/browser-starter.css" in result.stdout

@@ -90,6 +90,7 @@ jobs:
               - 'scripts/check_browser_app_typography.py'
               - 'scripts/check_browser_app_help_drawers.py'
               - 'scripts/check_browser_app_contrast.py'
+              - 'scripts/check_browser_app_starter_css.py'
               - 'scripts/check_service_type_files.py'
             config:
               - '.github/**/*.yml'
@@ -121,6 +122,7 @@ jobs:
               - 'scripts/check_browser_app_typography.py'
               - 'scripts/check_browser_app_help_drawers.py'
               - 'scripts/check_browser_app_contrast.py'
+              - 'scripts/check_browser_app_starter_css.py'
               - 'scripts/browser_static_server.py'
               - 'scripts/poll_http_health.py'
               - 'scripts/smoke_service.py'
@@ -474,6 +476,23 @@ jobs:
       - name: Check static app text contrast floor
         shell: bash
         run: python scripts/check_browser_app_contrast.py
+
+  browser-app-starter-css:
+    needs: changes
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      needs.changes.outputs.static_apps == 'true' ||
+      needs.changes.outputs.shared_ci == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: browser-app-starter-css
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check static app starter stylesheet contract
+        shell: bash
+        run: python scripts/check_browser_app_starter_css.py
 
   service-type-files:
     needs: changes

@@ -6,11 +6,18 @@
   <title>BERT Toxicity Analyzer</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/shared/browser-tokens.css">
+  <link rel="stylesheet" href="/shared/browser-starter.css">
   <style>
     :root {
       color-scheme: light;
       background: #f5f7fb;
       color: #18202a;
+      --app-starter-page-max: 860px;
+      --app-starter-surface-radius: 18px;
+      --app-starter-surface-bg: rgba(255, 255, 255, 0.78);
+      --app-starter-surface-shadow: 0 14px 36px rgba(34, 52, 76, 0.10);
+      --app-starter-surface-blur: 10px;
+      --app-starter-panel-padding: 24px;
     }
 
     * {
@@ -23,21 +30,6 @@
       display: grid;
       place-items: center;
       background: radial-gradient(circle at top, #ffffff 0%, #eef3fa 58%);
-    }
-
-    main {
-      width: min(100vw, 860px);
-      padding: 24px;
-      display: grid;
-      gap: 18px;
-    }
-
-    .panel {
-      padding: 24px;
-      border-radius: 18px;
-      background: rgba(255, 255, 255, 0.78);
-      box-shadow: 0 14px 36px rgba(34, 52, 76, 0.10);
-      backdrop-filter: blur(10px);
     }
 
     .app-title {
@@ -117,8 +109,8 @@
   </style>
 </head>
 <body>
-  <main class="app-shell">
-    <section class="panel app-header app-panel">
+  <main class="app-shell app-starter-shell">
+    <section class="panel app-header app-panel app-starter-surface app-starter-panel">
       <div class="app-header-top">
         <div class="app-header-copy">
           <div class="app-kicker">Playground Browser Lab</div>
@@ -129,7 +121,7 @@
       </div>
     </section>
 
-    <section class="panel">
+    <section class="panel app-starter-surface app-starter-panel">
       <textarea id="text-input" placeholder="Loading browser text model..." disabled></textarea>
       <div class="status app-status is-loading" id="status">Loading browser text model…</div>
       <div class="result" id="result"></div>

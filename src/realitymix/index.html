@@ -6,6 +6,7 @@
   <title>RealityMix</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/shared/browser-tokens.css">
+  <link rel="stylesheet" href="/shared/browser-starter.css">
   <script src="https://cdn.jsdelivr.net/npm/@magenta/image@0.2.1"></script>
   <style>
     :root {
@@ -17,6 +18,13 @@
       --line: rgba(18, 33, 51, 0.12);
       --accent: #0f1720;
       --accent-2: #d45536;
+      --app-starter-page-max: 1240px;
+      --app-starter-page-padding: 28px 20px 32px;
+      --app-starter-surface-radius: 28px;
+      --app-starter-surface-shadow: 0 22px 60px rgba(52, 71, 103, 0.14);
+      --app-starter-hero-padding: 26px 28px;
+      --app-starter-hero-gap: 8px;
+      --app-starter-panel-gap: 18px;
     }
 
     * {
@@ -33,41 +41,12 @@
         linear-gradient(180deg, #ffffff 0%, var(--bg) 55%, #dbe8fb 100%);
     }
 
-    main {
-      width: min(1240px, 100%);
-      margin: 0 auto;
-      padding: 28px 20px 32px;
-      display: grid;
-      gap: 18px;
-    }
-
-    .hero,
-    .panel {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 28px;
-      box-shadow: 0 22px 60px rgba(52, 71, 103, 0.14);
-      backdrop-filter: blur(14px);
-    }
-
-    .hero {
-      padding: 26px 28px;
-      display: grid;
-      gap: 8px;
-    }
-
     .subtitle {
       margin: 0;
       max-width: 760px;
       font-size: 18px;
       color: var(--muted);
       line-height: 1.5;
-    }
-
-    .panel {
-      padding: 20px;
-      display: grid;
-      gap: 18px;
     }
 
     .toolbar {
@@ -245,8 +224,8 @@
   </style>
 </head>
 <body>
-  <main class="app-shell">
-    <section class="hero app-header app-panel">
+  <main class="app-shell app-starter-shell">
+    <section class="hero app-header app-panel app-starter-surface app-starter-hero">
       <div class="app-header-copy">
         <div class="app-kicker">Playground Browser Lab</div>
         <h1 class="app-title">RealityMix</h1>
@@ -254,7 +233,7 @@
       </div>
     </section>
 
-    <section class="panel app-panel">
+    <section class="panel app-panel app-starter-surface app-starter-panel">
       <div class="toolbar app-stack-md">
         <label>
           Style image

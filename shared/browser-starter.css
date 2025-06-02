@@ -1,0 +1,68 @@
+:root {
+  --app-starter-page-max: 80rem;
+  --app-starter-page-padding: 24px;
+  --app-starter-page-gap: 18px;
+  --app-starter-page-padding-md: 20px;
+  --app-starter-page-padding-sm: 16px;
+  --app-starter-page-gap-sm: 16px;
+
+  --app-starter-surface-radius: 26px;
+  --app-starter-surface-border: 1px solid var(--line, var(--color-border));
+  --app-starter-surface-bg: var(--panel, var(--color-bg-surface));
+  --app-starter-surface-shadow: var(
+    --card-shadow,
+    0 20px 48px rgba(27, 40, 56, 0.12)
+  );
+  --app-starter-surface-blur: 14px;
+
+  --app-starter-hero-padding: 28px;
+  --app-starter-hero-gap: 10px;
+  --app-starter-panel-padding: 20px;
+  --app-starter-panel-gap: 16px;
+}
+
+.app-starter-shell {
+  width: min(var(--app-starter-page-max), 100%);
+  margin: 0 auto;
+  padding: var(--app-starter-page-padding);
+  display: grid;
+  gap: var(--app-starter-page-gap);
+}
+
+.app-starter-surface {
+  border-radius: var(--app-starter-surface-radius);
+  border: var(--app-starter-surface-border);
+  background: var(--app-starter-surface-bg);
+  box-shadow: var(--app-starter-surface-shadow);
+  backdrop-filter: blur(var(--app-starter-surface-blur));
+}
+
+.app-starter-hero {
+  padding: var(--app-starter-hero-padding);
+  display: grid;
+  gap: var(--app-starter-hero-gap);
+}
+
+.app-starter-panel {
+  padding: var(--app-starter-panel-padding);
+  display: grid;
+  gap: var(--app-starter-panel-gap);
+}
+
+@media (max-width: 64rem) {
+  .app-starter-shell {
+    padding: var(--app-starter-page-padding-md);
+  }
+}
+
+@media (max-width: 48rem) {
+  .app-starter-shell {
+    padding: var(--app-starter-page-padding-sm);
+    gap: var(--app-starter-page-gap-sm);
+  }
+
+  .app-starter-hero,
+  .app-starter-panel {
+    padding: 18px;
+  }
+}

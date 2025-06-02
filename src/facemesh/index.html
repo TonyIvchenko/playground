@@ -6,11 +6,19 @@
   <title>Facemesh</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/shared/browser-tokens.css">
+  <link rel="stylesheet" href="/shared/browser-starter.css">
   <style>
     :root {
       color-scheme: light;
       background: #f5f7fb;
       color: #18202a;
+      --app-starter-page-max: 1180px;
+      --app-starter-page-gap: 20px;
+      --app-starter-surface-radius: 18px;
+      --app-starter-surface-bg: rgba(255, 255, 255, 0.75);
+      --app-starter-surface-shadow: 0 14px 36px rgba(34, 52, 76, 0.10);
+      --app-starter-surface-blur: 10px;
+      --app-starter-panel-padding: 16px;
     }
 
     * {
@@ -25,13 +33,6 @@
       background: radial-gradient(circle at top, #ffffff 0%, #eef3fa 58%);
     }
 
-    .app {
-      width: min(100vw, 1180px);
-      padding: 24px;
-      display: grid;
-      gap: 20px;
-    }
-
     .layout {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 260px;
@@ -41,14 +42,6 @@
 
     .viewer {
       min-width: 0;
-    }
-
-    .panel {
-      padding: 16px;
-      border-radius: 18px;
-      background: rgba(255, 255, 255, 0.75);
-      box-shadow: 0 14px 36px rgba(34, 52, 76, 0.10);
-      backdrop-filter: blur(10px);
     }
 
     .panel h2 {
@@ -156,8 +149,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
 </head>
 <body>
-  <main class="app app-shell">
-    <section class="panel app-header app-panel">
+  <main class="app app-shell app-starter-shell">
+    <section class="panel app-header app-panel app-starter-surface app-starter-panel">
       <div class="app-header-top">
         <div class="app-header-copy">
           <div class="app-kicker">Playground Browser Lab</div>
@@ -187,7 +180,7 @@
         </section>
         <div class="reference-caption app-help" id="reference-status">Loading reference image...</div>
       </section>
-      <aside class="panel app-panel">
+      <aside class="panel app-panel app-starter-surface app-starter-panel">
         <h2>Controls</h2>
         <label class="control">
           <input id="show-mesh" type="checkbox" checked>

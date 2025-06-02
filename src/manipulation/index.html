@@ -6,6 +6,7 @@
   <title>Manipulation Detector</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/shared/browser-tokens.css">
+  <link rel="stylesheet" href="/shared/browser-starter.css">
   <style>
     :root {
       color-scheme: light;
@@ -22,6 +23,12 @@
       --bad-bg: #fee2e2;
       --neutral: #1d4ed8;
       --neutral-bg: #dbeafe;
+      --app-starter-page-max: 1180px;
+      --app-starter-surface-radius: 22px;
+      --app-starter-surface-shadow: 0 16px 42px rgba(39, 55, 79, 0.1);
+      --app-starter-surface-blur: 10px;
+      --app-starter-hero-padding: 24px;
+      --app-starter-hero-gap: 8px;
     }
 
     * {
@@ -38,29 +45,6 @@
         linear-gradient(180deg, #ffffff 0%, var(--bg) 62%, #dbe8f6 100%);
     }
 
-    main {
-      width: min(1180px, 100%);
-      margin: 0 auto;
-      padding: 24px;
-      display: grid;
-      gap: 18px;
-    }
-
-    .hero,
-    .panel {
-      border-radius: 22px;
-      border: 1px solid var(--line);
-      background: var(--panel);
-      box-shadow: 0 16px 42px rgba(39, 55, 79, 0.1);
-      backdrop-filter: blur(10px);
-    }
-
-    .hero {
-      padding: 24px;
-      display: grid;
-      gap: 8px;
-    }
-
     .app-subtitle,
     .status,
     .help,
@@ -69,12 +53,6 @@
       margin: 0;
       color: var(--muted);
       line-height: 1.5;
-    }
-
-    .panel {
-      padding: 20px;
-      display: grid;
-      gap: 16px;
     }
 
     .controls {
@@ -308,8 +286,8 @@
   </style>
 </head>
 <body>
-  <main class="app-shell">
-    <section class="hero app-header app-panel">
+  <main class="app-shell app-starter-shell">
+    <section class="hero app-header app-panel app-starter-surface app-starter-hero">
       <div class="app-header-copy">
         <div class="app-kicker">Playground Browser Lab</div>
         <h1 class="app-title">Manipulation Detector</h1>
@@ -317,7 +295,7 @@
       </div>
     </section>
 
-    <section class="panel app-panel">
+    <section class="panel app-panel app-starter-surface app-starter-panel">
       <div class="controls app-stack-md">
         <label>
           Source Type

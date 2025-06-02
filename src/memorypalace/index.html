@@ -6,6 +6,7 @@
   <title>MemoryPalace</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/shared/browser-tokens.css">
+  <link rel="stylesheet" href="/shared/browser-starter.css">
   <style>
     :root {
       color-scheme: light;
@@ -17,6 +18,7 @@
       --bg-a: #dfe9ff;
       --bg-b: #fff0dc;
       --bg-c: #edf5ff;
+      --app-starter-page-max: 1360px;
     }
 
     * {
@@ -31,29 +33,6 @@
         radial-gradient(circle at top left, rgba(111, 160, 255, 0.18), transparent 28%),
         radial-gradient(circle at top right, rgba(255, 174, 104, 0.18), transparent 30%),
         linear-gradient(180deg, #ffffff 0%, #eef4ff 54%, #e9f1fb 100%);
-    }
-
-    main {
-      width: min(1360px, 100%);
-      margin: 0 auto;
-      padding: 24px;
-      display: grid;
-      gap: 18px;
-    }
-
-    .hero,
-    .panel {
-      border-radius: 26px;
-      border: 1px solid var(--line);
-      background: var(--panel);
-      box-shadow: 0 20px 48px rgba(27, 40, 56, 0.12);
-      backdrop-filter: blur(14px);
-    }
-
-    .hero {
-      padding: 28px;
-      display: grid;
-      gap: 10px;
     }
 
     .app-subtitle,
@@ -83,12 +62,6 @@
       font-weight: 700;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-    }
-
-    .panel {
-      padding: 20px;
-      display: grid;
-      gap: 16px;
     }
 
     .builder {
@@ -303,8 +276,8 @@
   </style>
 </head>
 <body>
-  <main class="app-shell">
-    <section class="hero app-header app-panel">
+  <main class="app-shell app-starter-shell">
+    <section class="hero app-header app-panel app-starter-surface app-starter-hero">
       <div class="hero-top app-header-top">
         <div class="app-header-copy">
           <div class="app-kicker">Playground Browser Lab</div>
@@ -315,7 +288,7 @@
       </div>
     </section>
 
-    <section class="panel app-panel">
+    <section class="panel app-panel app-starter-surface app-starter-panel">
       <div class="builder app-stack-md">
         <section class="input-card">
           <div>

@@ -3,25 +3,32 @@ from __future__ import annotations
 
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+import mimetypes
 import os
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SHARED_DIR = REPO_ROOT / "shared"
-SHARED_TOKEN_PATH = SHARED_DIR / "browser-tokens.css"
 
 
 def serve_shared_asset(handler: SimpleHTTPRequestHandler) -> bool:
-    if handler.path != "/shared/browser-tokens.css":
+    if not handler.path.startswith("/shared/"):
         return False
 
-    if not SHARED_TOKEN_PATH.exists():
-        handler.send_error(404, "Shared browser token stylesheet not found.")
+    shared_name = handler.path.removeprefix("/shared/")
+    shared_path = (SHARED_DIR / shared_name).resolve()
+    if not shared_path.is_file() or SHARED_DIR not in shared_path.parents:
+        handler.send_error(404, "Shared browser asset not found.")
         return True
 
-    body = SHARED_TOKEN_PATH.read_bytes()
+    body = shared_path.read_bytes()
+    content_type = (
+        mimetypes.guess_type(shared_path.name)[0] or "application/octet-stream"
+    )
     handler.send_response(200)
-    handler.send_header("Content-Type", "text/css; charset=utf-8")
+    if content_type.startswith("text/"):
+        content_type = f"{content_type}; charset=utf-8"
+    handler.send_header("Content-Type", content_type)
     handler.send_header("Content-Length", str(len(body)))
     handler.end_headers()
     if handler.command != "HEAD":

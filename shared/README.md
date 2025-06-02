@@ -1,13 +1,28 @@
-# Shared Browser Tokens
+# Shared Browser Styles
 
 `shared/browser-tokens.css` is the repo-level source of truth for the base design
 tokens used by the browser apps.
 
-Load it from browser apps with:
+`shared/browser-starter.css` is the companion starter stylesheet for the repeated
+page shell and surface scaffolding shared by the browser-only apps.
+
+Load both shared stylesheets from browser apps with:
 
 ```html
 <link rel="stylesheet" href="/shared/browser-tokens.css">
+<link rel="stylesheet" href="/shared/browser-starter.css">
 ```
+
+The starter stylesheet defines the small shared shell and surface helpers for:
+
+- `app-starter-shell`
+- `app-starter-surface`
+- `app-starter-hero`
+- `app-starter-panel`
+
+Use those classes for the top-level page shell, hero block, and large panel
+surfaces before introducing one-off page-level `main`, `.hero`, or `.panel`
+scaffolding in each app.
 
 The shared stylesheet defines the base token groups for:
 

@@ -6,6 +6,7 @@
   <title>RealityCheck</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/shared/browser-tokens.css">
+  <link rel="stylesheet" href="/shared/browser-starter.css">
   <style>
     :root {
       color-scheme: light;
@@ -23,6 +24,13 @@
       --neutral-bg: #eff6ff;
       --neutral-border: #bfdbfe;
       --neutral-text: #1d4ed8;
+      --app-starter-page-max: 1100px;
+      --app-starter-surface-border: 1px solid var(--border);
+      --app-starter-surface-radius: 18px;
+      --app-starter-surface-bg: var(--panel);
+      --app-starter-surface-shadow: 0 14px 36px rgba(34, 52, 76, 0.10);
+      --app-starter-surface-blur: 10px;
+      --app-starter-panel-padding: 22px;
     }
 
     * {
@@ -37,22 +45,9 @@
       background: radial-gradient(circle at top, #ffffff 0%, #eaf1fb 58%);
     }
 
-    main {
-      width: min(100vw, 1100px);
-      padding: 24px;
-    }
-
     .shell {
       display: grid;
       gap: 18px;
-    }
-
-    .panel {
-      padding: 22px;
-      border-radius: 18px;
-      background: var(--panel);
-      box-shadow: 0 14px 36px rgba(34, 52, 76, 0.10);
-      backdrop-filter: blur(10px);
     }
 
     .app-title {
@@ -279,9 +274,9 @@
   </style>
 </head>
 <body>
-  <main class="app-shell">
+  <main class="app-shell app-starter-shell">
     <section class="shell">
-      <section class="panel app-header app-panel">
+      <section class="panel app-header app-panel app-starter-surface app-starter-panel">
         <div class="app-header-top">
           <div class="app-header-copy">
             <div class="app-kicker">Playground Browser Lab</div>
@@ -292,7 +287,7 @@
         </div>
       </section>
 
-      <section class="panel app-panel">
+      <section class="panel app-panel app-starter-surface app-starter-panel">
         <div class="toolbar" id="tabs">
           <button class="app-button tab active" data-view="text-view" type="button">Text</button>
           <button class="app-button tab" data-view="image-view" type="button">Image</button>
@@ -302,7 +297,7 @@
       </section>
 
       <section class="views">
-        <section class="panel view active app-panel" id="text-view">
+        <section class="panel view active app-panel app-starter-surface app-starter-panel" id="text-view">
           <div class="row app-stack-md">
             <div class="stack">
               <textarea id="text-input" placeholder="Loading browser text model..." disabled></textarea>
@@ -321,7 +316,7 @@
           </div>
         </section>
 
-        <section class="panel view app-panel" id="image-view">
+        <section class="panel view app-panel app-starter-surface app-starter-panel" id="image-view">
           <div class="row app-stack-md">
             <div class="stack">
               <div class="source-stack">
@@ -348,7 +343,7 @@
           </div>
         </section>
 
-        <section class="panel view app-panel" id="video-view">
+        <section class="panel view app-panel app-starter-surface app-starter-panel" id="video-view">
           <div class="row app-stack-md">
             <div class="stack">
               <div class="source-stack">
@@ -377,7 +372,7 @@
           </div>
         </section>
 
-        <section class="panel view app-panel" id="url-view">
+        <section class="panel view app-panel app-starter-surface app-starter-panel" id="url-view">
           <div class="row app-stack-md">
             <div class="stack">
               <input id="url-input" type="url" placeholder="https://example.com/article">

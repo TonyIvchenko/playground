@@ -6,6 +6,7 @@
   <title>VibeDJ</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/shared/browser-tokens.css">
+  <link rel="stylesheet" href="/shared/browser-starter.css">
   <style>
     :root {
       color-scheme: light;
@@ -22,6 +23,7 @@
       --warm: #ff7a59;
       --cool: #3d68ff;
       --mint: #39b88f;
+      --app-starter-page-max: 1280px;
     }
 
     * {
@@ -37,29 +39,6 @@
         radial-gradient(circle at top right, color-mix(in srgb, var(--bg-b) 88%, white 12%), transparent 30%),
         radial-gradient(circle at bottom center, color-mix(in srgb, var(--bg-c) 94%, white 6%), transparent 36%),
         linear-gradient(180deg, #ffffff 0%, #eef4ff 56%, #edf2f8 100%);
-    }
-
-    main {
-      width: min(1280px, 100%);
-      margin: 0 auto;
-      padding: 24px;
-      display: grid;
-      gap: 18px;
-    }
-
-    .hero,
-    .panel {
-      border-radius: 26px;
-      border: 1px solid var(--line);
-      background: var(--panel);
-      box-shadow: var(--card-shadow);
-      backdrop-filter: blur(14px);
-    }
-
-    .hero {
-      padding: 28px;
-      display: grid;
-      gap: 10px;
     }
 
     .app-subtitle,
@@ -91,12 +70,6 @@
       font-weight: 700;
       letter-spacing: 0.04em;
       text-transform: uppercase;
-    }
-
-    .panel {
-      padding: 20px;
-      display: grid;
-      gap: 16px;
     }
 
     .composer {
@@ -331,8 +304,8 @@
   </style>
 </head>
 <body>
-  <main class="app-shell">
-    <section class="hero app-header app-panel">
+  <main class="app-shell app-starter-shell">
+    <section class="hero app-header app-panel app-starter-surface app-starter-hero">
       <div class="hero-top app-header-top">
         <div class="app-header-copy">
           <div class="app-kicker">Playground Browser Lab</div>
@@ -343,7 +316,7 @@
       </div>
     </section>
 
-    <section class="panel app-panel">
+    <section class="panel app-panel app-starter-surface app-starter-panel">
       <div class="composer app-stack-md">
         <section class="input-card">
           <div>
