@@ -215,7 +215,7 @@
         return;
       }
       renderResult(prediction);
-      setStatus("Analysis complete.");
+      setStatus("Analysis ready.");
     }
 
     function queueAnalysis() {
@@ -249,11 +249,11 @@
       );
       input.disabled = false;
       input.placeholder = "Enter text here...";
-      setStatus("Model ready.");
+      setStatus("Browser text model ready.");
     } catch (error) {
       console.error(error);
-      setStatus("Couldn't load the model.", { isError: true });
-      input.placeholder = "Couldn't load the model.";
+      setStatus("Couldn't load the browser text model.", { isError: true });
+      input.placeholder = "Couldn't load the browser text model.";
     }
 
     input.addEventListener("input", queueAnalysis);

@@ -270,7 +270,7 @@
         <aside class="meta">
           <section class="card">
             <h2>Status</h2>
-            <div class="status app-status" id="status-text">Upload a style image and start the camera to begin. The style model will download on first use.</div>
+            <div class="status app-status" id="status-text">Ready. Upload a style image and start the camera to begin. The browser style model downloads on first use.</div>
           </section>
 
           <section class="card">
@@ -446,7 +446,7 @@
         model = new mi.ArbitraryStyleTransferNetwork();
         await model.initialize();
         modelReady = true;
-        updateStatus("Model ready. Start the camera or adjust style settings.");
+        updateStatus("Browser style model ready. Start the camera or adjust style settings.");
         return model;
       })().catch((error) => {
         console.error(error);
@@ -507,7 +507,7 @@
       styleObjectUrl = URL.createObjectURL(file);
       await new Promise((resolve, reject) => {
         styleImage.onload = resolve;
-        styleImage.onerror = () => reject(new Error("Failed to decode style image."));
+        styleImage.onerror = () => reject(new Error("Couldn't decode the style image."));
         styleImage.src = styleObjectUrl;
       });
       fitStyleCanvas();

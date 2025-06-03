@@ -40,10 +40,10 @@ REQUIRED_FRAGMENTS = {
         "Loading browser generation model…",
     ),
     "manipulation": (
-        'placeholder="Loading browser models..."',
-        "Loading browser models…",
-        "Toxicity model loading…",
-        "Sentiment model loading…",
+        'placeholder="Loading browser analysis models..."',
+        "Loading browser analysis models…",
+        "Loading browser toxicity model…",
+        "Loading browser sentiment model…",
     ),
     "realitycheck": (
         'placeholder="Loading browser text model..."',
@@ -52,7 +52,7 @@ REQUIRED_FRAGMENTS = {
     ),
     "realitymix": ("Loading browser style model…",),
     "vibedj": (
-        "Sentiment model loading",
+        "Loading browser sentiment model",
         "Loading browser sentiment model…",
     ),
 }

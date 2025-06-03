@@ -91,6 +91,7 @@ jobs:
               - 'scripts/check_browser_app_help_drawers.py'
               - 'scripts/check_browser_app_contrast.py'
               - 'scripts/check_browser_app_starter_css.py'
+              - 'scripts/check_browser_app_status_copy.py'
               - 'scripts/check_service_type_files.py'
             config:
               - '.github/**/*.yml'
@@ -123,6 +124,7 @@ jobs:
               - 'scripts/check_browser_app_help_drawers.py'
               - 'scripts/check_browser_app_contrast.py'
               - 'scripts/check_browser_app_starter_css.py'
+              - 'scripts/check_browser_app_status_copy.py'
               - 'scripts/browser_static_server.py'
               - 'scripts/poll_http_health.py'
               - 'scripts/smoke_service.py'
@@ -493,6 +495,23 @@ jobs:
       - name: Check static app starter stylesheet contract
         shell: bash
         run: python scripts/check_browser_app_starter_css.py
+
+  browser-app-status-copy:
+    needs: changes
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      needs.changes.outputs.static_apps == 'true' ||
+      needs.changes.outputs.shared_ci == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: browser-app-status-copy
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check static app status-copy contract
+        shell: bash
+        run: python scripts/check_browser_app_status_copy.py
 
   service-type-files:
     needs: changes

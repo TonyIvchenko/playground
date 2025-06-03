@@ -308,14 +308,14 @@
 
         <label>
           Text
-          <textarea id="text-input" placeholder="Loading browser models..." disabled></textarea>
+          <textarea id="text-input" placeholder="Loading browser analysis models..." disabled></textarea>
         </label>
 
         <button id="analyze-button" class="app-button" type="button" disabled>Analyze</button>
         <button id="clear-button" class="app-button secondary" type="button">Clear</button>
       </div>
 
-      <p class="status app-status is-loading" id="status-text">Loading browser models…</p>
+      <p class="status app-status is-loading" id="status-text">Loading browser analysis models…</p>
 
       <div class="workspace app-stack-md">
         <section class="score-card">
@@ -324,8 +324,8 @@
           <div class="score-value" id="score-value">--</div>
           <p class="summary" id="summary-text">Paste text to begin.</p>
           <div class="models">
-            <div class="app-help is-loading" id="toxicity-status">Toxicity model loading…</div>
-            <div class="app-help is-loading" id="sentiment-status">Sentiment model loading…</div>
+            <div class="app-help is-loading" id="toxicity-status">Loading browser toxicity model…</div>
+            <div class="app-help is-loading" id="sentiment-status">Loading browser sentiment model…</div>
           </div>
         </section>
 
@@ -650,25 +650,25 @@
     }
 
     async function loadModels() {
-      setStatus("Loading browser models…", { isLoading: true });
+      setStatus("Loading browser analysis models…", { isLoading: true });
       setFallbackPill(false);
       const unavailableModels = [];
       try {
         toxicityClassifier = await pipeline("text-classification", "Xenova/toxic-bert");
-        setModelStatus(toxicityStatus, "Toxicity model: ready");
+        setModelStatus(toxicityStatus, "Browser toxicity model ready.");
       } catch (error) {
         console.error(error);
         unavailableModels.push("the toxicity model");
-        setModelStatus(toxicityStatus, `Toxicity model: unavailable (${String(error.message || error)})`, { isError: true });
+        setModelStatus(toxicityStatus, `Couldn't load the browser toxicity model (${String(error.message || error)}).`, { isError: true });
       }
 
       try {
         sentimentClassifier = await pipeline("text-classification", "Xenova/distilbert-base-uncased-finetuned-sst-2-english");
-        setModelStatus(sentimentStatus, "Sentiment model: ready");
+        setModelStatus(sentimentStatus, "Browser sentiment model ready.");
       } catch (error) {
         console.error(error);
         unavailableModels.push("the sentiment model");
-        setModelStatus(sentimentStatus, `Sentiment model: unavailable (${String(error.message || error)})`, { isError: true });
+        setModelStatus(sentimentStatus, `Couldn't load the browser sentiment model (${String(error.message || error)}).`, { isError: true });
       }
 
       textInput.disabled = false;
@@ -679,7 +679,7 @@
         setStatus(`Couldn't load ${unavailableModels.join(" and ")}. Heuristic analysis is still available.`, { isError: true });
       } else {
         setFallbackPill(false);
-        setStatus("Models ready. Paste text and analyze.");
+        setStatus("Browser analysis models ready. Paste text and analyze.");
       }
     }
 
@@ -760,7 +760,7 @@
         summaryText.textContent = summarize(heuristicResults, modelSignals, overallScore, source);
         renderPatterns(heuristicResults.sort((a, b) => b.score - a.score));
         renderEvidence(collectEvidence(text, heuristicResults, modelSignals));
-        setStatus("Analysis complete.");
+        setStatus("Analysis ready.");
       } catch (error) {
         console.error(error);
         setStatus(`Couldn't analyze the text. ${String(error.message || error)}`, { isError: true });

@@ -73,6 +73,14 @@ For browser-model loading states, keep the download pattern consistent too:
 - prefer `Loading browser <thing> model…` for active initialization
 - prefer `Downloading browser <thing> model…` when a first-run asset download is in progress
 
+For browser-app status copy, keep the verbs and rhythm consistent too:
+
+- use `Loading …` or `Downloading …` while work is in progress
+- use `<thing> ready.` when a model, image, mix, or other artifact is ready
+- use the shared `Fallback mode active` badge for degraded-but-usable mode instead of inventing new fallback labels in the status line
+- use `Couldn't …` for failures instead of drifting back to `Failed to …`
+- prefer browser-model phrasing like `Browser text model ready.` over vague status text like `Model ready.`
+
 For browser-app fallback badges, use one shared degraded-mode pattern too:
 
 - use `app-pill` plus `is-fallback` for fallback-mode badges

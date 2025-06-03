@@ -315,7 +315,7 @@
 
         <aside class="meta-card">
           <h2>Session</h2>
-          <div class="pill app-pill is-loading" id="model-pill">Generation model loading</div>
+          <div class="pill app-pill is-loading" id="model-pill">Loading browser generation model</div>
           <div class="metrics">
             <div class="app-status is-loading" id="status-text">Loading browser generation model…</div>
             <div id="claim-status">Add both sides to begin.</div>
@@ -543,15 +543,15 @@
         return generator;
       }
       if (!generatorLoad) {
-        setModelPill("Generation model loading", { isLoading: true });
+        setModelPill("Loading browser generation model", { isLoading: true });
         setStatus("Loading browser generation model…", { isLoading: true });
         generatorLoad = pipeline("text2text-generation", GENERATION_MODEL_ID, {
           device: "wasm",
           dtype: "q4",
         }).then((instance) => {
           generator = instance;
-          setModelPill("Model ready");
-          setStatus("Model ready. Paste both sides and run the sparring session.");
+          setModelPill("Browser generation model ready");
+          setStatus("Browser generation model ready. Paste both sides and run the sparring session.");
           runButton.disabled = false;
           docA.disabled = false;
           docB.disabled = false;
@@ -560,8 +560,8 @@
           return instance;
         }).catch((error) => {
           console.error(error);
-          setModelPill("Model unavailable", { isError: true });
-          setStatus(`Couldn't load the model. ${String(error.message || error)}`, { isError: true });
+          setModelPill("Browser generation model unavailable", { isError: true });
+          setStatus(`Couldn't load the browser generation model. ${String(error.message || error)}`, { isError: true });
           throw error;
         });
       }

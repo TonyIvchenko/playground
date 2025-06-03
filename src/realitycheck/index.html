@@ -331,7 +331,7 @@
               <div class="actions">
                 <button id="analyze-image-button" class="app-button" type="button" disabled>Analyze Image</button>
               </div>
-              <div class="help app-help" id="image-status">Image model will load on the first image analysis.</div>
+              <div class="help app-help" id="image-status">Ready. The browser image model loads on the first image analysis.</div>
               <div class="app-pill is-fallback" id="image-fallback-pill" hidden>Fallback mode active</div>
             </div>
             <div class="score-card" id="image-card">
@@ -358,7 +358,7 @@
               <div class="actions">
                 <button id="analyze-video-button" class="app-button" type="button" disabled>Analyze Video</button>
               </div>
-              <div class="help app-help" id="video-status">Video analysis samples frames and runs the browser image model on them.</div>
+              <div class="help app-help" id="video-status">Ready. Video analysis samples frames and runs the browser image model on them.</div>
               <div class="app-pill is-fallback" id="video-fallback-pill" hidden>Fallback mode active</div>
               <video id="hidden-video" class="hidden-video" playsinline muted></video>
               <canvas id="hidden-canvas" class="hidden-canvas"></canvas>
@@ -379,7 +379,7 @@
               <div class="actions">
                 <button id="analyze-url-button" class="app-button" type="button">Fetch and Analyze URL</button>
               </div>
-              <div class="help app-help" id="url-status">The local server fetches page text, then runs text analysis in the browser.</div>
+              <div class="help app-help" id="url-status">Ready. The local server fetches page text, then runs text analysis in the browser.</div>
             </div>
             <div class="score-card" id="url-card">
               <div class="score-pill neutral" id="url-pill">Waiting for URL</div>
@@ -759,8 +759,8 @@
               imageModelVariant = attempt.label;
               imageModelError = null;
               setMediaFallbackPills(false);
-              setHelpMessage(imageStatus, `Image model ready (${attempt.label}).`);
-              setHelpMessage(videoStatus, `Video analysis will use the image model on sampled frames (${attempt.label}).`);
+              setHelpMessage(imageStatus, `Browser image model ready (${attempt.label}).`);
+              setHelpMessage(videoStatus, `Browser image model ready. Video analysis uses sampled frames (${attempt.label}).`);
               return classifier;
             } catch (error) {
               console.error(`Image model load failed for ${attempt.label}`, error);
@@ -771,8 +771,8 @@
           imageModelError = formatErrorMessage(lastError);
           imageModelVariant = null;
           setMediaFallbackPills(true);
-          setHelpMessage(imageStatus, `Couldn't load the image model (${imageModelError}). Falling back to heuristics.`, { isError: true });
-          setHelpMessage(videoStatus, `Couldn't load the image model (${imageModelError}). Video analysis will fall back to heuristics.`, { isError: true });
+          setHelpMessage(imageStatus, `Couldn't load the browser image model (${imageModelError}). Falling back to heuristics.`, { isError: true });
+          setHelpMessage(videoStatus, `Couldn't load the browser image model (${imageModelError}). Video analysis will fall back to heuristics.`, { isError: true });
           return null;
         })();
       }
@@ -949,7 +949,7 @@
       setPreviewContent(imagePreview, image);
       analyzeImageButton.disabled = false;
       setHelpMessage(imageStatus, "Image ready.");
-      clearCard("image", "Ready to analyze", label);
+      clearCard("image", "Image ready", label);
     }
 
     async function loadVideoSource(sourceUrl, label, { revokeExistingObjectUrl = true } = {}) {
@@ -961,7 +961,7 @@
       setPreviewContent(videoPreview, video);
       analyzeVideoButton.disabled = false;
       setHelpMessage(videoStatus, "Video ready.");
-      clearCard("video", "Ready to analyze", label);
+      clearCard("video", "Video ready", label);
     }
 
     imageInput.addEventListener("change", async () => {
@@ -1112,11 +1112,11 @@
       textInput.disabled = false;
       textInput.placeholder = "Paste text here.";
       analyzeTextButton.disabled = false;
-      setHelpMessage(textStatus, "Text model ready.");
+      setHelpMessage(textStatus, "Browser text model ready.");
     } catch (error) {
       console.error(error);
-      setHelpMessage(textStatus, "Couldn't load the text model.", { isError: true });
-      textInput.placeholder = "Couldn't load the text model.";
+      setHelpMessage(textStatus, "Couldn't load the browser text model.", { isError: true });
+      textInput.placeholder = "Couldn't load the browser text model.";
     }
   </script>
 </body>

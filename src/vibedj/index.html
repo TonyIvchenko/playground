@@ -338,7 +338,7 @@
 
         <aside class="side-card">
           <h2>Session</h2>
-          <div class="model-pill app-pill is-loading" id="model-pill">Sentiment model loading</div>
+          <div class="model-pill app-pill is-loading" id="model-pill">Loading browser sentiment model</div>
           <div class="app-pill is-fallback" id="fallback-pill" hidden>Fallback mode active</div>
           <p class="status app-status is-loading" id="status-text">Loading browser sentiment model…</p>
           <div class="vibe-pill app-font-display" id="vibe-pill">Ready to mix</div>
@@ -1285,23 +1285,23 @@
       if (!sentimentLoad) {
         fallbackMode = false;
         setFallbackPill(false);
-        setModelPill("Sentiment model loading", { isLoading: true });
+        setModelPill("Loading browser sentiment model", { isLoading: true });
         setStatus("Loading browser sentiment model…", { isLoading: true });
         sentimentLoad = pipeline("text-classification", MODEL_ID, {
           device: "wasm",
           dtype: "q4",
         }).then((classifier) => {
           sentimentClassifier = classifier;
-          setModelPill("Model ready");
-          setStatus("Model ready. Paste writing and spin the set.");
+          setModelPill("Browser sentiment model ready");
+          setStatus("Browser sentiment model ready. Paste writing and spin the set.");
           analyzeButton.disabled = false;
           return classifier;
         }).catch((error) => {
           console.error(error);
           fallbackMode = true;
-          setModelPill("Sentiment model unavailable", { isError: true });
+          setModelPill("Browser sentiment model unavailable", { isError: true });
           setFallbackPill(true);
-          setStatus(`Couldn't load the model. VibeDJ is using heuristics only: ${String(error.message || error)}`, { isError: true });
+          setStatus(`Couldn't load the browser sentiment model. VibeDJ is using heuristics only: ${String(error.message || error)}`, { isError: true });
           analyzeButton.disabled = false;
           return null;
         });

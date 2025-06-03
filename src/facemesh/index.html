@@ -166,7 +166,7 @@
           <video class="input_video" playsinline></video>
           <canvas class="output_canvas"></canvas>
         </section>
-        <div class="status app-status" id="status">Starting camera...</div>
+        <div class="status app-status is-loading" id="status">Loading camera…</div>
       </section>
       <section class="viewer reference-viewer">
         <section class="reference-stage">
@@ -178,7 +178,7 @@
           >
           <canvas id="reference-canvas"></canvas>
         </section>
-        <div class="reference-caption app-help" id="reference-status">Loading reference image...</div>
+        <div class="reference-caption app-help is-loading" id="reference-status">Loading reference image…</div>
       </section>
       <aside class="panel app-panel app-starter-surface app-starter-panel">
         <h2>Controls</h2>
@@ -304,14 +304,16 @@
     const faceOvalIndexSet = buildIndexSetFromConnections(typeof FACEMESH_FACE_OVAL !== 'undefined' ? FACEMESH_FACE_OVAL : []);
     const anchorIndexSet = new Set(anchorIndices);
 
-    function setStatus(message, isError = false) {
+    function setStatus(message, { isError = false, isLoading = false } = {}) {
       statusElement.textContent = message;
       statusElement.classList.toggle('is-error', isError);
+      statusElement.classList.toggle('is-loading', isLoading);
     }
 
-    function setReferenceStatus(message, isError = false) {
+    function setReferenceStatus(message, { isError = false, isLoading = false } = {}) {
       referenceStatusElement.textContent = message;
       referenceStatusElement.classList.toggle('is-error', isError);
+      referenceStatusElement.classList.toggle('is-loading', isLoading);
     }
 
     function resizeCanvas() {
@@ -1576,13 +1578,13 @@
     async function processReferenceImage() {
       resizeReferenceCanvas();
       drawReferenceOverlay();
-      setReferenceStatus('Detecting reference mesh...');
+      setReferenceStatus('Loading reference mesh…', { isLoading: true });
       const referenceFaceMesh = createFaceMesh(onReferenceResults, {maxNumFaces: 2});
       try {
         await referenceFaceMesh.send({image: referenceImage});
       } catch (error) {
         console.error(error);
-        setReferenceStatus("Couldn't map the reference face. Check the browser console.", true);
+        setReferenceStatus("Couldn't map the reference face. Check the browser console.", { isError: true });
       } finally {
         if (typeof referenceFaceMesh.close === 'function') {
           await referenceFaceMesh.close().catch((closeError) => {
@@ -1599,7 +1601,7 @@
     async function waitForReferenceImage() {
       if (referenceImage.complete) {
         if (referenceImage.naturalWidth === 0) {
-          setReferenceStatus("Couldn't load the reference image.", true);
+          setReferenceStatus("Couldn't load the reference image.", { isError: true });
         }
         return;
       }
@@ -1611,7 +1613,7 @@
         };
 
         const onError = () => {
-          setReferenceStatus("Couldn't load the reference image.", true);
+          setReferenceStatus("Couldn't load the reference image.", { isError: true });
           cleanup();
           resolve();
         };
@@ -1662,7 +1664,7 @@
 
         faceMesh.send({image: videoElement}).catch((error) => {
           console.error(error);
-          setStatus("Couldn't update the face mesh. Check the browser console.", true);
+          setStatus("Couldn't update the face mesh. Check the browser console.", { isError: true });
         }).finally(() => {
           isProcessing = false;
         });
@@ -1688,7 +1690,10 @@
         videoElement.muted = true;
         await videoElement.play();
         lastRenderedAt = 0;
-        setStatus(prefersReducedMotion() ? 'Camera ready. Loading face mesh in reduced-motion mode...' : 'Camera ready. Loading face mesh...');
+        setStatus(
+          prefersReducedMotion() ? 'Camera ready. Loading face mesh in reduced-motion mode…' : 'Camera ready. Loading face mesh…',
+          { isLoading: true },
+        );
         scheduleNextFrame();
 
         window.addEventListener('beforeunload', () => {
@@ -1696,7 +1701,7 @@
         });
       } catch (error) {
         console.error(error);
-        setStatus("Couldn't access the camera. Open this page on localhost and allow camera access.", true);
+        setStatus("Couldn't access the camera. Open this page on localhost and allow camera access.", { isError: true });
       }
     }
 

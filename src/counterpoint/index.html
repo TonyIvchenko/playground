@@ -361,7 +361,7 @@
         </div>
       </div>
 
-      <div class="pill app-pill is-loading" id="model-pill">Generation model loading</div>
+      <div class="pill app-pill is-loading" id="model-pill">Loading browser generation model</div>
       <div class="app-pill is-fallback" id="fallback-pill" hidden>Fallback mode active</div>
       <p id="status" class="status app-status is-loading">Loading browser generation model…</p>
     </section>
@@ -569,19 +569,19 @@
       fallbackMode = false;
       setFallbackPill(false);
       setStatus("Loading browser generation model…", { isLoading: true });
-      setModelPill("Generation model loading", { isLoading: true });
+      setModelPill("Loading browser generation model", { isLoading: true });
       try {
         ghostwriter = await pipeline("text2text-generation", "Xenova/flan-t5-small", {
           quantized: true,
           progress_callback: () => {
             setStatus("Downloading browser generation model…", { isLoading: true });
-            setModelPill("Generation model downloading", { isLoading: true });
+            setModelPill("Downloading browser generation model", { isLoading: true });
           }
         });
         modelReady = true;
         positionInput.disabled = false;
         runButton.disabled = false;
-        setModelPill("Model ready: Xenova/flan-t5-small");
+        setModelPill("Browser generation model ready");
         setStatus("Paste a position and build the counter-side.");
       } catch (error) {
         console.error(error);
@@ -590,9 +590,9 @@
         ghostwriter = null;
         positionInput.disabled = false;
         runButton.disabled = false;
-        setModelPill("Generation model unavailable", { isError: true });
+        setModelPill("Browser generation model unavailable", { isError: true });
         setFallbackPill(true);
-        setStatus("Couldn't load the browser model. Counterpoint will use heuristic templates for this run.", { isError: true });
+        setStatus("Couldn't load the browser generation model. Counterpoint is using fallback mode for this run.", { isError: true });
       }
     }
 
@@ -679,18 +679,20 @@
 
       runButton.disabled = true;
       clearButton.disabled = true;
-      setStatus("Building the strongest counter-side...");
+      setStatus("Building the counter-side…");
 
       try {
         const pack = ghostwriter
           ? await buildCounterpack(text)
           : heuristicCounterpack(text);
         renderPack(pack);
-        setStatus(ghostwriter ? "Counter-side ready." : "Counter-side ready from heuristic fallback.");
+        setStatus("Counter-side ready.");
       } catch (error) {
         console.error(error);
+        fallbackMode = true;
+        setFallbackPill(true);
         renderPack(heuristicCounterpack(text));
-        setStatus("Couldn't build the counter-side. Counterpoint fell back to heuristic output.", { isError: true });
+        setStatus("Counter-side ready.");
       } finally {
         runButton.disabled = false;
         clearButton.disabled = false;
@@ -702,12 +704,10 @@
       fileInput.value = "";
       clearOutputs();
       setStatus(
-        modelReady
+        modelReady || fallbackMode
           ? "Paste a position and build the counter-side."
-          : fallbackMode
-            ? "Paste a position. Heuristic fallback is available even if the model is not."
-            : "Loading browser generation model…",
-        fallbackMode ? {} : { isLoading: true }
+          : "Loading browser generation model…",
+        modelReady || fallbackMode ? {} : { isLoading: true }
       );
     }
 
