@@ -9,6 +9,18 @@ import os
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SHARED_DIR = REPO_ROOT / "shared"
+DEFAULT_HOST = "0.0.0.0"
+DEFAULT_PORT = 8080
+
+
+def read_static_bind_address() -> tuple[str, int]:
+    host = os.environ.get("HOST", DEFAULT_HOST)
+    port = int(os.environ.get("PORT", str(DEFAULT_PORT)))
+    return host, port
+
+
+def display_static_host(host: str) -> str:
+    return "127.0.0.1" if host in {"", "0.0.0.0"} else host
 
 
 def serve_shared_asset(handler: SimpleHTTPRequestHandler) -> bool:
@@ -55,7 +67,7 @@ def build_static_handler(root: Path) -> type[SimpleHTTPRequestHandler]:
 
 
 def serve_static_app(service_name: str, root: Path) -> None:
-    port = int(os.environ.get("PORT", "8080"))
-    server = ThreadingHTTPServer(("0.0.0.0", port), build_static_handler(root))
-    print(f"Serving {service_name} on http://127.0.0.1:{port}")
+    host, port = read_static_bind_address()
+    server = ThreadingHTTPServer((host, port), build_static_handler(root))
+    print(f"Serving {service_name} on http://{display_static_host(host)}:{port}")
     server.serve_forever()

@@ -156,7 +156,7 @@ For browser-first apps that do not need FastAPI, Gradio, or Docker on day one:
 7. Use shared error-state wording and styling too: prefer `Couldn't <action>.` copy plus shared `is-error` status or pill states.
 8. Use shared loading-state wording and styling for browser model downloads: prefer `Loading browser <thing> model…` or `Downloading browser <thing> model…` plus shared `is-loading` status or pill states.
 9. Use the shared `Fallback mode active` badge pattern when the app still works after a model failure.
-10. Use `PORT` for local run consistency.
+10. Use `HOST` and `PORT` for local run consistency.
 11. Add the service to the root README service inventory once it exists.
 12. Add tests only when the app has meaningful Python behavior or a smoke path worth automating.
 
@@ -194,6 +194,8 @@ Use:
 ```bash
 make run <service> [port]
 ```
+
+Browser-only apps also honor optional `HOST` and `PORT` env vars when you run `python main.py` directly from the service directory.
 
 ### Fastest Local Commands
 

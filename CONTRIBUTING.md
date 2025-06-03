@@ -19,7 +19,7 @@ This repo is a multi-service playground. Keep changes small, explicit, and local
 ## Environment And Config
 
 - Prefer environment variables for runtime configuration.
-- Use clear uppercase names like `PORT`, `SERVICE_NAME`, `GMAPS_API_KEY`, or `<SERVICE>_MODEL_PATH`.
+- Use clear uppercase names like `HOST`, `PORT`, `SERVICE_NAME`, `GMAPS_API_KEY`, or `<SERVICE>_MODEL_PATH`.
 - Document every new required env var in the relevant service README.
 - If a service supports Docker or CI smoke checks, keep its env var behavior compatible there too.
 
@@ -27,6 +27,7 @@ This repo is a multi-service playground. Keep changes small, explicit, and local
 
 - Use `make run <service> [port]` when possible.
 - Browser-only apps should stay easy to run locally with a simple `python main.py`.
+- Browser-only apps should honor both `HOST` and `PORT` if they expose a thin local Python launcher.
 - FastAPI or Gradio services should expose `/health` if they are intended to be smoke-tested or containerized.
 
 ## Tests

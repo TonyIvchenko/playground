@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import socket
 import subprocess
 import sys
@@ -125,3 +126,35 @@ def test_static_app_serves_shared_browser_starter(service: str) -> None:
     )
     assert f"Smoke check passed for '{service}'" in result.stdout
     assert f"http://127.0.0.1:{port}/shared/browser-starter.css" in result.stdout
+
+
+@pytest.mark.parametrize("service", ("bert", "realitycheck"))
+def test_static_app_supports_host_env_var(service: str) -> None:
+    port = pick_free_port()
+    env = os.environ.copy()
+    env["HOST"] = "127.0.0.1"
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/smoke_service.py",
+            service,
+            "--port",
+            str(port),
+            "--timeout",
+            "20",
+            "--interval",
+            "0.5",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+    assert result.returncode == 0, (
+        f"HOST smoke failed for {service}\n"
+        f"stdout:\n{result.stdout}\n"
+        f"stderr:\n{result.stderr}"
+    )
+    assert f"Smoke check passed for '{service}'" in result.stdout
+    assert f"http://127.0.0.1:{port}/" in result.stdout

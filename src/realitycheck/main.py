@@ -7,24 +7,37 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 from urllib.request import Request, urlopen
 import json
-import os
 import re
 import sys
 
 
 ROOT = Path(__file__).resolve().parent
 REPO_ROOT = ROOT.parents[1]
-PORT = int(os.environ.get("PORT", "8080"))
 USER_AGENT = "RealityCheck/1.0 (+http://127.0.0.1)"
+
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+
+def read_browser_bind_address() -> tuple[str, int]:
+    from scripts.browser_static_server import read_static_bind_address
+
+    return read_static_bind_address()
+
+
+def display_browser_host(host: str) -> str:
+    from scripts.browser_static_server import display_static_host
+
+    return display_static_host(host)
 
 
 def try_serve_shared_asset(handler: SimpleHTTPRequestHandler) -> bool:
-    if str(REPO_ROOT) not in sys.path:
-        sys.path.insert(0, str(REPO_ROOT))
-
     from scripts.browser_static_server import serve_shared_asset
 
     return serve_shared_asset(handler)
+
+
+HOST, PORT = read_browser_bind_address()
 
 
 def infer_media_content_type(url: str, declared_type: str) -> str:
@@ -212,6 +225,6 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
-    print(f"Serving realitycheck on http://127.0.0.1:{PORT}")
+    server = ThreadingHTTPServer((HOST, PORT), Handler)
+    print(f"Serving realitycheck on http://{display_browser_host(HOST)}:{PORT}")
     server.serve_forever()

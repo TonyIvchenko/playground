@@ -50,6 +50,7 @@ Use it to answer questions like:
 - Added a browser-app contrast audit plus a few darker muted and warning colors so small helper text and disabled states stay above the accessibility floor.
 - Added a shared browser starter stylesheet for repeated shell and surface scaffolding, plus a checker and smoke coverage so browser-only apps stop repeating the same top-level `main` and panel chrome CSS.
 - Standardized browser-app status copy around shared `Loading …`, `<thing> ready.`, `Fallback mode active`, and `Couldn't …` phrasing, and added a checker so the static apps stop drifting between inconsistent status verbs.
+- Added a shared `HOST` bind env var for the browser-app Python launchers, plus smoke coverage so both the shared static helper and `realitycheck` keep honoring `HOST` alongside `PORT`.
 - Added helper scripts under `scripts/` for:
   - listing services
   - checking required service files

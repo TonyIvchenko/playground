@@ -10,6 +10,8 @@ From `src/bert`:
 python main.py
 ```
 
+Optional: set `HOST` and `PORT` before running, for example `HOST=127.0.0.1 PORT=8090 python main.py`.
+
 Then open `http://127.0.0.1:8080`.
 
 ## Notes
