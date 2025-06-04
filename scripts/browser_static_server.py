@@ -7,6 +7,8 @@ import json
 import mimetypes
 import os
 
+from scripts.service_startup import print_http_service_startup
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SHARED_DIR = REPO_ROOT / "shared"
@@ -18,10 +20,6 @@ def read_static_bind_address() -> tuple[str, int]:
     host = os.environ.get("HOST", DEFAULT_HOST)
     port = int(os.environ.get("PORT", str(DEFAULT_PORT)))
     return host, port
-
-
-def display_static_host(host: str) -> str:
-    return "127.0.0.1" if host in {"", "0.0.0.0"} else host
 
 
 def serve_static_health(handler: SimpleHTTPRequestHandler, service_name: str) -> bool:
@@ -97,5 +95,5 @@ def build_static_handler(
 def serve_static_app(service_name: str, root: Path) -> None:
     host, port = read_static_bind_address()
     server = ThreadingHTTPServer((host, port), build_static_handler(root, service_name))
-    print(f"Serving {service_name} on http://{display_static_host(host)}:{port}")
+    print_http_service_startup(service_name, host, port)
     server.serve_forever()

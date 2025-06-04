@@ -1,5 +1,7 @@
+from pathlib import Path
 import logging
 import signal
+import sys
 import threading
 
 try:
@@ -10,6 +12,16 @@ except ImportError:
     from settings import load_settings
 
 logger = logging.getLogger(__name__)
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def format_worker_startup(url: str) -> str:
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+
+    from scripts.service_startup import format_service_startup
+
+    return format_service_startup("test-service", url)
 
 
 def main():
@@ -29,9 +41,8 @@ def main():
     signal.signal(signal.SIGTERM, _handle_signal)
 
     logger.info(
-        "Starting test-service host=%s port=%s key=%s sleep=%s connect_timeout=%s socket_timeout=%s backoff_initial=%s backoff_max=%s backoff_multiplier=%s",
-        settings.redis_host,
-        settings.redis_port,
+        "%s key=%s sleep=%s connect_timeout=%s socket_timeout=%s backoff_initial=%s backoff_max=%s backoff_multiplier=%s",
+        format_worker_startup(f"redis://{settings.redis_host}:{settings.redis_port}"),
         settings.redis_key,
         settings.sleep_seconds,
         settings.redis_socket_connect_timeout,

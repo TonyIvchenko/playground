@@ -83,6 +83,7 @@ This repo is a multi-service playground. Keep changes small, explicit, and local
 
 - Static browser apps should keep most app logic in the browser and keep the Python entrypoint thin.
 - Python services should keep startup code in `main.py` and move reusable logic into service modules.
+- Keep startup logs consistent too: HTTP services should use the shared `Starting <service> on http://...` format, and non-HTTP services should keep the same `Starting <service> on <url>` prefix with their own connection URL.
 - If a service has Docker support, its Dockerfile should work from the repo root as documented.
 - If a service writes generated data, logs, checkpoints, or previews, keep those paths predictable and git-ignored.
 

@@ -150,7 +150,7 @@ def run_process_only_service(name: str, timeout: float) -> None:
                     f"Log tail:\n{details or '(no log output)'}"
                 )
             time.sleep(0.25)
-            if "Starting test-service" in tail_log(log_path):
+            if "Starting test-service on redis://" in tail_log(log_path):
                 print(f"Process-only local run check passed for '{name}'.")
                 return
         raise SystemExit(

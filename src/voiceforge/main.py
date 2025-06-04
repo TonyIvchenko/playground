@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import sys
 
 from fastapi import FastAPI
 import gradio as gr
@@ -20,7 +21,18 @@ except ImportError:
 
 
 PORT = int(os.getenv("PORT", "8080"))
+HOST = "0.0.0.0"
 MODEL_DIR = Path(os.getenv("VOICEFORGE_MODEL_DIR", str(DEFAULT_MODEL_DIR)))
+
+
+def print_http_startup(service_name: str, host: str, port: int) -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+
+    from scripts.service_startup import print_http_service_startup
+
+    print_http_service_startup(service_name, host, port)
 
 
 def run_inference(reference_audio: str | None, text: str) -> tuple[str | None, str]:
@@ -97,4 +109,5 @@ app = gr.mount_gradio_app(app, demo, path="/")
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=PORT)
+    print_http_startup("VoiceForge", HOST, PORT)
+    uvicorn.run(app, host=HOST, port=PORT)

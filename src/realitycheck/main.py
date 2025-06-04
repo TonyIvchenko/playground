@@ -25,12 +25,6 @@ def read_browser_bind_address() -> tuple[str, int]:
     return read_static_bind_address()
 
 
-def display_browser_host(host: str) -> str:
-    from scripts.browser_static_server import display_static_host
-
-    return display_static_host(host)
-
-
 def try_serve_shared_asset(handler: SimpleHTTPRequestHandler) -> bool:
     from scripts.browser_static_server import serve_shared_asset
 
@@ -41,6 +35,12 @@ def try_serve_static_health(handler: SimpleHTTPRequestHandler) -> bool:
     from scripts.browser_static_server import serve_static_health
 
     return serve_static_health(handler, "realitycheck")
+
+
+def print_http_startup(service_name: str, host: str, port: int) -> None:
+    from scripts.service_startup import print_http_service_startup
+
+    print_http_service_startup(service_name, host, port)
 
 
 HOST, PORT = read_browser_bind_address()
@@ -236,5 +236,5 @@ class Handler(SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     server = ThreadingHTTPServer((HOST, PORT), Handler)
-    print(f"Serving realitycheck on http://{display_browser_host(HOST)}:{PORT}")
+    print_http_startup("realitycheck", HOST, PORT)
     server.serve_forever()

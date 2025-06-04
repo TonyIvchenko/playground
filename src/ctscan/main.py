@@ -9,6 +9,7 @@ import io
 import json
 import os
 from pathlib import Path
+import sys
 import zipfile
 from typing import Any
 
@@ -78,6 +79,18 @@ LOCAL_LEGACY_CT_ZIPS_PATH = (
 DEFAULT_SAMPLE = ""
 METRICS_TABLE_COLUMNS = ["Issue", "Lung %", "Volume ml", "Current slice %"]
 LUNG_COLOR = "#10b981"
+
+
+def print_http_startup(service_name: str, host: str, port: int) -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+
+    from scripts.service_startup import print_http_service_startup
+
+    print_http_service_startup(service_name, host, port)
+
+
 DEFAULT_OPACITY = 0.2
 VIEWER_CACHE_DIR = Path(__file__).resolve().parent / "data" / "ctscan" / "viewer_cache"
 VIEWER_HEAD = """
@@ -905,6 +918,7 @@ app = gr.mount_gradio_app(api, demo, path="/")
 
 
 def main() -> None:
+    print_http_startup(SERVICE_NAME, HOST, PORT)
     uvicorn.run(app, host=HOST, port=PORT)
 
 

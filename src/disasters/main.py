@@ -9,6 +9,7 @@ import json
 import math
 import os
 from pathlib import Path
+import sys
 
 from fastapi import FastAPI, HTTPException, Response
 import gradio as gr
@@ -52,6 +53,16 @@ HURICAINES_TILES_DIR = Path(__file__).resolve().parent / "tiles" / "huricaines"
 
 TILE_SIZE = 256
 SAMPLE_SIZE = 64
+
+
+def print_http_startup(service_name: str, host: str, port: int) -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+
+    from scripts.service_startup import print_http_service_startup
+
+    print_http_service_startup(service_name, host, port)
 
 
 wildfires_model, wildfires_mean, wildfires_std, WILDFIRES_MODEL_VERSION = (
@@ -926,6 +937,7 @@ app = gr.mount_gradio_app(api, demo, path="/")
 
 
 def main() -> None:
+    print_http_startup(SERVICE_NAME, HOST, PORT)
     uvicorn.run(app, host=HOST, port=PORT)
 
 

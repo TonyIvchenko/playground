@@ -108,9 +108,11 @@ jobs:
               - 'environment.yml'
               - 'scripts/poll_http_health.py'
               - 'scripts/run_ml_smoke_jobs.py'
+              - 'scripts/service_startup.py'
               - 'scripts/check_service_local_run.py'
             static_apps:
               - 'tests/test_static_app_smokes.py'
+              - 'tests/test_service_startup_logs.py'
               - 'scripts/check_browser_app_headers.py'
               - 'scripts/check_browser_app_empty_states.py'
               - 'scripts/check_browser_app_loading_states.py'
@@ -607,7 +609,7 @@ jobs:
       matrix:
         include:
           - name: static-apps
-            path: tests/test_static_app_smokes.py
+            path: tests
           - name: test
             path: src/test/tests
           - name: disasters

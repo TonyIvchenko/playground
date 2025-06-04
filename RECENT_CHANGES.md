@@ -52,6 +52,7 @@ Use it to answer questions like:
 - Standardized browser-app status copy around shared `Loading …`, `<thing> ready.`, `Fallback mode active`, and `Couldn't …` phrasing, and added a checker so the static apps stop drifting between inconsistent status verbs.
 - Added a shared `HOST` bind env var for the browser-app Python launchers, plus smoke coverage so both the shared static helper and `realitycheck` keep honoring `HOST` alongside `PORT`.
 - Added a shared `/health` handler for the browser-app Python launchers and switched the smoke helper to use `/health` across the HTTP services instead of treating browser apps as a separate HTML-only startup path.
+- Standardized startup log lines around one shared `Starting <service> on <url>` formatter so browser launchers, FastAPI/Gradio services, and the Redis worker all expose the same startup prefix.
 - Added helper scripts under `scripts/` for:
   - listing services
   - checking required service files
