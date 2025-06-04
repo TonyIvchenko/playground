@@ -13,7 +13,6 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 SRC_DIR = ROOT / "src"
 DEFAULT_PORT = 8080
-HEALTH_SERVICES = {"ctscan", "disasters", "voiceforge"}
 UNSUPPORTED_SERVICES = {
     "test": "The Redis-backed test service does not expose a local HTTP smoke path yet. Use the service README until item 99 lands.",
 }
@@ -66,21 +65,15 @@ def service_dir(name: str) -> Path:
 
 
 def smoke_path(name: str) -> str:
-    if name in HEALTH_SERVICES:
-        return "/health"
-    return "/"
+    return "/health"
 
 
 def expected_content_type(name: str) -> str:
-    if name in HEALTH_SERVICES:
-        return "application/json"
-    return "text/html"
+    return "application/json"
 
 
 def expected_body_fragment(name: str) -> str | None:
-    if name in HEALTH_SERVICES:
-        return None
-    return "<html"
+    return None
 
 
 def tail_log(log_path: Path, lines: int = 20) -> str:

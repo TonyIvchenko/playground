@@ -28,6 +28,7 @@ This repo is a multi-service playground. Keep changes small, explicit, and local
 - Use `make run <service> [port]` when possible.
 - Browser-only apps should stay easy to run locally with a simple `python main.py`.
 - Browser-only apps should honor both `HOST` and `PORT` if they expose a thin local Python launcher.
+- Browser-only apps should also expose a tiny `/health` route through that launcher so they participate in the same smoke flow as the web services.
 - FastAPI or Gradio services should expose `/health` if they are intended to be smoke-tested or containerized.
 
 ## Tests

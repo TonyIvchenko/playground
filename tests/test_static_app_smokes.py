@@ -43,6 +43,12 @@ def test_static_app_serves_index_html(service: str) -> None:
             "20",
             "--interval",
             "0.5",
+            "--path",
+            "/",
+            "--expect-content-type",
+            "text/html",
+            "--expect-body-fragment",
+            "<html",
         ],
         cwd=ROOT,
         capture_output=True,
@@ -56,6 +62,35 @@ def test_static_app_serves_index_html(service: str) -> None:
     )
     assert f"Smoke check passed for '{service}'" in result.stdout
     assert f"http://127.0.0.1:{port}/" in result.stdout
+
+
+@pytest.mark.parametrize("service", STATIC_SERVICES)
+def test_static_app_serves_health(service: str) -> None:
+    port = pick_free_port()
+    result = subprocess.run(
+        [
+            sys.executable,
+            "scripts/smoke_service.py",
+            service,
+            "--port",
+            str(port),
+            "--timeout",
+            "20",
+            "--interval",
+            "0.5",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, (
+        f"Static health smoke failed for {service}\n"
+        f"stdout:\n{result.stdout}\n"
+        f"stderr:\n{result.stderr}"
+    )
+    assert f"Smoke check passed for '{service}'" in result.stdout
+    assert f"http://127.0.0.1:{port}/health" in result.stdout
 
 
 @pytest.mark.parametrize("service", STATIC_SERVICES)

@@ -37,6 +37,12 @@ def try_serve_shared_asset(handler: SimpleHTTPRequestHandler) -> bool:
     return serve_shared_asset(handler)
 
 
+def try_serve_static_health(handler: SimpleHTTPRequestHandler) -> bool:
+    from scripts.browser_static_server import serve_static_health
+
+    return serve_static_health(handler, "realitycheck")
+
+
 HOST, PORT = read_browser_bind_address()
 
 
@@ -95,6 +101,8 @@ class Handler(SimpleHTTPRequestHandler):
         super().__init__(*args, directory=str(ROOT), **kwargs)
 
     def do_GET(self) -> None:
+        if try_serve_static_health(self):
+            return
         if try_serve_shared_asset(self):
             return
         parsed = urlparse(self.path)
@@ -107,6 +115,8 @@ class Handler(SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_HEAD(self) -> None:
+        if try_serve_static_health(self):
+            return
         if try_serve_shared_asset(self):
             return
         super().do_HEAD()

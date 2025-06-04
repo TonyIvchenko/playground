@@ -54,18 +54,18 @@ To verify each service README's `Local Run` command still starts that service, r
 
 | Service | Type | Run Command | Tests | Docker | Health Endpoint |
 | --- | --- | --- | --- | --- | --- |
-| `bert` | Static browser app | `make run bert 8080` | — | — | — |
-| `counterpoint` | Static browser app | `make run counterpoint 8080` | — | — | — |
+| `bert` | Static browser app | `make run bert 8080` | — | — | `/health` |
+| `counterpoint` | Static browser app | `make run counterpoint 8080` | — | — | `/health` |
 | `ctscan` | FastAPI + Gradio + ML service | `make run ctscan 8080` | `src/ctscan/tests` | `src/ctscan/Dockerfile` | `/health` |
-| `debate` | Static browser app | `make run debate 8080` | — | — | — |
+| `debate` | Static browser app | `make run debate 8080` | — | — | `/health` |
 | `disasters` | FastAPI + Gradio + ML service | `make run disasters 8080` | `src/disasters/tests` | `src/disasters/Dockerfile` | `/health` |
-| `facemesh` | Static browser app | `make run facemesh 8080` | — | — | — |
-| `manipulation` | Static browser app | `make run manipulation 8080` | — | — | — |
-| `memorypalace` | Static browser app | `make run memorypalace 8080` | — | — | — |
-| `realitycheck` | Static browser app + local proxy endpoint | `make run realitycheck 8080` | — | — | — |
-| `realitymix` | Static browser app | `make run realitymix 8080` | — | — | — |
+| `facemesh` | Static browser app | `make run facemesh 8080` | — | — | `/health` |
+| `manipulation` | Static browser app | `make run manipulation 8080` | — | — | `/health` |
+| `memorypalace` | Static browser app | `make run memorypalace 8080` | — | — | `/health` |
+| `realitycheck` | Static browser app + local proxy endpoint | `make run realitycheck 8080` | — | — | `/health` |
+| `realitymix` | Static browser app | `make run realitymix 8080` | — | — | `/health` |
 | `test` | Redis worker service | `make run test` | `src/test/tests` | `src/test/Dockerfile` | — |
-| `vibedj` | Static browser app | `make run vibedj 8080` | — | — | — |
+| `vibedj` | Static browser app | `make run vibedj 8080` | — | — | `/health` |
 | `voiceforge` | FastAPI + Gradio + TTS service | `make run voiceforge 8080` | `src/voiceforge/tests` | `src/voiceforge/Dockerfile` | `/health` |
 
 ### Repo Map
@@ -203,18 +203,18 @@ Use this when you just want the shortest practical command to get a service up l
 
 | Service | Fastest Local Command | Notes |
 | --- | --- | --- |
-| `bert` | `make run bert 8080` | Static browser app. |
-| `counterpoint` | `make run counterpoint 8080` | Static browser app. |
+| `bert` | `make run bert 8080` | Static browser app; `/health` is available. |
+| `counterpoint` | `make run counterpoint 8080` | Static browser app; `/health` is available. |
 | `ctscan` | `make run ctscan 8080` | FastAPI + Gradio app; `/health` is available. |
-| `debate` | `make run debate 8080` | Static browser app. |
+| `debate` | `make run debate 8080` | Static browser app; `/health` is available. |
 | `disasters` | `make run disasters 8080` | FastAPI + Gradio app; set `GMAPS_API_KEY` first. |
-| `facemesh` | `make run facemesh 8080` | Static browser app. |
-| `manipulation` | `make run manipulation 8080` | Static browser app. |
-| `memorypalace` | `make run memorypalace 8080` | Static browser app. |
-| `realitycheck` | `make run realitycheck 8080` | Static browser app with local proxy endpoints. |
-| `realitymix` | `make run realitymix 8080` | Static browser app. |
+| `facemesh` | `make run facemesh 8080` | Static browser app; `/health` is available. |
+| `manipulation` | `make run manipulation 8080` | Static browser app; `/health` is available. |
+| `memorypalace` | `make run memorypalace 8080` | Static browser app; `/health` is available. |
+| `realitycheck` | `make run realitycheck 8080` | Static browser app with local proxy endpoints; `/health` is available. |
+| `realitymix` | `make run realitymix 8080` | Static browser app; `/health` is available. |
 | `test` | `make run test` | Redis-backed worker; set `REDIS_*` vars first. |
-| `vibedj` | `make run vibedj 8080` | Static browser app. |
+| `vibedj` | `make run vibedj 8080` | Static browser app; `/health` is available. |
 | `voiceforge` | `make run voiceforge 8080` | FastAPI + Gradio app; local model files may be needed. |
 
 For a quick local smoke check that starts a service, probes one endpoint, and shuts it back down, use:
@@ -234,7 +234,7 @@ make smoke voiceforge 8091
 ```
 
 If you omit the port for `disasters` or `ctscan`, `PORT` defaults to `8080`. The `test` service only needs `make run test`.
-`make smoke` currently supports the browser apps plus the web services with `/health`. The `test` service is still checked through the dedicated README-local-run path instead of the HTTP smoke helper because it is a Redis-backed worker, not a web app.
+`make smoke` now uses `/health` across the browser apps and the web services. The `test` service is still checked through the dedicated README-local-run path instead of the HTTP smoke helper because it is a Redis-backed worker, not a web app.
 Browser apps now also serve the shared token stylesheet at `/shared/browser-tokens.css`, so base browser UI tokens can stay aligned across the repo.
 
 Set service-specific environment variables as needed:
