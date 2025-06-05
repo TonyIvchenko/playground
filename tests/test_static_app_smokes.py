@@ -193,3 +193,11 @@ def test_static_app_supports_host_env_var(service: str) -> None:
     )
     assert f"Smoke check passed for '{service}'" in result.stdout
     assert f"http://127.0.0.1:{port}/" in result.stdout
+
+
+def test_bert_page_includes_example_samples() -> None:
+    text = (ROOT / "src" / "bert" / "index.html").read_text(encoding="utf-8")
+
+    assert "Load toxic sample" in text
+    assert "Load non-toxic sample" in text
+    assert "Try an example:" in text

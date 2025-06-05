@@ -73,6 +73,38 @@
       color: #5c6c7d;
     }
 
+    .sample-strip {
+      margin-top: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .sample-label {
+      color: #5c6c7d;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .sample-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .sample-button[data-sample-tone="toxic"] {
+      border-color: rgba(185, 28, 28, 0.22);
+      background: rgba(254, 226, 226, 0.9);
+      color: #991b1b;
+    }
+
+    .sample-button[data-sample-tone="calm"] {
+      border-color: rgba(22, 101, 52, 0.22);
+      background: rgba(220, 252, 231, 0.9);
+      color: #166534;
+    }
+
     .result {
       display: none;
       margin-top: 16px;
@@ -123,6 +155,13 @@
 
     <section class="panel app-starter-surface app-starter-panel">
       <textarea id="text-input" placeholder="Loading browser text model..." disabled></textarea>
+      <div class="sample-strip" aria-label="Example inputs">
+        <span class="sample-label">Try an example:</span>
+        <div class="sample-actions">
+          <button class="app-button sample-button" data-sample-tone="toxic" data-sample-text="You're useless, nobody wants you here, and everything you touch gets worse." disabled>Load toxic sample</button>
+          <button class="app-button sample-button" data-sample-tone="calm" data-sample-text="Thanks for helping with the report today. Your notes made the project clearer and easier to finish." disabled>Load non-toxic sample</button>
+        </div>
+      </div>
       <div class="status app-status is-loading" id="status">Loading browser text model…</div>
       <div class="result" id="result"></div>
     </section>
@@ -177,6 +216,7 @@
     const input = document.getElementById("text-input");
     const status = document.getElementById("status");
     const result = document.getElementById("result");
+    const sampleButtons = Array.from(document.querySelectorAll("[data-sample-text]"));
 
     let classifier = null;
     let requestId = 0;
@@ -242,12 +282,21 @@
       }, 200);
     }
 
+    function loadSample(text) {
+      input.value = text;
+      input.focus();
+      queueAnalysis();
+    }
+
     try {
       classifier = await pipeline(
         "text-classification",
         "Xenova/toxic-bert",
       );
       input.disabled = false;
+      sampleButtons.forEach((button) => {
+        button.disabled = false;
+      });
       input.placeholder = "Enter text here...";
       setStatus("Browser text model ready.");
     } catch (error) {
@@ -257,6 +306,11 @@
     }
 
     input.addEventListener("input", queueAnalysis);
+    sampleButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        loadSample(button.dataset.sampleText || "");
+      });
+    });
   </script>
 </body>
 </html>

@@ -17,5 +17,6 @@ Then open `http://127.0.0.1:8080`.
 ## Notes
 
 - The page loads the model directly in the browser.
+- It includes built-in toxic and non-toxic sample buttons for quick sanity checks.
 - The first run downloads model assets, so internet access is required.
 - It uses `Xenova/toxic-bert`, which ships ONNX weights compatible with `@xenova/transformers`.
