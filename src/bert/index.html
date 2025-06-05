@@ -105,6 +105,17 @@
       color: #166534;
     }
 
+    .truncation-warning {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border: 1px solid rgba(154, 74, 8, 0.2);
+      border-radius: 14px;
+      background: rgba(254, 243, 199, 0.94);
+      color: #9a4a08;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
     .result {
       display: none;
       margin-top: 16px;
@@ -162,6 +173,7 @@
           <button class="app-button sample-button" data-sample-tone="calm" data-sample-text="Thanks for helping with the report today. Your notes made the project clearer and easier to finish." disabled>Load non-toxic sample</button>
         </div>
       </div>
+      <div class="truncation-warning" id="truncation-warning" hidden></div>
       <div class="status app-status is-loading" id="status">Loading browser text model…</div>
       <div class="result" id="result"></div>
     </section>
@@ -216,16 +228,118 @@
     const input = document.getElementById("text-input");
     const status = document.getElementById("status");
     const result = document.getElementById("result");
+    const truncationWarning = document.getElementById("truncation-warning");
     const sampleButtons = Array.from(document.querySelectorAll("[data-sample-text]"));
 
     let classifier = null;
     let requestId = 0;
     let debounceTimer = null;
+    let tokenizerLimit = null;
 
     function setStatus(message, { isError = false, isLoading = false } = {}) {
       status.textContent = message;
       status.classList.toggle("is-error", isError);
       status.classList.toggle("is-loading", isLoading);
+    }
+
+    function setTruncationWarning(message = "") {
+      truncationWarning.hidden = !message;
+      truncationWarning.textContent = message;
+    }
+
+    function normalizeTokenizerLimit(value) {
+      if (typeof value !== "number" || !Number.isFinite(value)) {
+        return null;
+      }
+      if (value <= 0 || value > 100000) {
+        return null;
+      }
+      return Math.floor(value);
+    }
+
+    function resolveTokenizerLimit() {
+      if (tokenizerLimit) {
+        return tokenizerLimit;
+      }
+
+      const candidates = [
+        classifier?.tokenizer?.model_max_length,
+        classifier?.tokenizer?.max_length,
+        classifier?.model?.config?.max_position_embeddings,
+        classifier?.model?.config?.max_length,
+      ];
+
+      for (const candidate of candidates) {
+        const normalized = normalizeTokenizerLimit(candidate);
+        if (normalized) {
+          tokenizerLimit = normalized;
+          return tokenizerLimit;
+        }
+      }
+
+      return null;
+    }
+
+    function countInputTokens(encoded) {
+      const inputIds = encoded?.input_ids;
+
+      if (Array.isArray(inputIds)) {
+        if (Array.isArray(inputIds[0])) {
+          return inputIds[0].length;
+        }
+        return inputIds.length;
+      }
+
+      if (Array.isArray(inputIds?.dims) && inputIds.dims.length > 0) {
+        const lastDim = inputIds.dims[inputIds.dims.length - 1];
+        return Number.isFinite(lastDim) ? lastDim : null;
+      }
+
+      if (Number.isFinite(inputIds?.size)) {
+        return inputIds.size;
+      }
+
+      if (Number.isFinite(inputIds?.data?.length)) {
+        return inputIds.data.length;
+      }
+
+      return null;
+    }
+
+    async function updateTruncationWarning(text, currentRequestId) {
+      if (!classifier || !text) {
+        setTruncationWarning();
+        return;
+      }
+
+      const tokenLimit = resolveTokenizerLimit();
+      if (!tokenLimit) {
+        setTruncationWarning();
+        return;
+      }
+
+      try {
+        const encoded = await Promise.resolve(
+          classifier.tokenizer(text, { truncation: false, padding: false })
+        );
+        if (currentRequestId !== requestId) {
+          return;
+        }
+
+        const tokenCount = countInputTokens(encoded);
+        if (tokenCount && tokenCount > tokenLimit) {
+          setTruncationWarning(
+            `Tokenizer truncation warning: only the first ${tokenLimit} tokens will be scored for this input.`
+          );
+          return;
+        }
+      } catch (error) {
+        console.warn("Couldn't inspect tokenizer length.", error);
+      }
+
+      if (currentRequestId === requestId) {
+        setTruncationWarning();
+      }
     }
 
     function renderResult(predictions) {
@@ -269,10 +383,12 @@
 
       if (!text) {
         result.style.display = "none";
+        setTruncationWarning();
         setStatus("Paste text to begin.");
         return;
       }
 
+      updateTruncationWarning(text, currentRequestId);
       setStatus("Analyzing…");
       debounceTimer = setTimeout(() => {
         analyzeText(text, currentRequestId).catch((error) => {

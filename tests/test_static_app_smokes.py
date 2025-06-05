@@ -201,3 +201,10 @@ def test_bert_page_includes_example_samples() -> None:
     assert "Load toxic sample" in text
     assert "Load non-toxic sample" in text
     assert "Try an example:" in text
+
+
+def test_bert_page_includes_truncation_warning() -> None:
+    text = (ROOT / "src" / "bert" / "index.html").read_text(encoding="utf-8")
+
+    assert 'id="truncation-warning"' in text
+    assert "Tokenizer truncation warning:" in text
