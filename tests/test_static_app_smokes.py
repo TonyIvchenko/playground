@@ -208,3 +208,10 @@ def test_bert_page_includes_truncation_warning() -> None:
 
     assert 'id="truncation-warning"' in text
     assert "Tokenizer truncation warning:" in text
+
+
+def test_bert_page_includes_score_interpretation_note() -> None:
+    text = (ROOT / "src" / "bert" / "index.html").read_text(encoding="utf-8")
+
+    assert 'id="score-note"' in text
+    assert "Interpretation: the percentage is the model's confidence" in text

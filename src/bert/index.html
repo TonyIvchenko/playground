@@ -149,6 +149,18 @@
       opacity: 0.88;
       font-size: 14px;
     }
+
+    .score-note {
+      display: none;
+      margin-top: 12px;
+      padding: 12px 14px;
+      border: 1px solid rgba(29, 78, 216, 0.12);
+      border-radius: 14px;
+      background: rgba(219, 234, 254, 0.72);
+      color: #1e3a8a;
+      font-size: 14px;
+      line-height: 1.5;
+    }
   </style>
 </head>
 <body>
@@ -176,6 +188,7 @@
       <div class="truncation-warning" id="truncation-warning" hidden></div>
       <div class="status app-status is-loading" id="status">Loading browser text model…</div>
       <div class="result" id="result"></div>
+      <p class="score-note" id="score-note">Interpretation: the percentage is the model's confidence in the strongest label for the full passage, not a share of toxic words or a moderation ruling.</p>
     </section>
 
     <details class="app-help-drawer app-panel">
@@ -228,6 +241,7 @@
     const input = document.getElementById("text-input");
     const status = document.getElementById("status");
     const result = document.getElementById("result");
+    const scoreNote = document.getElementById("score-note");
     const truncationWarning = document.getElementById("truncation-warning");
     const sampleButtons = Array.from(document.querySelectorAll("[data-sample-text]"));
 
@@ -358,6 +372,7 @@
         ? `<span class="label">Toxic</span> strongest signal: ${top.label.replaceAll("_", " ")} (${topScorePercent}%)<div class="details">${detailText}</div>`
         : `<span class="label">Not toxic</span> strongest signal stayed low: ${top.label.replaceAll("_", " ")} (${topScorePercent}%)<div class="details">${detailText}</div>`;
       result.style.display = "block";
+      scoreNote.style.display = "block";
     }
 
     async function analyzeText(text, currentRequestId) {
@@ -383,6 +398,7 @@
 
       if (!text) {
         result.style.display = "none";
+        scoreNote.style.display = "none";
         setTruncationWarning();
         setStatus("Paste text to begin.");
         return;
