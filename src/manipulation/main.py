@@ -1,3 +1,5 @@
+"""Serve the Manipulation browser app through the shared static launcher."""
+
 from pathlib import Path
 import sys
 
@@ -7,6 +9,7 @@ REPO_ROOT = ROOT.parents[1]
 
 
 def main() -> None:
+    """Start the local static server for the Manipulation app."""
     if str(REPO_ROOT) not in sys.path:
         sys.path.insert(0, str(REPO_ROOT))
 
