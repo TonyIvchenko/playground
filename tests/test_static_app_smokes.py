@@ -215,3 +215,11 @@ def test_bert_page_includes_score_interpretation_note() -> None:
 
     assert 'id="score-note"' in text
     assert "Interpretation: the percentage is the model's confidence" in text
+
+
+def test_counterpoint_page_includes_word_count_guidance() -> None:
+    text = (ROOT / "src" / "counterpoint" / "index.html").read_text(encoding="utf-8")
+
+    assert 'id="word-count"' in text
+    assert 'id="soft-limit-note"' in text
+    assert "Soft limit: around 140 words keeps the counter-side sharper." in text

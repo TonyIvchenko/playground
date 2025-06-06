@@ -176,6 +176,38 @@
       align-items: center;
     }
 
+    .input-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(232, 238, 247, 0.62);
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .word-count {
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .word-count.is-over {
+      color: var(--danger);
+    }
+
+    .soft-limit-note {
+      max-width: 42ch;
+    }
+
+    .soft-limit-note.is-over {
+      color: var(--danger);
+    }
+
     .upload-row input[type="file"] {
       max-width: 100%;
       font: inherit;
@@ -300,6 +332,10 @@
             <input id="file-input" type="file" accept=".txt,.md,.csv,.json,.html,.htm">
           </div>
           <textarea id="position-input" placeholder="Loading browser generation model..." disabled></textarea>
+          <div class="input-meta" aria-label="Prompt guidance">
+            <div class="word-count" id="word-count">0 words</div>
+            <div class="soft-limit-note" id="soft-limit-note">Soft limit: around 140 words keeps the counter-side sharper. Longer prompts still run, but the strongest claims can get flattened.</div>
+          </div>
         </section>
 
         <div class="output-grid app-stack-md">
@@ -430,6 +466,8 @@
     const modelPill = document.getElementById("model-pill");
     const fallbackPill = document.getElementById("fallback-pill");
     const statusEl = document.getElementById("status");
+    const wordCountEl = document.getElementById("word-count");
+    const softLimitNoteEl = document.getElementById("soft-limit-note");
     const counterThesisEl = document.getElementById("counter-thesis");
     const openingAttackEl = document.getElementById("opening-attack");
     const attackLinesEl = document.getElementById("attack-lines");
@@ -441,6 +479,7 @@
     let ghostwriter = null;
     let modelReady = false;
     let fallbackMode = false;
+    const SOFT_WORD_LIMIT = 140;
 
     function setStatus(message, { isError = false, isLoading = false } = {}) {
       statusEl.textContent = message;
@@ -460,6 +499,21 @@
 
     function normalizeWhitespace(text) {
       return text.replace(/\s+/g, " ").trim();
+    }
+
+    function countWords(text) {
+      return (text.match(/[a-z0-9']+/gi) || []).length;
+    }
+
+    function updateWordGuidance(text) {
+      const wordCount = countWords(text);
+      const overLimit = wordCount > SOFT_WORD_LIMIT;
+      wordCountEl.textContent = `${wordCount} ${wordCount === 1 ? "word" : "words"}`;
+      wordCountEl.classList.toggle("is-over", overLimit);
+      softLimitNoteEl.textContent = overLimit
+        ? `Soft limit: around ${SOFT_WORD_LIMIT} words keeps the counter-side sharper. This draft will still run, but the strongest claims may get compressed.`
+        : `Soft limit: around ${SOFT_WORD_LIMIT} words keeps the counter-side sharper. Longer prompts still run, but the strongest claims can get flattened.`;
+      softLimitNoteEl.classList.toggle("is-over", overLimit);
     }
 
     function splitSentences(text) {
@@ -703,6 +757,7 @@
       positionInput.value = "";
       fileInput.value = "";
       clearOutputs();
+      updateWordGuidance("");
       setStatus(
         modelReady || fallbackMode
           ? "Paste a position and build the counter-side."
@@ -717,6 +772,7 @@
         return;
       }
       positionInput.value = await file.text();
+      updateWordGuidance(positionInput.value);
       setStatus(`Loaded ${file.name}.`);
     });
 
@@ -724,6 +780,7 @@
       button.addEventListener("click", () => {
         const key = button.dataset.sample;
         positionInput.value = SAMPLE_TEXT[key] || "";
+        updateWordGuidance(positionInput.value);
         clearOutputs();
         setStatus("Sample loaded. Build the counter-side when ready.");
       });
@@ -731,8 +788,12 @@
 
     runButton.addEventListener("click", runGhostwriter);
     clearButton.addEventListener("click", clearAll);
+    positionInput.addEventListener("input", () => {
+      updateWordGuidance(positionInput.value);
+    });
 
     positionInput.value = SAMPLE_TEXT.remote;
+    updateWordGuidance(positionInput.value);
     ensureModel();
   </script>
 </body>
