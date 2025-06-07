@@ -230,3 +230,11 @@ def test_counterpoint_page_includes_copy_notes_button() -> None:
 
     assert 'id="copy-button"' in text
     assert "Copy Notes" in text
+
+
+def test_counterpoint_page_includes_output_mode_toggle() -> None:
+    text = (ROOT / "src" / "counterpoint" / "index.html").read_text(encoding="utf-8")
+
+    assert 'id="output-mode-select"' in text
+    assert "Strongest steelman only" in text
+    assert "Full prep breakdown" in text

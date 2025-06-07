@@ -70,8 +70,12 @@
     .controls {
       display: grid;
       gap: 12px;
-      grid-template-columns: repeat(6, minmax(0, 1fr));
+      grid-template-columns: repeat(7, minmax(0, 1fr));
       align-items: end;
+    }
+
+    .mode-note {
+      margin-top: 12px;
     }
 
     .workspace {
@@ -315,10 +319,19 @@
           </select>
         </label>
 
+        <label>
+          Output Mode
+          <select id="output-mode-select">
+            <option value="full" selected>Full prep breakdown</option>
+            <option value="steelman">Strongest steelman only</option>
+          </select>
+        </label>
+
         <button id="run-button" class="app-button" type="button" disabled>Build Counter-Side</button>
         <button id="copy-button" class="app-button secondary" type="button" disabled>Copy Notes</button>
         <button id="clear-button" class="app-button secondary" type="button">Clear</button>
       </div>
+      <p id="output-mode-note" class="hint mode-note">Full prep breakdown: include attack lines, trap questions, weak spots, do-not-say notes, and prep notes.</p>
 
       <div class="workspace app-stack-md">
         <section class="input-card">
@@ -356,7 +369,7 @@
             <div id="opening-attack" class="summary-box body-copy">Build the counter-side to begin.</div>
           </section>
 
-          <section class="card">
+          <section class="card" data-detail-card>
             <div>
               <h2>Likely Attack Lines</h2>
               <p class="hint">The points they will keep hammering.</p>
@@ -364,7 +377,7 @@
             <div id="attack-lines" class="list"></div>
           </section>
 
-          <section class="card">
+          <section class="card" data-detail-card>
             <div>
               <h2>Trap Questions</h2>
               <p class="hint">Questions that force you into weak or awkward answers.</p>
@@ -372,7 +385,7 @@
             <div id="trap-questions" class="list"></div>
           </section>
 
-          <section class="card">
+          <section class="card" data-detail-card>
             <div>
               <h2>Weak Spots In Your Position</h2>
               <p class="hint">Assumptions, gaps, and contradictions they will exploit.</p>
@@ -380,7 +393,7 @@
             <div id="weak-spots" class="list"></div>
           </section>
 
-          <section class="card">
+          <section class="card" data-detail-card>
             <div>
               <h2>Do Not Say</h2>
               <p class="hint">Phrases that invite an easy contradiction or make you look sloppy.</p>
@@ -388,7 +401,7 @@
             <div id="dont-say" class="list"></div>
           </section>
 
-          <section class="card" style="grid-column: 1 / -1;">
+          <section class="card" style="grid-column: 1 / -1;" data-detail-card>
             <div>
               <h2>Prep Notes</h2>
               <p class="hint">What to tighten before the real conversation starts.</p>
@@ -460,6 +473,7 @@
     const arenaSelect = document.getElementById("arena-select");
     const styleSelect = document.getElementById("style-select");
     const pressureSelect = document.getElementById("pressure-select");
+    const outputModeSelect = document.getElementById("output-mode-select");
     const runButton = document.getElementById("run-button");
     const copyButton = document.getElementById("copy-button");
     const clearButton = document.getElementById("clear-button");
@@ -470,6 +484,7 @@
     const statusEl = document.getElementById("status");
     const wordCountEl = document.getElementById("word-count");
     const softLimitNoteEl = document.getElementById("soft-limit-note");
+    const outputModeNoteEl = document.getElementById("output-mode-note");
     const counterThesisEl = document.getElementById("counter-thesis");
     const openingAttackEl = document.getElementById("opening-attack");
     const attackLinesEl = document.getElementById("attack-lines");
@@ -477,6 +492,7 @@
     const weakSpotsEl = document.getElementById("weak-spots");
     const dontSayEl = document.getElementById("dont-say");
     const prepNotesEl = document.getElementById("prep-notes");
+    const detailCards = [...document.querySelectorAll("[data-detail-card]")];
 
     let ghostwriter = null;
     let modelReady = false;
@@ -596,12 +612,28 @@
       return select.options[select.selectedIndex]?.textContent?.trim() || "";
     }
 
+    function selectedOutputMode() {
+      return outputModeSelect.value;
+    }
+
+    function applyOutputMode(mode = selectedOutputMode()) {
+      const steelmanOnly = mode === "steelman";
+      for (const card of detailCards) {
+        card.hidden = steelmanOnly;
+      }
+      outputModeNoteEl.textContent = steelmanOnly
+        ? "Strongest steelman only: show just the core opposition thesis and opening attack."
+        : "Full prep breakdown: include attack lines, trap questions, weak spots, do-not-say notes, and prep notes.";
+    }
+
     function buildExportText(pack) {
+      const steelmanOnly = selectedOutputMode() === "steelman";
       const sections = [
         "Counterpoint Notes",
         `Arena: ${pack.arenaLabel || selectedLabel(arenaSelect)}`,
         `Opponent style: ${pack.styleLabel || selectedLabel(styleSelect)}`,
         `Pressure level: ${pack.pressureLabel || selectedLabel(pressureSelect)}`,
+        `Output mode: ${steelmanOnly ? "Strongest steelman only" : "Full prep breakdown"}`,
         "",
         "Your Position",
         pack.sourceText || "",
@@ -611,22 +643,26 @@
         "",
         "Opening Attack",
         pack.opening || "",
-        "",
-        "Likely Attack Lines",
-        ...(pack.attackLines || []).map((item) => `- ${item}`),
-        "",
-        "Trap Questions",
-        ...(pack.traps || []).map((item) => `- ${item}`),
-        "",
-        "Weak Spots In Your Position",
-        ...(pack.weakSpots || []).map((item) => `- ${item}`),
-        "",
-        "Do Not Say",
-        ...(pack.dontSay || []).map((item) => `- ${item}`),
-        "",
-        "Prep Notes",
-        ...(pack.prep || []).map((item) => `- ${item}`)
       ];
+      if (!steelmanOnly) {
+        sections.push(
+          "",
+          "Likely Attack Lines",
+          ...(pack.attackLines || []).map((item) => `- ${item}`),
+          "",
+          "Trap Questions",
+          ...(pack.traps || []).map((item) => `- ${item}`),
+          "",
+          "Weak Spots In Your Position",
+          ...(pack.weakSpots || []).map((item) => `- ${item}`),
+          "",
+          "Do Not Say",
+          ...(pack.dontSay || []).map((item) => `- ${item}`),
+          "",
+          "Prep Notes",
+          ...(pack.prep || []).map((item) => `- ${item}`)
+        );
+      }
       return sections.join("\n").trim();
     }
 
@@ -773,6 +809,7 @@
 
     function renderPack(pack) {
       lastPack = pack;
+      applyOutputMode();
       counterThesisEl.textContent = pack.thesis || "No counter-thesis generated.";
       openingAttackEl.textContent = pack.opening || "No opening attack generated.";
       renderList(attackLinesEl, pack.attackLines, "danger");
@@ -785,6 +822,7 @@
 
     function clearOutputs() {
       lastPack = null;
+      applyOutputMode();
       counterThesisEl.textContent = "Build the counter-side to begin.";
       openingAttackEl.textContent = "Build the counter-side to begin.";
       for (const target of [attackLinesEl, trapQuestionsEl, weakSpotsEl, dontSayEl, prepNotesEl]) {
@@ -892,12 +930,16 @@
       }
     });
     clearButton.addEventListener("click", clearAll);
+    outputModeSelect.addEventListener("change", () => {
+      applyOutputMode();
+    });
     positionInput.addEventListener("input", () => {
       updateWordGuidance(positionInput.value);
     });
 
     positionInput.value = SAMPLE_TEXT.remote;
     updateWordGuidance(positionInput.value);
+    applyOutputMode();
     ensureModel();
   </script>
 </body>
