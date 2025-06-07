@@ -223,3 +223,10 @@ def test_counterpoint_page_includes_word_count_guidance() -> None:
     assert 'id="word-count"' in text
     assert 'id="soft-limit-note"' in text
     assert "Soft limit: around 140 words keeps the counter-side sharper." in text
+
+
+def test_counterpoint_page_includes_copy_notes_button() -> None:
+    text = (ROOT / "src" / "counterpoint" / "index.html").read_text(encoding="utf-8")
+
+    assert 'id="copy-button"' in text
+    assert "Copy Notes" in text

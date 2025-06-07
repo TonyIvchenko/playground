@@ -70,7 +70,7 @@
     .controls {
       display: grid;
       gap: 12px;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(6, minmax(0, 1fr));
       align-items: end;
     }
 
@@ -316,6 +316,7 @@
         </label>
 
         <button id="run-button" class="app-button" type="button" disabled>Build Counter-Side</button>
+        <button id="copy-button" class="app-button secondary" type="button" disabled>Copy Notes</button>
         <button id="clear-button" class="app-button secondary" type="button">Clear</button>
       </div>
 
@@ -460,6 +461,7 @@
     const styleSelect = document.getElementById("style-select");
     const pressureSelect = document.getElementById("pressure-select");
     const runButton = document.getElementById("run-button");
+    const copyButton = document.getElementById("copy-button");
     const clearButton = document.getElementById("clear-button");
     const fileInput = document.getElementById("file-input");
     const positionInput = document.getElementById("position-input");
@@ -479,6 +481,7 @@
     let ghostwriter = null;
     let modelReady = false;
     let fallbackMode = false;
+    let lastPack = null;
     const SOFT_WORD_LIMIT = 140;
 
     function setStatus(message, { isError = false, isLoading = false } = {}) {
@@ -586,6 +589,68 @@
         body.textContent = rest.join(":").trim() || item.trim();
         div.append(strong, body);
         target.appendChild(div);
+      }
+    }
+
+    function selectedLabel(select) {
+      return select.options[select.selectedIndex]?.textContent?.trim() || "";
+    }
+
+    function buildExportText(pack) {
+      const sections = [
+        "Counterpoint Notes",
+        `Arena: ${pack.arenaLabel || selectedLabel(arenaSelect)}`,
+        `Opponent style: ${pack.styleLabel || selectedLabel(styleSelect)}`,
+        `Pressure level: ${pack.pressureLabel || selectedLabel(pressureSelect)}`,
+        "",
+        "Your Position",
+        pack.sourceText || "",
+        "",
+        "Counter Thesis",
+        pack.thesis || "",
+        "",
+        "Opening Attack",
+        pack.opening || "",
+        "",
+        "Likely Attack Lines",
+        ...(pack.attackLines || []).map((item) => `- ${item}`),
+        "",
+        "Trap Questions",
+        ...(pack.traps || []).map((item) => `- ${item}`),
+        "",
+        "Weak Spots In Your Position",
+        ...(pack.weakSpots || []).map((item) => `- ${item}`),
+        "",
+        "Do Not Say",
+        ...(pack.dontSay || []).map((item) => `- ${item}`),
+        "",
+        "Prep Notes",
+        ...(pack.prep || []).map((item) => `- ${item}`)
+      ];
+      return sections.join("\n").trim();
+    }
+
+    async function copyText(text) {
+      if (navigator.clipboard?.writeText && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      textarea.style.pointerEvents = "none";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      textarea.setSelectionRange(0, textarea.value.length);
+
+      try {
+        return document.execCommand("copy");
+      } finally {
+        textarea.remove();
       }
     }
 
@@ -707,6 +772,7 @@
     }
 
     function renderPack(pack) {
+      lastPack = pack;
       counterThesisEl.textContent = pack.thesis || "No counter-thesis generated.";
       openingAttackEl.textContent = pack.opening || "No opening attack generated.";
       renderList(attackLinesEl, pack.attackLines, "danger");
@@ -714,14 +780,17 @@
       renderList(weakSpotsEl, pack.weakSpots, "danger");
       renderLabeledList(dontSayEl, pack.dontSay, "green");
       renderList(prepNotesEl, pack.prep, "green");
+      copyButton.disabled = false;
     }
 
     function clearOutputs() {
+      lastPack = null;
       counterThesisEl.textContent = "Build the counter-side to begin.";
       openingAttackEl.textContent = "Build the counter-side to begin.";
       for (const target of [attackLinesEl, trapQuestionsEl, weakSpotsEl, dontSayEl, prepNotesEl]) {
         target.innerHTML = "";
       }
+      copyButton.disabled = true;
     }
 
     async function runGhostwriter() {
@@ -732,6 +801,7 @@
       }
 
       runButton.disabled = true;
+      copyButton.disabled = true;
       clearButton.disabled = true;
       setStatus("Building the counter-side…");
 
@@ -739,16 +809,29 @@
         const pack = ghostwriter
           ? await buildCounterpack(text)
           : heuristicCounterpack(text);
-        renderPack(pack);
+        renderPack({
+          ...pack,
+          sourceText: text,
+          arenaLabel: selectedLabel(arenaSelect),
+          styleLabel: selectedLabel(styleSelect),
+          pressureLabel: selectedLabel(pressureSelect)
+        });
         setStatus("Counter-side ready.");
       } catch (error) {
         console.error(error);
         fallbackMode = true;
         setFallbackPill(true);
-        renderPack(heuristicCounterpack(text));
+        renderPack({
+          ...heuristicCounterpack(text),
+          sourceText: text,
+          arenaLabel: selectedLabel(arenaSelect),
+          styleLabel: selectedLabel(styleSelect),
+          pressureLabel: selectedLabel(pressureSelect)
+        });
         setStatus("Counter-side ready.");
       } finally {
         runButton.disabled = false;
+        copyButton.disabled = !lastPack;
         clearButton.disabled = false;
       }
     }
@@ -773,6 +856,7 @@
       }
       positionInput.value = await file.text();
       updateWordGuidance(positionInput.value);
+      clearOutputs();
       setStatus(`Loaded ${file.name}.`);
     });
 
@@ -787,6 +871,26 @@
     }
 
     runButton.addEventListener("click", runGhostwriter);
+    copyButton.addEventListener("click", async () => {
+      if (!lastPack) {
+        setStatus("Build the counter-side first.", { isError: true });
+        return;
+      }
+
+      copyButton.disabled = true;
+      try {
+        const copied = await copyText(buildExportText(lastPack));
+        if (!copied) {
+          throw new Error("Copy command unavailable");
+        }
+        setStatus("Counter-side notes copied.");
+      } catch (error) {
+        console.error(error);
+        setStatus("Couldn't copy the counter-side notes.", { isError: true });
+      } finally {
+        copyButton.disabled = !lastPack;
+      }
+    });
     clearButton.addEventListener("click", clearAll);
     positionInput.addEventListener("input", () => {
       updateWordGuidance(positionInput.value);
