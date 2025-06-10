@@ -246,3 +246,11 @@ def test_debate_page_includes_per_document_character_counters() -> None:
     assert 'id="char-count-a"' in text
     assert 'id="char-count-b"' in text
     assert "Soft limit: around 900 chars keeps the sparring turns sharper." in text
+
+
+def test_debate_page_includes_markdown_export_button() -> None:
+    text = (ROOT / "src" / "debate" / "index.html").read_text(encoding="utf-8")
+
+    assert 'id="export-button"' in text
+    assert "Export Markdown" in text
+    assert "# Debate Sparring Notes" in text

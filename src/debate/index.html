@@ -51,7 +51,7 @@
     .controls {
       display: grid;
       gap: 12px;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       align-items: end;
     }
 
@@ -320,6 +320,7 @@
         </label>
 
         <button id="run-button" class="app-button" type="button" disabled>Run Sparring</button>
+        <button id="export-button" class="app-button secondary" type="button" disabled>Export Markdown</button>
         <button id="clear-button" class="app-button secondary" type="button">Clear</button>
       </div>
 
@@ -444,6 +445,7 @@
     ]);
 
     const runButton = document.getElementById("run-button");
+    const exportButton = document.getElementById("export-button");
     const clearButton = document.getElementById("clear-button");
     const caseType = document.getElementById("case-type");
     const roundsSelect = document.getElementById("rounds-select");
@@ -469,6 +471,7 @@
     let generator = null;
     let generatorLoad = null;
     let isRunning = false;
+    let lastDebateNotes = null;
     const SOFT_CHAR_LIMIT = 900;
 
     function setStatus(message, { isError = false, isLoading = false } = {}) {
@@ -591,6 +594,73 @@
       return sentences(text).slice(0, 3);
     }
 
+    function slugify(value) {
+      return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "debate";
+    }
+
+    function resetExportState() {
+      lastDebateNotes = null;
+      exportButton.disabled = true;
+    }
+
+    function buildMarkdownNotes(notes) {
+      const lines = [
+        "# Debate Sparring Notes",
+        "",
+        `- Argument type: ${notes.caseTypeLabel}`,
+        `- Rounds: ${notes.rounds}`,
+        `- Shared keywords: ${notes.sharedKeywords.join(", ") || "none"}`,
+        "",
+        "## Point Of View A",
+        "",
+        notes.textA,
+        "",
+        "### Strongest claims",
+        ...notes.sideAClaims.map((item) => `- ${item}`),
+        "",
+        "## Point Of View B",
+        "",
+        notes.textB,
+        "",
+        "### Strongest claims",
+        ...notes.sideBClaims.map((item) => `- ${item}`),
+        "",
+        "## Transcript",
+        "",
+      ];
+
+      for (const turn of notes.transcriptTurns) {
+        lines.push(`### ${turn.title}`, "", turn.text, "");
+      }
+
+      lines.push(
+        "## Prep Notes",
+        "",
+        "### What Lands",
+        ...notes.findings.map((item) => `- ${item}`),
+        "",
+        "### What They Hit Back With",
+        ...notes.counters.map((item) => `- ${item}`),
+        "",
+        "### Counteroffense",
+        ...notes.pressure.map((item) => `- ${item}`)
+      );
+
+      return lines.join("\n").trim();
+    }
+
+    function downloadMarkdown(filename, content) {
+      const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    }
+
     async function ensureGenerator() {
       if (generator) {
         return generator;
@@ -693,7 +763,9 @@
 
       isRunning = true;
       runButton.disabled = true;
+      exportButton.disabled = true;
       clearTranscript();
+      resetExportState();
       claimPoints.innerHTML = "";
 
       try {
@@ -720,12 +792,15 @@
         }
 
         const transcriptLines = [];
+        const transcriptTurns = [];
         for (let index = 0; index < roles.length; index += 1) {
           const role = roles[index];
           setStatus(`Generating ${role} turn ${index + 1} of ${roles.length}…`);
           const text = await generateTurn(buildPrompt(role, context));
-          addSpeech(role, role === "side-a" ? "Point of view A" : "Point of view B", text);
+          const title = role === "side-a" ? "Point of view A" : "Point of view B";
+          addSpeech(role, title, text);
           transcriptLines.push(`${role}: ${text}`);
+          transcriptTurns.push({ role, title, text });
           context.lastTurn = text;
           await delay(420);
         }
@@ -734,22 +809,41 @@
         const transcriptText = transcriptLines.join("\n");
 
         setStatus("Generating prep findings…");
-        renderPrep(prepFindings, parseBullets(await generateTurn(buildPrepPrompt("findings", context, transcriptText))));
+        const findings = parseBullets(await generateTurn(buildPrepPrompt("findings", context, transcriptText)));
+        renderPrep(prepFindings, findings);
 
         setStatus("Generating expected counters…");
-        renderPrep(prepCounters, parseBullets(await generateTurn(buildPrepPrompt("counters", context, transcriptText))));
+        const counters = parseBullets(await generateTurn(buildPrepPrompt("counters", context, transcriptText)));
+        renderPrep(prepCounters, counters);
 
         setStatus("Generating counteroffense options…");
-        renderPrep(prepPressure, parseBullets(await generateTurn(buildPrepPrompt("pressure", context, transcriptText))));
+        const pressure = parseBullets(await generateTurn(buildPrepPrompt("pressure", context, transcriptText)));
+        renderPrep(prepPressure, pressure);
+
+        lastDebateNotes = {
+          caseTypeLabel: caseType.options[caseType.selectedIndex]?.textContent?.trim() || caseType.value,
+          rounds,
+          textA,
+          textB,
+          sideAClaims,
+          sideBClaims,
+          sharedKeywords,
+          transcriptTurns,
+          findings,
+          counters,
+          pressure,
+        };
 
         transcriptSummary.textContent = "Sparring complete. Read the exchange, then use the prep notes to tighten your real response.";
         setStatus("Sparring complete.");
       } catch (error) {
         console.error(error);
+        resetExportState();
         setStatus(`Couldn't run sparring. ${String(error.message || error)}`, { isError: true });
       } finally {
         isRunning = false;
         runButton.disabled = false;
+        exportButton.disabled = !lastDebateNotes;
       }
     }
 
@@ -762,6 +856,7 @@
       updateDocumentGuidance("", charCountB, docNoteB);
       claimPoints.innerHTML = "";
       clearTranscript();
+      resetExportState();
       claimStatus.textContent = "Add both sides to begin.";
       setStatus("Cleared. Paste both sides to begin.");
     });
@@ -801,6 +896,20 @@
       docB.disabled = false;
       docA.placeholder = "Paste your side here...";
       docB.placeholder = "Paste the other side here...";
+    });
+    exportButton.addEventListener("click", () => {
+      if (!lastDebateNotes) {
+        setStatus("Run sparring first.", { isError: true });
+        return;
+      }
+      try {
+        const filename = `${slugify(lastDebateNotes.caseTypeLabel)}-debate-notes.md`;
+        downloadMarkdown(filename, buildMarkdownNotes(lastDebateNotes));
+        setStatus("Debate Markdown exported.");
+      } catch (error) {
+        console.error(error);
+        setStatus(`Couldn't export Debate Markdown. ${String(error.message || error)}`, { isError: true });
+      }
     });
     runButton.addEventListener("click", runDebate);
   </script>
