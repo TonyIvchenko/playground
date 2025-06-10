@@ -9,6 +9,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 FALLBACK_SERVICES = (
     "counterpoint",
+    "debate",
     "manipulation",
     "realitycheck",
     "vibedj",
@@ -19,12 +20,14 @@ BANNED_PHRASES = {
 }
 REQUIRED_FRAGMENTS = {
     "counterpoint": ("Fallback mode active",),
+    "debate": ("Fallback mode active",),
     "manipulation": ("Fallback mode active",),
     "realitycheck": ("Fallback mode active",),
     "vibedj": ("Fallback mode active",),
 }
 REQUIRED_CLASS_BY_ID = {
     "counterpoint": {"fallback-pill": ("app-pill", "is-fallback")},
+    "debate": {"fallback-pill": ("app-pill", "is-fallback")},
     "manipulation": {"fallback-pill": ("app-pill", "is-fallback")},
     "realitycheck": {
         "image-fallback-pill": ("app-pill", "is-fallback"),

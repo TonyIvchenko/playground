@@ -54,7 +54,10 @@ SERVICE_RULES: dict[str, dict[str, tuple[str, ...]]] = {
             "Loading browser generation model…",
             "Loading browser generation model",
             "Browser generation model ready",
+            "Browser generation model unavailable",
             "Couldn't load the browser generation model.",
+            "Debate is using fallback mode for this run.",
+            "Sparring complete with heuristic fallback.",
         ),
         "banned": (
             "Generation model loading",

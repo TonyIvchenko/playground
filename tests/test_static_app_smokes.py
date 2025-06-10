@@ -254,3 +254,11 @@ def test_debate_page_includes_markdown_export_button() -> None:
     assert 'id="export-button"' in text
     assert "Export Markdown" in text
     assert "# Debate Sparring Notes" in text
+
+
+def test_debate_page_includes_heuristic_fallback_banner() -> None:
+    text = (ROOT / "src" / "debate" / "index.html").read_text(encoding="utf-8")
+
+    assert 'id="fallback-pill"' in text
+    assert "Fallback mode active" in text
+    assert "Debate is using fallback mode for this run." in text

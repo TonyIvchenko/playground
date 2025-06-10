@@ -354,6 +354,7 @@
         <aside class="meta-card">
           <h2>Session</h2>
           <div class="pill app-pill is-loading" id="model-pill">Loading browser generation model</div>
+          <div class="app-pill is-fallback" id="fallback-pill" hidden>Fallback mode active</div>
           <div class="metrics">
             <div class="app-status is-loading" id="status-text">Loading browser generation model…</div>
             <div id="claim-status">Add both sides to begin.</div>
@@ -458,6 +459,7 @@
     const docNoteA = document.getElementById("doc-note-a");
     const docNoteB = document.getElementById("doc-note-b");
     const modelPill = document.getElementById("model-pill");
+    const fallbackPill = document.getElementById("fallback-pill");
     const statusText = document.getElementById("status-text");
     const claimStatus = document.getElementById("claim-status");
     const claimPoints = document.getElementById("claim-points");
@@ -471,6 +473,7 @@
     let generator = null;
     let generatorLoad = null;
     let isRunning = false;
+    let fallbackMode = false;
     let lastDebateNotes = null;
     const SOFT_CHAR_LIMIT = 900;
 
@@ -484,6 +487,10 @@
       modelPill.textContent = message;
       modelPill.classList.toggle("is-error", isError);
       modelPill.classList.toggle("is-loading", isLoading);
+    }
+
+    function setFallbackPill(active) {
+      fallbackPill.hidden = !active;
     }
 
     function sentences(text) {
@@ -594,6 +601,10 @@
       return sentences(text).slice(0, 3);
     }
 
+    function takeWords(text, count = 18) {
+      return text.split(/\s+/).filter(Boolean).slice(0, count).join(" ");
+    }
+
     function slugify(value) {
       return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "debate";
     }
@@ -609,6 +620,7 @@
         "",
         `- Argument type: ${notes.caseTypeLabel}`,
         `- Rounds: ${notes.rounds}`,
+        `- Generation mode: ${notes.usedFallback ? "Heuristic fallback" : "Browser model"}`,
         `- Shared keywords: ${notes.sharedKeywords.join(", ") || "none"}`,
         "",
         "## Point Of View A",
@@ -666,6 +678,8 @@
         return generator;
       }
       if (!generatorLoad) {
+        fallbackMode = false;
+        setFallbackPill(false);
         setModelPill("Loading browser generation model", { isLoading: true });
         setStatus("Loading browser generation model…", { isLoading: true });
         generatorLoad = pipeline("text2text-generation", GENERATION_MODEL_ID, {
@@ -673,6 +687,8 @@
           dtype: "q4",
         }).then((instance) => {
           generator = instance;
+          fallbackMode = false;
+          setFallbackPill(false);
           setModelPill("Browser generation model ready");
           setStatus("Browser generation model ready. Paste both sides and run the sparring session.");
           runButton.disabled = false;
@@ -683,9 +699,18 @@
           return instance;
         }).catch((error) => {
           console.error(error);
+          generator = null;
+          fallbackMode = true;
+          setFallbackPill(true);
           setModelPill("Browser generation model unavailable", { isError: true });
-          setStatus(`Couldn't load the browser generation model. ${String(error.message || error)}`, { isError: true });
-          throw error;
+          setStatus("Couldn't load the browser generation model. Debate is using fallback mode for this run.", { isError: true });
+          claimStatus.textContent = "Browser model unavailable. Debate is using heuristic sparring notes for this run.";
+          runButton.disabled = false;
+          docA.disabled = false;
+          docB.disabled = false;
+          docA.placeholder = "Paste your side here...";
+          docB.placeholder = "Paste the other side here...";
+          return null;
         });
       }
       return generatorLoad;
@@ -750,6 +775,53 @@
       claimStatus.textContent = `${label} loaded from ${file.name}.`;
     }
 
+    function heuristicTurn(role, context, turnIndex) {
+      const ownClaims = role === "side-a" ? context.sideAClaims : context.sideBClaims;
+      const opposingClaims = role === "side-a" ? context.sideBClaims : context.sideAClaims;
+      const ownClaim = ownClaims[turnIndex % ownClaims.length] || "That is still the center of the disagreement.";
+      const opposingClaim = opposingClaims[turnIndex % opposingClaims.length] || "the missing part of the other side's case";
+      const keyword = context.sharedKeywords[turnIndex % Math.max(1, context.sharedKeywords.length)] || "the real tradeoff";
+
+      if (role === "side-a") {
+        return `${ownClaim} The strongest answer to their push is that it still leaves ${keyword} unresolved and treats a manageable cost like a reason to stop entirely. Until they answer that gap directly, the other side is overstating how persuasive its objection really is.`;
+      }
+      return `${ownClaim} That still dodges the pressure point. Side A keeps leaning on ${takeWords(opposingClaim, 14)}, but that does not answer the cost, risk, or contradiction underneath ${keyword}. Until that gap is answered, their case sounds cleaner than it is.`;
+    }
+
+    function buildHeuristicPrep(context) {
+      const finding = context.sideAClaims[0] || "Lead with the clearest concrete claim from your side.";
+      const findingSupport = context.sideAClaims[1] || "Back it with one concrete example instead of piling on extra points.";
+      const findingAnchor = context.sharedKeywords[0]
+        ? `Keep returning to ${context.sharedKeywords[0]} so the exchange stays grounded in one real pressure point.`
+        : "Keep returning to one grounded pressure point so the exchange does not get too abstract.";
+
+      const counter = context.sideBClaims[0] || "Expect them to hammer the weakest assumption in your case.";
+      const counterSupport = context.sideBClaims[1] || "They will push on tradeoffs, consistency, and whether your evidence really proves the conclusion.";
+      const counterAnchor = context.sharedKeywords[1]
+        ? `Expect them to reframe the fight around ${context.sharedKeywords[1]} whenever your side gets too broad.`
+        : "Expect them to reframe the fight around cost, risk, or fairness whenever your side gets too broad.";
+
+      const pressure = context.sideAClaims[2] || finding;
+      const pressureSupport = context.sideBClaims[0] || counter;
+      return {
+        findings: [
+          `Best opening: ${takeWords(finding, 18)}.`,
+          `Best support: ${takeWords(findingSupport, 18)}.`,
+          findingAnchor,
+        ],
+        counters: [
+          `Likely counter: ${takeWords(counter, 18)}.`,
+          counterSupport,
+          counterAnchor,
+        ],
+        pressure: [
+          `Your reply should re-center on: ${takeWords(pressure, 18)}.`,
+          `Then pin them to the cost of their strongest objection: ${takeWords(pressureSupport, 16)}.`,
+          "Keep the response short, concrete, and tied to one contradiction at a time.",
+        ],
+      };
+    }
+
     async function runDebate() {
       const textA = docA.value.trim();
       const textB = docB.value.trim();
@@ -772,10 +844,15 @@
         const sideAClaims = extractClaims(textA, 4);
         const sideBClaims = extractClaims(textB, 4);
         const sharedKeywords = [...new Set([...topKeywords(textA), ...topKeywords(textB)])].slice(0, 10);
+        const model = await ensureGenerator();
         renderClaims("Point of view A", sideAClaims, "var(--side-a)");
         renderClaims("Point of view B", sideBClaims, "var(--side-b)");
-        claimStatus.textContent = "Strongest points extracted from both sides.";
-        transcriptSummary.textContent = "The model is now staging a live argument so you can pressure-test your position.";
+        claimStatus.textContent = model
+          ? "Strongest points extracted from both sides."
+          : "Strongest points extracted from both sides. Debate is using heuristic sparring notes for this run.";
+        transcriptSummary.textContent = model
+          ? "The model is now staging a live argument so you can pressure-test your position."
+          : "The browser model is unavailable, so the exchange below is using heuristic fallback notes.";
 
         const context = {
           caseType: caseType.value,
@@ -793,32 +870,57 @@
 
         const transcriptLines = [];
         const transcriptTurns = [];
-        for (let index = 0; index < roles.length; index += 1) {
-          const role = roles[index];
-          setStatus(`Generating ${role} turn ${index + 1} of ${roles.length}…`);
-          const text = await generateTurn(buildPrompt(role, context));
-          const title = role === "side-a" ? "Point of view A" : "Point of view B";
-          addSpeech(role, title, text);
-          transcriptLines.push(`${role}: ${text}`);
-          transcriptTurns.push({ role, title, text });
-          context.lastTurn = text;
-          await delay(420);
+        let findings;
+        let counters;
+        let pressure;
+        if (model) {
+          for (let index = 0; index < roles.length; index += 1) {
+            const role = roles[index];
+            setStatus(`Generating ${role} turn ${index + 1} of ${roles.length}…`);
+            const text = await generateTurn(buildPrompt(role, context));
+            const title = role === "side-a" ? "Point of view A" : "Point of view B";
+            addSpeech(role, title, text);
+            transcriptLines.push(`${role}: ${text}`);
+            transcriptTurns.push({ role, title, text });
+            context.lastTurn = text;
+            await delay(420);
+          }
+
+          prepSummary.textContent = "Coach notes generated from the full sparring run. Use them to sharpen your next real-world conversation.";
+          const transcriptText = transcriptLines.join("\n");
+
+          setStatus("Generating prep findings…");
+          findings = parseBullets(await generateTurn(buildPrepPrompt("findings", context, transcriptText)));
+          renderPrep(prepFindings, findings);
+
+          setStatus("Generating expected counters…");
+          counters = parseBullets(await generateTurn(buildPrepPrompt("counters", context, transcriptText)));
+          renderPrep(prepCounters, counters);
+
+          setStatus("Generating counteroffense options…");
+          pressure = parseBullets(await generateTurn(buildPrepPrompt("pressure", context, transcriptText)));
+          renderPrep(prepPressure, pressure);
+        } else {
+          for (let index = 0; index < roles.length; index += 1) {
+            const role = roles[index];
+            setStatus(`Generating heuristic ${role} turn ${index + 1} of ${roles.length}…`);
+            const text = heuristicTurn(role, context, index);
+            const title = role === "side-a" ? "Point of view A" : "Point of view B";
+            addSpeech(role, title, text);
+            transcriptLines.push(`${role}: ${text}`);
+            transcriptTurns.push({ role, title, text });
+            context.lastTurn = text;
+          }
+
+          const prep = buildHeuristicPrep(context);
+          findings = prep.findings;
+          counters = prep.counters;
+          pressure = prep.pressure;
+          prepSummary.textContent = "Coach notes generated from heuristic fallback. Use them as a quick prep sketch, not as a polished sparring transcript.";
+          renderPrep(prepFindings, findings);
+          renderPrep(prepCounters, counters);
+          renderPrep(prepPressure, pressure);
         }
-
-        prepSummary.textContent = "Coach notes generated from the full sparring run. Use them to sharpen your next real-world conversation.";
-        const transcriptText = transcriptLines.join("\n");
-
-        setStatus("Generating prep findings…");
-        const findings = parseBullets(await generateTurn(buildPrepPrompt("findings", context, transcriptText)));
-        renderPrep(prepFindings, findings);
-
-        setStatus("Generating expected counters…");
-        const counters = parseBullets(await generateTurn(buildPrepPrompt("counters", context, transcriptText)));
-        renderPrep(prepCounters, counters);
-
-        setStatus("Generating counteroffense options…");
-        const pressure = parseBullets(await generateTurn(buildPrepPrompt("pressure", context, transcriptText)));
-        renderPrep(prepPressure, pressure);
 
         lastDebateNotes = {
           caseTypeLabel: caseType.options[caseType.selectedIndex]?.textContent?.trim() || caseType.value,
@@ -832,10 +934,11 @@
           findings,
           counters,
           pressure,
+          usedFallback: !model,
         };
 
         transcriptSummary.textContent = "Sparring complete. Read the exchange, then use the prep notes to tighten your real response.";
-        setStatus("Sparring complete.");
+        setStatus(model ? "Sparring complete." : "Sparring complete with heuristic fallback.");
       } catch (error) {
         console.error(error);
         resetExportState();
