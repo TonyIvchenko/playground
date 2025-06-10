@@ -238,3 +238,11 @@ def test_counterpoint_page_includes_output_mode_toggle() -> None:
     assert 'id="output-mode-select"' in text
     assert "Strongest steelman only" in text
     assert "Full prep breakdown" in text
+
+
+def test_debate_page_includes_per_document_character_counters() -> None:
+    text = (ROOT / "src" / "debate" / "index.html").read_text(encoding="utf-8")
+
+    assert 'id="char-count-a"' in text
+    assert 'id="char-count-b"' in text
+    assert "Soft limit: around 900 chars keeps the sparring turns sharper." in text

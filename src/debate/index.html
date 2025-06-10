@@ -175,6 +175,35 @@
       color: var(--muted);
     }
 
+    .doc-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: rgba(239, 244, 250, 0.9);
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .char-count {
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .char-count.is-over,
+    .doc-note.is-over {
+      color: var(--side-a);
+    }
+
+    .doc-note {
+      max-width: 38ch;
+    }
+
     .metrics,
     .prep-section {
       display: grid;
@@ -302,6 +331,10 @@
             <input id="file-a" type="file" accept=".txt,.md,.csv,.json,.html,.htm">
           </div>
           <textarea id="doc-a" placeholder="Loading browser generation model..." disabled></textarea>
+          <div class="doc-meta" aria-label="Point of view A guidance">
+            <div class="char-count" id="char-count-a">0 chars</div>
+            <div class="doc-note" id="doc-note-a">Soft limit: around 900 chars keeps the sparring turns sharper. Longer docs still run, but the model may flatten details.</div>
+          </div>
         </section>
 
         <section class="doc-card">
@@ -311,6 +344,10 @@
             <input id="file-b" type="file" accept=".txt,.md,.csv,.json,.html,.htm">
           </div>
           <textarea id="doc-b" placeholder="Loading browser generation model..." disabled></textarea>
+          <div class="doc-meta" aria-label="Point of view B guidance">
+            <div class="char-count" id="char-count-b">0 chars</div>
+            <div class="doc-note" id="doc-note-b">Soft limit: around 900 chars keeps the sparring turns sharper. Longer docs still run, but the model may flatten details.</div>
+          </div>
         </section>
 
         <aside class="meta-card">
@@ -414,6 +451,10 @@
     const fileB = document.getElementById("file-b");
     const docA = document.getElementById("doc-a");
     const docB = document.getElementById("doc-b");
+    const charCountA = document.getElementById("char-count-a");
+    const charCountB = document.getElementById("char-count-b");
+    const docNoteA = document.getElementById("doc-note-a");
+    const docNoteB = document.getElementById("doc-note-b");
     const modelPill = document.getElementById("model-pill");
     const statusText = document.getElementById("status-text");
     const claimStatus = document.getElementById("claim-status");
@@ -428,6 +469,7 @@
     let generator = null;
     let generatorLoad = null;
     let isRunning = false;
+    const SOFT_CHAR_LIMIT = 900;
 
     function setStatus(message, { isError = false, isLoading = false } = {}) {
       statusText.textContent = message;
@@ -493,6 +535,17 @@
         wrapper.appendChild(item);
       }
       claimPoints.appendChild(wrapper);
+    }
+
+    function updateDocumentGuidance(text, countEl, noteEl) {
+      const charCount = text.trim().length;
+      const overLimit = charCount > SOFT_CHAR_LIMIT;
+      countEl.textContent = `${charCount} ${charCount === 1 ? "char" : "chars"}`;
+      countEl.classList.toggle("is-over", overLimit);
+      noteEl.textContent = overLimit
+        ? `Soft limit: around ${SOFT_CHAR_LIMIT} chars keeps the sparring turns sharper. This side will still run, but the model may flatten or skip weaker details.`
+        : `Soft limit: around ${SOFT_CHAR_LIMIT} chars keeps the sparring turns sharper. Longer docs still run, but the model may flatten details.`;
+      noteEl.classList.toggle("is-over", overLimit);
     }
 
     function clearTranscript() {
@@ -705,6 +758,8 @@
       docB.value = "";
       fileA.value = "";
       fileB.value = "";
+      updateDocumentGuidance("", charCountA, docNoteA);
+      updateDocumentGuidance("", charCountB, docNoteB);
       claimPoints.innerHTML = "";
       clearTranscript();
       claimStatus.textContent = "Add both sides to begin.";
@@ -714,6 +769,7 @@
     fileA.addEventListener("change", async (event) => {
       try {
         await loadFileIntoTextarea(event.target.files?.[0], docA, "Point of view A");
+        updateDocumentGuidance(docA.value, charCountA, docNoteA);
       } catch (error) {
         console.error(error);
         setStatus(`Couldn't read Point of view A. ${String(error.message || error)}`, { isError: true });
@@ -723,6 +779,7 @@
     fileB.addEventListener("change", async (event) => {
       try {
         await loadFileIntoTextarea(event.target.files?.[0], docB, "Point of view B");
+        updateDocumentGuidance(docB.value, charCountB, docNoteB);
       } catch (error) {
         console.error(error);
         setStatus(`Couldn't read Point of view B. ${String(error.message || error)}`, { isError: true });
@@ -731,6 +788,14 @@
 
     docA.value = SAMPLE_A;
     docB.value = SAMPLE_B;
+    updateDocumentGuidance(docA.value, charCountA, docNoteA);
+    updateDocumentGuidance(docB.value, charCountB, docNoteB);
+    docA.addEventListener("input", () => {
+      updateDocumentGuidance(docA.value, charCountA, docNoteA);
+    });
+    docB.addEventListener("input", () => {
+      updateDocumentGuidance(docB.value, charCountB, docNoteB);
+    });
     ensureGenerator().catch(() => {
       docA.disabled = false;
       docB.disabled = false;
