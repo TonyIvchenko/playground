@@ -262,3 +262,11 @@ def test_debate_page_includes_heuristic_fallback_banner() -> None:
     assert 'id="fallback-pill"' in text
     assert "Fallback mode active" in text
     assert "Debate is using fallback mode for this run." in text
+
+
+def test_manipulation_page_includes_signal_tooltips() -> None:
+    text = (ROOT / "src" / "manipulation" / "index.html").read_text(encoding="utf-8")
+
+    assert "signal-tooltip" in text
+    assert "Looks for countdowns, last-chance deadlines" in text
+    assert "Catches shame, obligation, and loyalty-test language" in text

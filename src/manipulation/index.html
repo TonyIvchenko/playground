@@ -218,8 +218,38 @@
       align-items: center;
     }
 
+    .pattern-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+
     .pattern-score {
       font-weight: 700;
+    }
+
+    .signal-tooltip {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #f7fafe;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1;
+      cursor: help;
+    }
+
+    .signal-tooltip:focus-visible {
+      outline: none;
+      border-color: #7aa8ff;
+      box-shadow: 0 0 0 4px rgba(76, 132, 255, 0.12);
     }
 
     .bar {
@@ -408,6 +438,7 @@
         id: "urgency",
         label: "Urgency Pressure",
         description: "Pushes immediate action or last-chance framing.",
+        tooltip: "Looks for countdowns, last-chance deadlines, and must-act-now wording that short-circuits reflection.",
         weight: 1.0,
         expressions: [/act now/gi, /last chance/gi, /before midnight/gi, /immediately/gi, /urgent/gi, /don't wait/gi, /right now/gi, /today only/gi, /deadline/gi],
       },
@@ -415,6 +446,7 @@
         id: "exclusivity",
         label: "Exclusivity",
         description: "Frames access, identity, or truth as restricted to a chosen few.",
+        tooltip: "Flags language that makes the reader feel specially chosen, privately informed, or part of a restricted in-group.",
         weight: 0.95,
         expressions: [/inner circle/gi, /exclusive/gi, /selected few/gi, /only for/gi, /do not share/gi, /keep this private/gi, /chosen/gi, /one of the few/gi, /special access/gi],
       },
@@ -422,6 +454,7 @@
         id: "authority",
         label: "Authority Pressure",
         description: "Leans on approved leaders, experts, or obedience language.",
+        tooltip: "Tracks appeals to approved experts, leadership, official lines, or obedience as a substitute for real evidence.",
         weight: 0.85,
         expressions: [/experts agree/gi, /leadership/gi, /trusted source/gi, /approved message/gi, /don't question/gi, /follow instructions/gi, /official line/gi, /mandate/gi],
       },
@@ -429,6 +462,7 @@
         id: "guilt",
         label: "Guilt / Loyalty",
         description: "Uses shame, obligation, or loyalty tests to force compliance.",
+        tooltip: "Catches shame, obligation, and loyalty-test language that pressures people to comply to avoid seeming selfish or disloyal.",
         weight: 1.0,
         expressions: [/if you care/gi, /let (?:us|the team) down/gi, /prove your loyalty/gi, /selfish/gi, /after everything we have done/gi, /real supporters/gi, /betray/gi, /owe/gi],
       },
@@ -436,6 +470,7 @@
         id: "fear",
         label: "Fear / Catastrophe",
         description: "Uses threat, danger, collapse, or disaster framing.",
+        tooltip: "Highlights threat-heavy wording that frames disagreement or delay as dangerous, catastrophic, or ruinous.",
         weight: 0.95,
         expressions: [/danger/gi, /lose everything/gi, /catastrophe/gi, /destroy/gi, /threat/gi, /ruin/gi, /attack/gi, /or else/gi, /regret it/gi],
       },
@@ -443,6 +478,7 @@
         id: "polarization",
         label: "Us vs Them",
         description: "Splits people into loyal insiders and hostile outsiders.",
+        tooltip: "Spots insider-versus-outsider framing that treats dissenters as enemies and loyalty as the only acceptable stance.",
         weight: 0.9,
         expressions: [/outsiders/gi, /they want to destroy/gi, /enemy/gi, /traitor/gi, /only side that matters/gi, /real members/gi, /shut down dissent/gi, /they are against us/gi],
       },
@@ -450,6 +486,7 @@
         id: "certainty",
         label: "Absolute Certainty",
         description: "Overstates certainty and discourages doubt.",
+        tooltip: "Marks language that presents claims as obvious, undeniable, or beyond question to shut down nuance or uncertainty.",
         weight: 0.7,
         expressions: [/everyone can see/gi, /obvious/gi, /the truth/gi, /no doubt/gi, /undeniable/gi, /always/gi, /never/gi, /guaranteed/gi],
       },
@@ -457,6 +494,7 @@
         id: "cta",
         label: "Action Density",
         description: "Stacks commands and calls to action close together.",
+        tooltip: "Measures how aggressively the text piles up commands like donate, reply, click, rally, or share in quick succession.",
         weight: 0.65,
         expressions: [/donate/gi, /reply/gi, /share/gi, /join/gi, /register/gi, /click/gi, /forward/gi, /pay/gi, /send/gi, /rally/gi],
       },
@@ -586,18 +624,55 @@
       for (const result of results) {
         const card = document.createElement("section");
         card.className = "pattern-card";
-        const hits = result.uniqueHits.length
-          ? result.uniqueHits.slice(0, 4).map((hit) => `<span class="hit">${hit}</span>`).join("")
-          : '<span class="hit">No strong cues matched</span>';
-        card.innerHTML = `
-          <div class="pattern-meta">
-            <h3>${result.label}</h3>
-            <span class="pattern-score">${Math.round(result.score * 100)}%</span>
-          </div>
-          <div class="bar"><div style="width:${Math.round(result.score * 100)}%"></div></div>
-          <div>${result.description}</div>
-          <div class="hits">${hits}</div>
-        `;
+        const meta = document.createElement("div");
+        meta.className = "pattern-meta";
+
+        const title = document.createElement("div");
+        title.className = "pattern-title";
+
+        const heading = document.createElement("h3");
+        heading.textContent = result.label;
+
+        const tooltip = document.createElement("button");
+        tooltip.type = "button";
+        tooltip.className = "signal-tooltip";
+        tooltip.textContent = "?";
+        tooltip.title = result.tooltip;
+        tooltip.setAttribute("aria-label", `${result.label}: ${result.tooltip}`);
+
+        const score = document.createElement("span");
+        score.className = "pattern-score";
+        score.textContent = `${Math.round(result.score * 100)}%`;
+
+        title.append(heading, tooltip);
+        meta.append(title, score);
+
+        const bar = document.createElement("div");
+        bar.className = "bar";
+        const fill = document.createElement("div");
+        fill.style.width = `${Math.round(result.score * 100)}%`;
+        bar.appendChild(fill);
+
+        const description = document.createElement("div");
+        description.textContent = result.description;
+
+        const hits = document.createElement("div");
+        hits.className = "hits";
+        if (result.uniqueHits.length) {
+          for (const hit of result.uniqueHits.slice(0, 4)) {
+            const chip = document.createElement("span");
+            chip.className = "hit";
+            chip.textContent = hit;
+            hits.appendChild(chip);
+          }
+        } else {
+          const chip = document.createElement("span");
+          chip.className = "hit";
+          chip.textContent = "No strong cues matched";
+          hits.appendChild(chip);
+        }
+
+        card.append(meta, bar, description, hits);
         patternGrid.appendChild(card);
       }
     }
