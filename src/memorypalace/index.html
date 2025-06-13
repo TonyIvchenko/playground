@@ -306,6 +306,11 @@
             <button id="reset-view-button" class="app-button secondary" type="button">Reset View</button>
             <button id="sample-route-button" class="app-button secondary" type="button">Show Route</button>
           </div>
+          <div class="actions">
+            <button id="save-palace-button" class="app-button secondary" type="button">Save Palace</button>
+            <button id="load-palace-button" class="app-button ghost" type="button" disabled>Load Saved</button>
+          </div>
+          <p class="status" id="saved-palace-status" aria-live="polite">No saved palace in this browser yet.</p>
         </section>
 
         <aside class="info-card">
@@ -385,7 +390,7 @@
         </section>
         <section class="app-footer-block">
           <p class="app-footer-kicker">Privacy</p>
-          <p class="app-footer-copy">Your notes stay in this tab for the current session unless you copy them elsewhere.</p>
+          <p class="app-footer-copy">Your notes stay local to this browser. If you save a palace, it is stored in local browser storage on this device.</p>
         </section>
         <section class="app-footer-block">
           <p class="app-footer-kicker">Local only</p>
@@ -428,6 +433,8 @@ Moat: workflow memory, embedded approvals, and cross-team usage data compound ov
 Go to market: start with finance and operations leaders, then expand into product and executive review cycles.`
     };
 
+    const PALACE_STORAGE_KEY = "playground.memorypalace.saved-palace.v1";
+
     const stopWords = new Set([
       "the", "and", "that", "with", "have", "this", "from", "into", "they", "their", "were", "been", "about",
       "there", "which", "would", "could", "should", "while", "where", "your", "ours", "than", "then", "such",
@@ -439,6 +446,9 @@ Go to market: start with finance and operations leaders, then expand into produc
     const buildButton = document.getElementById("build-button");
     const resetViewButton = document.getElementById("reset-view-button");
     const sampleRouteButton = document.getElementById("sample-route-button");
+    const savePalaceButton = document.getElementById("save-palace-button");
+    const loadPalaceButton = document.getElementById("load-palace-button");
+    const savedPalaceStatus = document.getElementById("saved-palace-status");
     const heroBadge = document.getElementById("hero-badge");
     const statusPill = document.getElementById("status-pill");
     const statusText = document.getElementById("status-text");
@@ -478,6 +488,7 @@ Go to market: start with finance and operations leaders, then expand into produc
     let corridorLength = 0;
     let currentRoomIndex = -1;
     let jumpTarget = null;
+    let lastBuiltNotes = "";
 
     const controls = {
       dragging: false,
@@ -492,6 +503,89 @@ Go to market: start with finance and operations leaders, then expand into produc
 
     function clamp(value, min, max) {
       return Math.max(min, Math.min(max, value));
+    }
+
+    function formatSavedTime(isoString) {
+      try {
+        return new Date(isoString).toLocaleString([], {
+          dateStyle: "medium",
+          timeStyle: "short"
+        });
+      } catch (_error) {
+        return "";
+      }
+    }
+
+    function readSavedPalace() {
+      try {
+        const raw = window.localStorage.getItem(PALACE_STORAGE_KEY);
+        if (!raw) {
+          return null;
+        }
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed.notes !== "string" || !parsed.notes.trim()) {
+          return null;
+        }
+        return {
+          notes: parsed.notes,
+          roomCount: typeof parsed.roomCount === "number" ? parsed.roomCount : 0,
+          savedAt: typeof parsed.savedAt === "string" ? parsed.savedAt : ""
+        };
+      } catch (_error) {
+        return null;
+      }
+    }
+
+    function refreshSavedPalaceStatus() {
+      const savedPalace = readSavedPalace();
+      if (!savedPalace) {
+        loadPalaceButton.disabled = true;
+        savedPalaceStatus.textContent = "No saved palace in this browser yet.";
+        return;
+      }
+      loadPalaceButton.disabled = false;
+      const roomSummary = savedPalace.roomCount ? `${savedPalace.roomCount} rooms saved locally.` : "Saved palace available in this browser.";
+      const timeSummary = savedPalace.savedAt ? ` Last saved ${formatSavedTime(savedPalace.savedAt)}.` : "";
+      savedPalaceStatus.textContent = `${roomSummary}${timeSummary}`;
+    }
+
+    function saveCurrentPalace() {
+      if (!roomData.length || !lastBuiltNotes.trim()) {
+        statusPill.textContent = "Build first";
+        statusText.textContent = "Build a palace before saving it locally.";
+        return;
+      }
+      try {
+        window.localStorage.setItem(PALACE_STORAGE_KEY, JSON.stringify({
+          version: 1,
+          notes: lastBuiltNotes,
+          roomCount: roomData.length,
+          savedAt: new Date().toISOString()
+        }));
+        refreshSavedPalaceStatus();
+        statusPill.textContent = "Palace saved";
+        statusText.textContent = "This palace is saved in this browser and ready to load later.";
+      } catch (_error) {
+        statusPill.textContent = "Save failed";
+        statusText.textContent = "Couldn't save this palace in local storage.";
+      }
+    }
+
+    function loadSavedPalace() {
+      const savedPalace = readSavedPalace();
+      if (!savedPalace) {
+        refreshSavedPalaceStatus();
+        statusPill.textContent = "Nothing saved";
+        statusText.textContent = "No saved palace was found in this browser.";
+        return;
+      }
+      notesInput.value = savedPalace.notes;
+      buildPalace();
+      refreshSavedPalaceStatus();
+      statusPill.textContent = "Saved palace loaded";
+      statusText.textContent = savedPalace.savedAt
+        ? `Loaded the palace you saved on ${formatSavedTime(savedPalace.savedAt)}.`
+        : "Loaded the saved palace from this browser.";
     }
 
     function hashString(text) {
@@ -852,6 +946,7 @@ Go to market: start with finance and operations leaders, then expand into produc
       updateCurrentRoom(true);
       resetView();
       rebuildRoomChips();
+      lastBuiltNotes = notesInput.value;
       heroBadge.textContent = `${roomData.length} rooms generated`;
       statusPill.textContent = "Palace ready";
       statusText.textContent = "Walk the route with W A S D and use the room chips if you want to jump.";
@@ -1081,6 +1176,8 @@ Go to market: start with finance and operations leaders, then expand into produc
     buildButton.addEventListener("click", buildPalace);
     resetViewButton.addEventListener("click", resetView);
     sampleRouteButton.addEventListener("click", showRoute);
+    savePalaceButton.addEventListener("click", saveCurrentPalace);
+    loadPalaceButton.addEventListener("click", loadSavedPalace);
 
     document.querySelectorAll("[data-sample]").forEach((button) => {
       button.addEventListener("click", () => {
@@ -1091,6 +1188,7 @@ Go to market: start with finance and operations leaders, then expand into produc
     });
 
     notesInput.value = SAMPLE_NOTES.biology;
+    refreshSavedPalaceStatus();
     resize();
     buildPalace();
     animate();

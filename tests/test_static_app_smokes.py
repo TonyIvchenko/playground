@@ -279,3 +279,14 @@ def test_manipulation_page_includes_simple_summary_view_toggle() -> None:
     assert 'id="simple-summary-card"' in text
     assert "Detailed signals" in text
     assert "Simple summary" in text
+
+
+def test_memorypalace_page_includes_local_save_load_controls() -> None:
+    text = (ROOT / "src" / "memorypalace" / "index.html").read_text(encoding="utf-8")
+
+    assert 'id="save-palace-button"' in text
+    assert 'id="load-palace-button"' in text
+    assert 'id="saved-palace-status"' in text
+    assert "Save Palace" in text
+    assert "Load Saved" in text
+    assert "playground.memorypalace.saved-palace.v1" in text
