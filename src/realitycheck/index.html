@@ -502,6 +502,93 @@
       return raw.length > 180 ? `${raw.slice(0, 177)}...` : raw;
     }
 
+    function extractErrorContentType(error) {
+      if (typeof error?.contentType === "string" && error.contentType) {
+        return error.contentType;
+      }
+      const raw = String(error?.message || error || "");
+      const match = raw.match(/Unsupported(?: media)? content type:\s*([^\s)]+)/i);
+      return match ? match[1] : "";
+    }
+
+    function extractUpstreamStatus(error) {
+      if (typeof error?.upstreamStatus === "number") {
+        return error.upstreamStatus;
+      }
+      const raw = String(error?.message || error || "");
+      const match = raw.match(/HTTP Error (\d{3})/i) || raw.match(/\bstatus(?: code)?[: ]+(\d{3})\b/i);
+      return match ? Number(match[1]) : 0;
+    }
+
+    function describeUrlFetchError(error) {
+      const raw = formatErrorMessage(error);
+      const lower = raw.toLowerCase();
+      const contentType = extractErrorContentType(error);
+      const upstreamStatus = extractUpstreamStatus(error);
+
+      if (lower.includes("timed out") || lower.includes("timeout")) {
+        return {
+          helpMessage: "The URL fetch timed out.",
+          cardSummary: "The source took too long to respond. Retry, use a faster page, or paste the text directly.",
+        };
+      }
+
+      if (lower.includes("unsupported content type")) {
+        const typeLabel = contentType || "unknown content";
+        return {
+          helpMessage: "That URL did not return a readable page.",
+          cardSummary: `This URL returned ${typeLabel}, not article text. Try a normal HTML/text page, or switch to the Image or Video tab for direct media URLs.`,
+        };
+      }
+
+      if ([401, 403, 429, 451].includes(upstreamStatus) || lower.includes("forbidden") || lower.includes("denied") || lower.includes("blocked")) {
+        return {
+          helpMessage: "This source blocked the local fetch.",
+          cardSummary: "The site returned an access error while the local proxy tried to fetch it. Retry later, use a more public page, or paste the text directly.",
+        };
+      }
+
+      return {
+        helpMessage: "Couldn't analyze the URL.",
+        cardSummary: raw,
+      };
+    }
+
+    function describeMediaUrlError(error, kind) {
+      const raw = formatErrorMessage(error);
+      const lower = raw.toLowerCase();
+      const contentType = extractErrorContentType(error);
+      const label = kind === "video" ? "video" : "image";
+      const upstreamStatus = extractUpstreamStatus(error);
+
+      if (lower.includes("timed out") || lower.includes("timeout")) {
+        return {
+          helpMessage: `The ${label} URL timed out.`,
+          cardSummary: `The ${label} source took too long to respond. Retry, use a smaller file, or upload the ${label} directly.`,
+        };
+      }
+
+      if (lower.includes("unsupported media content type")) {
+        const typeLabel = contentType || "unknown content";
+        return {
+          helpMessage: `That URL did not return a ${label}.`,
+          cardSummary: `This URL returned ${typeLabel}, not a ${label} file. Use a direct ${label} URL or upload the ${label} instead.`,
+        };
+      }
+
+      if ([401, 403, 429, 451].includes(upstreamStatus) || lower.includes("forbidden") || lower.includes("denied") || lower.includes("blocked")) {
+        return {
+          helpMessage: `That ${label} URL looks blocked by the source site.`,
+          cardSummary: `The source site rejected the ${label} fetch. Try a direct file URL, a less restricted source, or upload the ${label} instead.`,
+        };
+      }
+
+      return {
+        helpMessage: `Couldn't load the ${label} URL.`,
+        cardSummary: raw,
+      };
+    }
+
     function classifyBucket(score) {
       if (score >= 0.67) {
         return "bad";
@@ -649,6 +736,28 @@
 
     function proxyMediaUrl(targetUrl) {
       return `/api/media?url=${encodeURIComponent(targetUrl)}`;
+    }
+
+    async function fetchProxyMediaObjectUrl(targetUrl, kind) {
+      const response = await fetch(proxyMediaUrl(targetUrl));
+      const responseType = (response.headers.get("Content-Type") || "").split(";")[0].trim().toLowerCase();
+      if (!response.ok) {
+        let payload = null;
+        if (responseType === "application/json") {
+          try {
+            payload = await response.json();
+          } catch (_error) {
+            payload = null;
+          }
+        }
+        const fetchError = new Error(payload?.error || `Couldn't fetch the ${kind} URL.`);
+        fetchError.status = response.status;
+        fetchError.contentType = payload?.content_type || "";
+        fetchError.upstreamStatus = extractUpstreamStatus(fetchError);
+        throw fetchError;
+      }
+      const blob = await response.blob();
+      return URL.createObjectURL(blob);
     }
 
     function revokeObjectUrl(refName) {
@@ -994,12 +1103,16 @@
       }
 
       try {
-        setHelpMessage(imageStatus, "Fetching image URL through the local proxy…");
-        await loadImageSource(proxyMediaUrl(targetUrl), targetUrl);
+        setHelpMessage(imageStatus, "Fetching image URL through the local proxy…", { isLoading: true });
+        revokeObjectUrl("image");
+        currentImageObjectUrl = await fetchProxyMediaObjectUrl(targetUrl, "image");
+        await loadImageSource(currentImageObjectUrl, targetUrl, { revokeExistingObjectUrl: false });
       } catch (error) {
         console.error(error);
-        setHelpMessage(imageStatus, "Couldn't load the image URL.", { isError: true });
-        clearCard("image", "Load error", formatErrorMessage(error), "error");
+        revokeObjectUrl("image");
+        const message = describeMediaUrlError(error, "image");
+        setHelpMessage(imageStatus, message.helpMessage, { isError: true });
+        clearCard("image", "Load error", message.cardSummary, "error");
       }
     });
 
@@ -1033,12 +1146,16 @@
       }
 
       try {
-        setHelpMessage(videoStatus, "Fetching video URL through the local proxy…");
-        await loadVideoSource(proxyMediaUrl(targetUrl), targetUrl);
+        setHelpMessage(videoStatus, "Fetching video URL through the local proxy…", { isLoading: true });
+        revokeObjectUrl("video");
+        currentVideoObjectUrl = await fetchProxyMediaObjectUrl(targetUrl, "video");
+        await loadVideoSource(currentVideoObjectUrl, targetUrl, { revokeExistingObjectUrl: false });
       } catch (error) {
         console.error(error);
-        setHelpMessage(videoStatus, "Couldn't load the video URL.", { isError: true });
-        clearCard("video", "Load error", formatErrorMessage(error), "error");
+        revokeObjectUrl("video");
+        const message = describeMediaUrlError(error, "video");
+        setHelpMessage(videoStatus, message.helpMessage, { isError: true });
+        clearCard("video", "Load error", message.cardSummary, "error");
       }
     });
 
@@ -1096,14 +1213,19 @@
         const response = await fetch(`/api/fetch?url=${encodeURIComponent(targetUrl)}`);
         const payload = await response.json();
         if (!response.ok) {
-          throw new Error(payload.error || "Couldn't fetch the URL.");
+          const fetchError = new Error(payload.error || "Couldn't fetch the URL.");
+          fetchError.status = response.status;
+          fetchError.contentType = payload.content_type || "";
+          fetchError.upstreamStatus = extractUpstreamStatus(fetchError);
+          throw fetchError;
         }
         const combined = [payload.title, payload.text].filter(Boolean).join("\n\n");
         await analyzeTextContent(combined, "url", "Analyzing fetched page text…");
       } catch (error) {
         console.error(error);
-        clearCard("url", "Fetch error", formatErrorMessage(error), "error");
-        setHelpMessage(urlStatus, "Couldn't analyze the URL.", { isError: true });
+        const message = describeUrlFetchError(error);
+        clearCard("url", "Fetch error", message.cardSummary, "error");
+        setHelpMessage(urlStatus, message.helpMessage, { isError: true });
       }
     });
 

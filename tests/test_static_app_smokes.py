@@ -290,3 +290,15 @@ def test_memorypalace_page_includes_local_save_load_controls() -> None:
     assert "Save Palace" in text
     assert "Load Saved" in text
     assert "playground.memorypalace.saved-palace.v1" in text
+
+
+def test_realitycheck_page_includes_specific_url_fetch_error_copy() -> None:
+    text = (ROOT / "src" / "realitycheck" / "index.html").read_text(encoding="utf-8")
+
+    assert (
+        "The source took too long to respond. Retry, use a faster page, or paste the text directly."
+        in text
+    )
+    assert "That URL did not return a readable page." in text
+    assert "That ${label} URL looks blocked by the source site." in text
+    assert "Use a direct ${label} URL or upload the ${label} instead." in text
