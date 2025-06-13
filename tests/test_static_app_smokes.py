@@ -270,3 +270,12 @@ def test_manipulation_page_includes_signal_tooltips() -> None:
     assert "signal-tooltip" in text
     assert "Looks for countdowns, last-chance deadlines" in text
     assert "Catches shame, obligation, and loyalty-test language" in text
+
+
+def test_manipulation_page_includes_simple_summary_view_toggle() -> None:
+    text = (ROOT / "src" / "manipulation" / "index.html").read_text(encoding="utf-8")
+
+    assert 'id="view-mode-select"' in text
+    assert 'id="simple-summary-card"' in text
+    assert "Detailed signals" in text
+    assert "Simple summary" in text

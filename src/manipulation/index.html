@@ -186,6 +186,15 @@
       color: var(--muted);
     }
 
+    .view-controls {
+      display: grid;
+      gap: 6px;
+    }
+
+    .view-controls label {
+      font-size: 11px;
+    }
+
     .pattern-grid {
       display: grid;
       gap: 14px;
@@ -353,6 +362,15 @@
           <div class="app-pill is-fallback" id="fallback-pill" hidden>Fallback mode active</div>
           <div class="score-value" id="score-value">--</div>
           <p class="summary" id="summary-text">Paste text to begin.</p>
+          <div class="view-controls">
+            <label>
+              Result View
+              <select id="view-mode-select">
+                <option value="detailed" selected>Detailed signals</option>
+                <option value="simple">Simple summary</option>
+              </select>
+            </label>
+          </div>
           <div class="models">
             <div class="app-help is-loading" id="toxicity-status">Loading browser toxicity model…</div>
             <div class="app-help is-loading" id="sentiment-status">Loading browser sentiment model…</div>
@@ -371,6 +389,12 @@
       </div>
 
       <section class="pattern-grid app-stack-md" id="pattern-grid"></section>
+
+      <section class="evidence-card" id="simple-summary-card" hidden>
+        <h2>Simple Summary</h2>
+        <div class="evidence-empty" id="simple-summary-empty">Switch to simple summary after an analysis run to see the headline takeaways without the full raw signal grid.</div>
+        <div class="evidence-list" id="simple-summary-list"></div>
+      </section>
 
       <section class="evidence-card">
         <h2>Evidence</h2>
@@ -504,11 +528,15 @@
     const sourceType = document.getElementById("source-type");
     const analyzeButton = document.getElementById("analyze-button");
     const clearButton = document.getElementById("clear-button");
+    const viewModeSelect = document.getElementById("view-mode-select");
     const statusText = document.getElementById("status-text");
     const scoreValue = document.getElementById("score-value");
     const riskPill = document.getElementById("risk-pill");
     const summaryText = document.getElementById("summary-text");
     const patternGrid = document.getElementById("pattern-grid");
+    const simpleSummaryCard = document.getElementById("simple-summary-card");
+    const simpleSummaryEmpty = document.getElementById("simple-summary-empty");
+    const simpleSummaryList = document.getElementById("simple-summary-list");
     const evidenceList = document.getElementById("evidence-list");
     const evidenceEmpty = document.getElementById("evidence-empty");
     const fallbackPill = document.getElementById("fallback-pill");
@@ -517,6 +545,7 @@
 
     let toxicityClassifier = null;
     let sentimentClassifier = null;
+    let lastAnalysis = null;
 
     function setStatus(message, { isError = false, isLoading = false } = {}) {
       statusText.textContent = message;
@@ -677,15 +706,97 @@
       }
     }
 
+    function renderSimpleSummary(items) {
+      simpleSummaryList.innerHTML = "";
+      if (!items.length) {
+        simpleSummaryEmpty.style.display = "block";
+        simpleSummaryEmpty.textContent = "Switch to simple summary after an analysis run to see the headline takeaways without the full raw signal grid.";
+        return;
+      }
+
+      simpleSummaryEmpty.style.display = "none";
+      for (const item of items) {
+        const row = document.createElement("div");
+        row.className = "evidence-item";
+        row.innerHTML = `<div>${item}</div>`;
+        simpleSummaryList.appendChild(row);
+      }
+    }
+
+    function buildSimpleSummary(patternResults, modelSignals, overallScore, source) {
+      const topPatterns = patternResults
+        .filter((item) => item.score > 0.18)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 2);
+      const topHits = topPatterns.flatMap((item) => item.uniqueHits.slice(0, 2)).slice(0, 3);
+      const bucket = riskBucket(overallScore);
+      const items = [];
+
+      if (topPatterns.length) {
+        items.push(`Headline read: ${bucket.label.toLowerCase()} driven mostly by ${topPatterns.map((item) => item.label.toLowerCase()).join(" and ")}.`);
+      } else {
+        items.push(`Headline read: ${bucket.label.toLowerCase()}, with no strong classic manipulation pattern dominating the text.`);
+      }
+
+      if (modelSignals.toxicityTop || modelSignals.sentimentTop) {
+        const toneParts = [];
+        if (modelSignals.toxicityTop) {
+          toneParts.push(`toxicity leaning ${modelSignals.toxicityTop.label.toLowerCase().replaceAll("_", " ")} at ${(modelSignals.toxicityTop.score * 100).toFixed(0)}%`);
+        }
+        if (modelSignals.sentimentTop) {
+          toneParts.push(`sentiment reading ${modelSignals.sentimentTop.label.toLowerCase()} at ${(modelSignals.sentimentTop.score * 100).toFixed(0)}%`);
+        }
+        items.push(`Model tone check: ${toneParts.join(", ")}.`);
+      } else {
+        items.push("Model tone check: browser models were unavailable, so this pass is relying on heuristic language patterns only.");
+      }
+
+      if (topHits.length) {
+        items.push(`Review these phrases first: ${topHits.map((hit) => `"${hit}"`).join(", ")}.`);
+      } else if (source === "group_chat") {
+        items.push("Review whether the pressure comes from loyalty tests, obligation, or social fallout rather than explicit hostile wording.");
+      } else if (source === "community") {
+        items.push("Review whether the text divides insiders from outsiders or treats dissent as betrayal.");
+      } else {
+        items.push("Review whether the text pushes deadlines, fear, or authority claims harder than actual evidence.");
+      }
+
+      return items;
+    }
+
+    function applyViewMode() {
+      const simple = viewModeSelect.value === "simple";
+      patternGrid.hidden = simple;
+      simpleSummaryCard.hidden = !simple;
+      if (!simple) {
+        return;
+      }
+      if (!lastAnalysis) {
+        renderSimpleSummary([]);
+        return;
+      }
+      renderSimpleSummary(
+        buildSimpleSummary(
+          lastAnalysis.patternResults,
+          lastAnalysis.modelSignals,
+          lastAnalysis.overallScore,
+          lastAnalysis.source,
+        )
+      );
+    }
+
     function resetView() {
+      lastAnalysis = null;
       riskPill.className = "pill neutral";
       riskPill.textContent = "Waiting for text";
       scoreValue.textContent = "--";
       summaryText.textContent = "Paste text to begin.";
       renderPatterns(PATTERNS.map((pattern) => ({ ...pattern, score: 0, uniqueHits: [] })));
+      renderSimpleSummary([]);
       evidenceList.innerHTML = "";
       evidenceEmpty.style.display = "block";
       evidenceEmpty.textContent = "Analyze text to begin. Matched snippets and model signals will show here.";
+      applyViewMode();
     }
 
     function riskBucket(score) {
@@ -835,6 +946,13 @@
         summaryText.textContent = summarize(heuristicResults, modelSignals, overallScore, source);
         renderPatterns(heuristicResults.sort((a, b) => b.score - a.score));
         renderEvidence(collectEvidence(text, heuristicResults, modelSignals));
+        lastAnalysis = {
+          patternResults: heuristicResults,
+          modelSignals,
+          overallScore,
+          source,
+        };
+        applyViewMode();
         setStatus("Analysis ready.");
       } catch (error) {
         console.error(error);
@@ -850,6 +968,10 @@
       textInput.value = "";
       resetView();
       setStatus("Cleared. Paste text and analyze.");
+    });
+
+    viewModeSelect.addEventListener("change", () => {
+      applyViewMode();
     });
 
     document.querySelectorAll("[data-sample]").forEach((button) => {
