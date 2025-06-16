@@ -176,6 +176,60 @@
       font-size: 14px;
     }
 
+    .source-metadata-card {
+      display: grid;
+      gap: 12px;
+      padding: 16px 18px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: #fff;
+    }
+
+    .source-metadata-card h3 {
+      margin: 0;
+      font-size: 12px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .source-metadata-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .source-metadata-row {
+      display: grid;
+      gap: 4px;
+    }
+
+    .source-metadata-label {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .source-metadata-value {
+      color: inherit;
+      line-height: 1.5;
+      word-break: break-word;
+    }
+
+    .source-metadata-value.empty {
+      color: var(--muted);
+    }
+
+    a.source-metadata-value {
+      color: var(--neutral-text);
+      text-decoration: none;
+    }
+
+    a.source-metadata-value:hover {
+      text-decoration: underline;
+    }
+
     .score-card {
       display: grid;
       gap: 14px;
@@ -380,6 +434,23 @@
                 <button id="analyze-url-button" class="app-button" type="button">Fetch and Analyze URL</button>
               </div>
               <div class="help app-help" id="url-status">Ready. The local server fetches page text, then runs text analysis in the browser.</div>
+              <section class="source-metadata-card" id="url-source-metadata">
+                <h3>Fetched Source</h3>
+                <div class="source-metadata-grid">
+                  <div class="source-metadata-row">
+                    <div class="source-metadata-label">Fetched title</div>
+                    <div class="source-metadata-value empty" id="source-title-value">No fetched title yet.</div>
+                  </div>
+                  <div class="source-metadata-row">
+                    <div class="source-metadata-label">Final URL</div>
+                    <a class="source-metadata-value empty" id="source-final-url-value" target="_blank" rel="noreferrer">No final URL yet.</a>
+                  </div>
+                  <div class="source-metadata-row">
+                    <div class="source-metadata-label">Content type</div>
+                    <div class="source-metadata-value empty" id="source-content-type-value">No content type yet.</div>
+                  </div>
+                </div>
+              </section>
             </div>
             <div class="score-card" id="url-card">
               <div class="score-pill neutral" id="url-pill">Waiting for URL</div>
@@ -471,6 +542,9 @@
     const urlInput = document.getElementById("url-input");
     const urlStatus = document.getElementById("url-status");
     const analyzeUrlButton = document.getElementById("analyze-url-button");
+    const sourceTitleValue = document.getElementById("source-title-value");
+    const sourceFinalUrlValue = document.getElementById("source-final-url-value");
+    const sourceContentTypeValue = document.getElementById("source-content-type-value");
 
     let textClassifier = null;
     let imageClassifier = null;
@@ -495,6 +569,30 @@
 
     function clamp(value, min, max) {
       return Math.max(min, Math.min(max, value));
+    }
+
+    function setMetadataField(element, value, fallback) {
+      const hasValue = Boolean(value);
+      element.textContent = hasValue ? value : fallback;
+      element.classList.toggle("empty", !hasValue);
+    }
+
+    function resetSourceMetadata() {
+      setMetadataField(sourceTitleValue, "", "No fetched title yet.");
+      setMetadataField(sourceFinalUrlValue, "", "No final URL yet.");
+      sourceFinalUrlValue.removeAttribute("href");
+      setMetadataField(sourceContentTypeValue, "", "No content type yet.");
+    }
+
+    function setSourceMetadata({ title = "", finalUrl = "", contentType = "" } = {}) {
+      setMetadataField(sourceTitleValue, title, "No page title found.");
+      setMetadataField(sourceFinalUrlValue, finalUrl, "No final URL reported.");
+      if (finalUrl) {
+        sourceFinalUrlValue.href = finalUrl;
+      } else {
+        sourceFinalUrlValue.removeAttribute("href");
+      }
+      setMetadataField(sourceContentTypeValue, contentType, "No content type reported.");
     }
 
     function formatErrorMessage(error) {
@@ -1204,10 +1302,12 @@
     analyzeUrlButton.addEventListener("click", async () => {
       const targetUrl = urlInput.value.trim();
       if (!targetUrl) {
+        resetSourceMetadata();
         clearCard("url", "Waiting for URL", "Enter a URL to begin.");
         return;
       }
 
+      resetSourceMetadata();
       setHelpMessage(urlStatus, "Fetching URL…");
       try {
         const response = await fetch(`/api/fetch?url=${encodeURIComponent(targetUrl)}`);
@@ -1216,13 +1316,25 @@
           const fetchError = new Error(payload.error || "Couldn't fetch the URL.");
           fetchError.status = response.status;
           fetchError.contentType = payload.content_type || "";
+          fetchError.finalUrl = payload.final_url || payload.url || "";
+          fetchError.title = payload.title || "";
           fetchError.upstreamStatus = extractUpstreamStatus(fetchError);
           throw fetchError;
         }
+        setSourceMetadata({
+          title: payload.title || "",
+          finalUrl: payload.final_url || payload.url || "",
+          contentType: payload.content_type || "",
+        });
         const combined = [payload.title, payload.text].filter(Boolean).join("\n\n");
         await analyzeTextContent(combined, "url", "Analyzing fetched page text…");
       } catch (error) {
         console.error(error);
+        setSourceMetadata({
+          title: error?.title || "",
+          finalUrl: error?.finalUrl || "",
+          contentType: error?.contentType || "",
+        });
         const message = describeUrlFetchError(error);
         clearCard("url", "Fetch error", message.cardSummary, "error");
         setHelpMessage(urlStatus, message.helpMessage, { isError: true });
@@ -1240,6 +1352,8 @@
       setHelpMessage(textStatus, "Couldn't load the browser text model.", { isError: true });
       textInput.placeholder = "Couldn't load the browser text model.";
     }
+
+    resetSourceMetadata();
   </script>
 </body>
 </html>

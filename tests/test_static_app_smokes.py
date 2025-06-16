@@ -302,3 +302,14 @@ def test_realitycheck_page_includes_specific_url_fetch_error_copy() -> None:
     assert "That URL did not return a readable page." in text
     assert "That ${label} URL looks blocked by the source site." in text
     assert "Use a direct ${label} URL or upload the ${label} instead." in text
+
+
+def test_realitycheck_page_includes_source_metadata_panel() -> None:
+    text = (ROOT / "src" / "realitycheck" / "index.html").read_text(encoding="utf-8")
+
+    assert 'id="url-source-metadata"' in text
+    assert 'id="source-title-value"' in text
+    assert 'id="source-final-url-value"' in text
+    assert 'id="source-content-type-value"' in text
+    assert "Fetched Source" in text
+    assert "Final URL" in text

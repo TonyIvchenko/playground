@@ -138,6 +138,7 @@ class Handler(SimpleHTTPRequestHandler):
         try:
             request = Request(target, headers={"User-Agent": USER_AGENT})
             with urlopen(request, timeout=12) as response:
+                final_url = response.geturl()
                 content_type = (
                     response.headers.get("Content-Type", "")
                     .split(";")[0]
@@ -154,6 +155,8 @@ class Handler(SimpleHTTPRequestHandler):
                 {
                     "error": f"Unsupported content type: {content_type or 'unknown'}",
                     "content_type": content_type,
+                    "final_url": final_url,
+                    "url": target,
                 },
                 status=415,
             )
@@ -172,6 +175,7 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_json(
             {
                 "url": target,
+                "final_url": final_url,
                 "content_type": content_type,
                 "title": parsed_content["title"],
                 "text": parsed_content["text"],
