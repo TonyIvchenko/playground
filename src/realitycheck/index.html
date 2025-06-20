@@ -375,6 +375,7 @@
             <div class="stack">
               <div class="source-stack">
                 <input id="image-input" type="file" accept="image/*">
+                <div class="help app-help" id="image-size-guidance">Upload tip: images under 12 MB decode faster in the browser.</div>
                 <div class="divider">or</div>
                 <input id="image-url-input" type="url" placeholder="https://example.com/image.jpg">
                 <div class="actions">
@@ -402,6 +403,7 @@
             <div class="stack">
               <div class="source-stack">
                 <input id="video-input" type="file" accept="video/*">
+                <div class="help app-help" id="video-size-guidance">Upload tip: videos under 80 MB work best here. Larger clips take longer to load and sample.</div>
                 <div class="divider">or</div>
                 <input id="video-url-input" type="url" placeholder="https://example.com/video.mp4">
                 <div class="actions">
@@ -514,6 +516,8 @@
     const IMAGE_MODEL_ID = "LPX55/detection-model-1-ONNX";
     const TEXT_MODEL_ID = "nicoamoretti/roberta-openai-detector-onnx";
     const HAS_WEBGPU = typeof navigator !== "undefined" && "gpu" in navigator;
+    const IMAGE_UPLOAD_SOFT_LIMIT_BYTES = 12 * 1024 * 1024;
+    const VIDEO_UPLOAD_SOFT_LIMIT_BYTES = 80 * 1024 * 1024;
 
     const textInput = document.getElementById("text-input");
     const textStatus = document.getElementById("text-status");
@@ -521,6 +525,7 @@
     const clearTextButton = document.getElementById("clear-text-button");
 
     const imageInput = document.getElementById("image-input");
+    const imageSizeGuidance = document.getElementById("image-size-guidance");
     const imageUrlInput = document.getElementById("image-url-input");
     const loadImageUrlButton = document.getElementById("load-image-url-button");
     const imagePreview = document.getElementById("image-preview");
@@ -529,6 +534,7 @@
     const analyzeImageButton = document.getElementById("analyze-image-button");
 
     const videoInput = document.getElementById("video-input");
+    const videoSizeGuidance = document.getElementById("video-size-guidance");
     const videoUrlInput = document.getElementById("video-url-input");
     const loadVideoUrlButton = document.getElementById("load-video-url-button");
     const videoPreview = document.getElementById("video-preview");
@@ -569,6 +575,60 @@
 
     function clamp(value, min, max) {
       return Math.max(min, Math.min(max, value));
+    }
+
+    function formatFileSize(bytes) {
+      if (!Number.isFinite(bytes) || bytes <= 0) {
+        return "0 B";
+      }
+      if (bytes < 1024 * 1024) {
+        return `${(bytes / 1024).toFixed(1)} KB`;
+      }
+      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    function imageUploadGuidanceText() {
+      return "Upload tip: images under 12 MB decode faster in the browser.";
+    }
+
+    function videoUploadGuidanceText() {
+      return "Upload tip: videos under 80 MB work best here. Larger clips take longer to load and sample.";
+    }
+
+    function resetUploadGuidance(kind) {
+      if (kind === "image") {
+        setHelpMessage(imageSizeGuidance, imageUploadGuidanceText());
+        return;
+      }
+      setHelpMessage(videoSizeGuidance, videoUploadGuidanceText());
+    }
+
+    function updateUploadGuidance(kind, file) {
+      const isImage = kind === "image";
+      const element = isImage ? imageSizeGuidance : videoSizeGuidance;
+      const softLimitBytes = isImage ? IMAGE_UPLOAD_SOFT_LIMIT_BYTES : VIDEO_UPLOAD_SOFT_LIMIT_BYTES;
+      const softLimitLabel = isImage ? "12 MB" : "80 MB";
+      const selectedKind = isImage ? "image" : "video";
+
+      if (!file) {
+        resetUploadGuidance(kind);
+        return;
+      }
+
+      const sizeLabel = formatFileSize(file.size);
+      if (file.size > softLimitBytes) {
+        setHelpMessage(
+          element,
+          `Selected ${selectedKind}: ${file.name} (${sizeLabel}). This is above the ${softLimitLabel} soft limit, so loading may take longer.`,
+          { isError: true }
+        );
+        return;
+      }
+
+      setHelpMessage(
+        element,
+        `Selected ${selectedKind}: ${file.name} (${sizeLabel}). This is within the ${softLimitLabel} soft limit.`,
+      );
     }
 
     function setMetadataField(element, value, fallback) {
@@ -1175,6 +1235,7 @@
       const file = imageInput.files?.[0];
       currentImageSource = null;
       analyzeImageButton.disabled = true;
+      updateUploadGuidance("image", file);
 
       if (!file) {
         imagePreview.textContent = "Upload an image or paste a direct image URL.";
@@ -1201,6 +1262,7 @@
       }
 
       try {
+        resetUploadGuidance("image");
         setHelpMessage(imageStatus, "Fetching image URL through the local proxy…", { isLoading: true });
         revokeObjectUrl("image");
         currentImageObjectUrl = await fetchProxyMediaObjectUrl(targetUrl, "image");
@@ -1218,6 +1280,7 @@
       const file = videoInput.files?.[0];
       currentVideoSource = null;
       analyzeVideoButton.disabled = true;
+      updateUploadGuidance("video", file);
 
       if (!file) {
         videoPreview.textContent = "Upload a video or paste a direct video URL.";
@@ -1244,6 +1307,7 @@
       }
 
       try {
+        resetUploadGuidance("video");
         setHelpMessage(videoStatus, "Fetching video URL through the local proxy…", { isLoading: true });
         revokeObjectUrl("video");
         currentVideoObjectUrl = await fetchProxyMediaObjectUrl(targetUrl, "video");
@@ -1354,6 +1418,8 @@
     }
 
     resetSourceMetadata();
+    resetUploadGuidance("image");
+    resetUploadGuidance("video");
   </script>
 </body>
 </html>

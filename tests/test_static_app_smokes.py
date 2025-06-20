@@ -313,3 +313,15 @@ def test_realitycheck_page_includes_source_metadata_panel() -> None:
     assert 'id="source-content-type-value"' in text
     assert "Fetched Source" in text
     assert "Final URL" in text
+
+
+def test_realitycheck_page_includes_upload_size_guidance() -> None:
+    text = (ROOT / "src" / "realitycheck" / "index.html").read_text(encoding="utf-8")
+
+    assert 'id="image-size-guidance"' in text
+    assert 'id="video-size-guidance"' in text
+    assert "Upload tip: images under 12 MB decode faster in the browser." in text
+    assert (
+        "Upload tip: videos under 80 MB work best here. Larger clips take longer to load and sample."
+        in text
+    )
