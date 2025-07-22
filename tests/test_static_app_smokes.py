@@ -325,3 +325,15 @@ def test_realitycheck_page_includes_upload_size_guidance() -> None:
         "Upload tip: videos under 80 MB work best here. Larger clips take longer to load and sample."
         in text
     )
+
+
+def test_realitymix_page_includes_sample_style_buttons() -> None:
+    text = (ROOT / "src" / "realitymix" / "index.html").read_text(encoding="utf-8")
+
+    assert 'data-style-sample="sunset-weave"' in text
+    assert 'data-style-sample="blueprint-bloom"' in text
+    assert 'data-style-sample="poster-pulse"' in text
+    assert "Sunset Weave" in text
+    assert "Blueprint Bloom" in text
+    assert "Poster Pulse" in text
+    assert "Loading sample style image…" in text

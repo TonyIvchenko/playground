@@ -173,6 +173,16 @@
       display: block;
     }
 
+    .sample-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .sample-row .app-button {
+      width: auto;
+    }
+
     .canvas-wrap {
       position: relative;
       overflow: hidden;
@@ -238,6 +248,11 @@
         <label>
           Style image
           <input id="style-input" type="file" accept="image/*">
+          <div class="sample-row">
+            <button class="app-button secondary" data-style-sample="sunset-weave" type="button">Sunset Weave</button>
+            <button class="app-button secondary" data-style-sample="blueprint-bloom" type="button">Blueprint Bloom</button>
+            <button class="app-button secondary" data-style-sample="poster-pulse" type="button">Poster Pulse</button>
+          </div>
         </label>
 
         <label>
@@ -377,6 +392,80 @@
     let lastPreviewAt = 0;
     let styleObjectUrl = null;
     const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const STYLE_SAMPLES = {
+      "sunset-weave": {
+        label: "Sunset Weave",
+        svg: `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+            <defs>
+              <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+                <stop offset="0%" stop-color="#1d3557"/>
+                <stop offset="52%" stop-color="#e76f51"/>
+                <stop offset="100%" stop-color="#ffd166"/>
+              </linearGradient>
+            </defs>
+            <rect width="640" height="640" fill="url(#bg)"/>
+            <g fill="none" stroke-linecap="round" opacity="0.82">
+              <path d="M-40 140 C120 20 240 260 420 120 S700 180 760 60" stroke="#fff2cc" stroke-width="20"/>
+              <path d="M-30 250 C120 120 260 340 420 220 S700 260 760 160" stroke="#f4a261" stroke-width="24"/>
+              <path d="M-40 370 C120 250 250 470 430 340 S710 410 760 280" stroke="#2a9d8f" stroke-width="18"/>
+              <path d="M-20 500 C130 390 280 560 430 470 S700 530 760 430" stroke="#264653" stroke-width="28"/>
+            </g>
+            <g opacity="0.25" fill="#ffffff">
+              <circle cx="120" cy="110" r="54"/>
+              <circle cx="540" cy="520" r="78"/>
+              <circle cx="300" cy="330" r="46"/>
+            </g>
+          </svg>
+        `,
+      },
+      "blueprint-bloom": {
+        label: "Blueprint Bloom",
+        svg: `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+            <rect width="640" height="640" fill="#0b1f3a"/>
+            <g stroke="#7dd3fc" stroke-width="5" opacity="0.92" fill="none">
+              <circle cx="320" cy="320" r="210"/>
+              <circle cx="320" cy="320" r="150"/>
+              <circle cx="320" cy="320" r="90"/>
+              <path d="M320 44v552M44 320h552"/>
+              <path d="M120 120l400 400M520 120L120 520"/>
+            </g>
+            <g fill="#eff6ff" opacity="0.9">
+              <rect x="148" y="148" width="52" height="52" rx="10"/>
+              <rect x="440" y="148" width="52" height="52" rx="10"/>
+              <rect x="148" y="440" width="52" height="52" rx="10"/>
+              <rect x="440" y="440" width="52" height="52" rx="10"/>
+            </g>
+            <g fill="#22d3ee" opacity="0.28">
+              <circle cx="320" cy="320" r="248"/>
+              <circle cx="320" cy="320" r="36"/>
+            </g>
+          </svg>
+        `,
+      },
+      "poster-pulse": {
+        label: "Poster Pulse",
+        svg: `
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+            <rect width="640" height="640" fill="#fff7ed"/>
+            <g opacity="0.96">
+              <rect x="60" y="70" width="520" height="140" rx="24" fill="#ef4444"/>
+              <rect x="60" y="250" width="240" height="320" rx="24" fill="#111827"/>
+              <rect x="340" y="250" width="240" height="140" rx="24" fill="#2563eb"/>
+              <rect x="340" y="430" width="240" height="140" rx="24" fill="#f59e0b"/>
+            </g>
+            <g fill="#ffffff" opacity="0.9">
+              <circle cx="190" cy="410" r="84"/>
+              <path d="M388 310h144v22H388zM388 346h104v20H388zM388 482h134v22H388zM388 518h94v20H388z"/>
+            </g>
+            <g stroke="#fb7185" stroke-width="10" opacity="0.55" fill="none">
+              <path d="M76 590c94-74 176-38 262-92 94-58 178-8 226-44"/>
+            </g>
+          </svg>
+        `,
+      },
+    };
 
     function updateStatus(message, { isError = false, isLoading = false } = {}) {
       statusText.textContent = message;
@@ -502,21 +591,40 @@
       }
     }
 
-    async function loadStyleFile(file) {
-      revokeStyleUrl();
-      styleObjectUrl = URL.createObjectURL(file);
+    function createStyleSampleUrl(sampleKey) {
+      const sample = STYLE_SAMPLES[sampleKey];
+      if (!sample) {
+        throw new Error("Unknown style sample.");
+      }
+      const blob = new Blob([sample.svg.trim()], { type: "image/svg+xml" });
+      return {
+        label: sample.label,
+        url: URL.createObjectURL(blob),
+      };
+    }
+
+    async function loadStyleSource(sourceUrl, label, { revokeExistingObjectUrl = true } = {}) {
+      if (revokeExistingObjectUrl) {
+        revokeStyleUrl();
+      }
+      styleObjectUrl = sourceUrl;
       await new Promise((resolve, reject) => {
         styleImage.onload = resolve;
         styleImage.onerror = () => reject(new Error("Couldn't decode the style image."));
-        styleImage.src = styleObjectUrl;
+        styleImage.src = sourceUrl;
       });
       fitStyleCanvas();
       stylePreview.innerHTML = "";
       const previewImage = document.createElement("img");
-      previewImage.src = styleObjectUrl;
+      previewImage.src = sourceUrl;
       stylePreview.appendChild(previewImage);
-      updateStatus(`Style image ready: ${file.name}.`);
+      updateStatus(`Style image ready: ${label}.`);
       await ensureModel();
+    }
+
+    async function loadStyleFile(file) {
+      revokeStyleUrl();
+      await loadStyleSource(URL.createObjectURL(file), file.name, { revokeExistingObjectUrl: false });
     }
 
     async function stylizeFrame(now) {
@@ -642,6 +750,24 @@
         console.error(error);
         updateStatus(`Couldn't load the style image. ${String(error.message || error)}`, { isError: true });
       }
+    });
+
+    document.querySelectorAll("[data-style-sample]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const sampleKey = button.dataset.styleSample;
+        if (!sampleKey) {
+          return;
+        }
+        updateStatus("Loading sample style image…");
+        try {
+          styleInput.value = "";
+          const sample = createStyleSampleUrl(sampleKey);
+          await loadStyleSource(sample.url, `${sample.label} sample`, { revokeExistingObjectUrl: true });
+        } catch (error) {
+          console.error(error);
+          updateStatus(`Couldn't load the sample style image. ${String(error.message || error)}`, { isError: true });
+        }
+      });
     });
 
     strengthRange.addEventListener("input", () => {
