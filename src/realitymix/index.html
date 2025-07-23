@@ -52,7 +52,7 @@
     .toolbar {
       display: grid;
       gap: 14px;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
+      grid-template-columns: repeat(6, minmax(0, 1fr));
       align-items: end;
     }
 
@@ -291,6 +291,8 @@
           </select>
         </label>
 
+        <button id="mirror-toggle-button" class="app-button secondary" type="button" aria-pressed="true">Mirror: On</button>
+
         <button id="start-button" class="app-button" type="button">Start Camera</button>
       </div>
 
@@ -389,6 +391,7 @@
     const strengthRange = document.getElementById("strength-range");
     const resolutionSelect = document.getElementById("resolution-select");
     const fpsSelect = document.getElementById("fps-select");
+    const mirrorToggleButton = document.getElementById("mirror-toggle-button");
     const statusText = document.getElementById("status-text");
     const backendText = document.getElementById("backend-text");
     const resolutionText = document.getElementById("resolution-text");
@@ -417,6 +420,7 @@
     let lastStylizeAt = 0;
     let lastPreviewAt = 0;
     let styleObjectUrl = null;
+    let mirrorEnabled = true;
     let performanceWindowStart = 0;
     let performanceFrameCount = 0;
     let measuredOutputFps = 0;
@@ -523,6 +527,19 @@
     function getUpdateIntervalMs() {
       const baseInterval = 1000 / Number(fpsSelect.value);
       return prefersReducedMotion() ? Math.max(baseInterval, 1000) : baseInterval;
+    }
+
+    function syncMirrorToggle() {
+      mirrorToggleButton.textContent = mirrorEnabled ? "Mirror: On" : "Mirror: Off";
+      mirrorToggleButton.setAttribute("aria-pressed", String(mirrorEnabled));
+    }
+
+    function refreshViewAfterMirrorToggle() {
+      lastPreviewAt = 0;
+      lastStylizeAt = 0;
+      if (stream && video.readyState >= 2 && (!styleImage.src || !modelReady)) {
+        drawLivePreview();
+      }
     }
 
     function syncUiMetrics() {
@@ -756,8 +773,10 @@
       const height = contentCanvas.height;
       contentCtx.save();
       contentCtx.clearRect(0, 0, width, height);
-      contentCtx.translate(width, 0);
-      contentCtx.scale(-1, 1);
+      if (mirrorEnabled) {
+        contentCtx.translate(width, 0);
+        contentCtx.scale(-1, 1);
+      }
       contentCtx.drawImage(video, 0, 0, width, height);
       contentCtx.restore();
     }
@@ -991,9 +1010,17 @@
       }
     });
 
+    mirrorToggleButton.addEventListener("click", () => {
+      mirrorEnabled = !mirrorEnabled;
+      syncMirrorToggle();
+      refreshViewAfterMirrorToggle();
+      updateStatus(mirrorEnabled ? "Mirror view on." : "Mirror view off.");
+    });
+
     startButton.addEventListener("click", startCamera);
     reducedMotionQuery.addEventListener?.("change", syncMotionPreference);
     syncUiMetrics();
+    syncMirrorToggle();
     syncPerformanceMetrics();
 
     if (!navigator.mediaDevices?.getUserMedia) {

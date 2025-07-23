@@ -362,3 +362,13 @@ def test_realitymix_page_includes_camera_troubleshooting_panel() -> None:
         "Camera access needs a secure context before the browser will prompt for webcam permission."
         in text
     )
+
+
+def test_realitymix_page_includes_mirror_toggle() -> None:
+    text = (ROOT / "src" / "realitymix" / "index.html").read_text(encoding="utf-8")
+
+    assert 'id="mirror-toggle-button"' in text
+    assert 'aria-pressed="true"' in text
+    assert "Mirror: On" in text
+    assert "Mirror: Off" in text
+    assert "mirrorEnabled" in text
