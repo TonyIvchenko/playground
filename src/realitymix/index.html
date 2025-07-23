@@ -300,6 +300,8 @@
               <div><strong>Backend:</strong> <span id="backend-text">waiting</span></div>
               <div><strong>Resolution:</strong> <span id="resolution-text">192 px</span></div>
               <div><strong>Update rate:</strong> <span id="fps-text">2 fps</span></div>
+              <div><strong>Output FPS:</strong> <span id="output-fps-text">waiting</span></div>
+              <div><strong>Inference:</strong> <span id="inference-text">style image needed</span></div>
             </div>
           </section>
 
@@ -372,6 +374,8 @@
     const backendText = document.getElementById("backend-text");
     const resolutionText = document.getElementById("resolution-text");
     const fpsText = document.getElementById("fps-text");
+    const outputFpsText = document.getElementById("output-fps-text");
+    const inferenceText = document.getElementById("inference-text");
     const stylePreview = document.getElementById("style-preview");
     const styleImage = document.getElementById("style-image");
     const video = document.getElementById("source-video");
@@ -391,6 +395,11 @@
     let lastStylizeAt = 0;
     let lastPreviewAt = 0;
     let styleObjectUrl = null;
+    let performanceWindowStart = 0;
+    let performanceFrameCount = 0;
+    let measuredOutputFps = 0;
+    let averageStylizeMs = 0;
+    let stylizeSamples = 0;
     const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     const STYLE_SAMPLES = {
       "sunset-weave": {
@@ -499,6 +508,43 @@
       fpsText.textContent = `${fpsSelect.value} fps`;
     }
 
+    function syncPerformanceMetrics() {
+      outputFpsText.textContent = measuredOutputFps > 0 ? `${measuredOutputFps.toFixed(1)} fps` : (stream ? "measuring…" : "waiting");
+
+      if (!styleImage.src) {
+        inferenceText.textContent = "style image needed";
+        return;
+      }
+      if (!modelReady) {
+        inferenceText.textContent = "loading model";
+        return;
+      }
+      inferenceText.textContent = stylizeSamples > 0 ? `${Math.round(averageStylizeMs)} ms avg` : "measuring…";
+    }
+
+    function resetPerformanceMetrics() {
+      performanceWindowStart = 0;
+      performanceFrameCount = 0;
+      measuredOutputFps = 0;
+      averageStylizeMs = 0;
+      stylizeSamples = 0;
+      syncPerformanceMetrics();
+    }
+
+    function recordOutputFrame(now = performance.now()) {
+      if (!performanceWindowStart) {
+        performanceWindowStart = now;
+      }
+      performanceFrameCount += 1;
+      const elapsed = now - performanceWindowStart;
+      if (elapsed >= 1000) {
+        measuredOutputFps = (performanceFrameCount * 1000) / elapsed;
+        performanceWindowStart = now;
+        performanceFrameCount = 0;
+      }
+      syncPerformanceMetrics();
+    }
+
     async function ensureBackend() {
       if (!window.tf) {
         backendText.textContent = "unknown";
@@ -531,16 +577,19 @@
       }
       modelLoading = (async () => {
         updateStatus("Loading browser style model…", { isLoading: true });
+        syncPerformanceMetrics();
         await ensureBackend();
         model = new mi.ArbitraryStyleTransferNetwork();
         await model.initialize();
         modelReady = true;
         updateStatus("Browser style model ready. Start the camera or adjust style settings.");
+        syncPerformanceMetrics();
         return model;
       })().catch((error) => {
         console.error(error);
         modelLoading = null;
         modelReady = false;
+        syncPerformanceMetrics();
         throw error;
       });
       return modelLoading;
@@ -608,6 +657,9 @@
         revokeStyleUrl();
       }
       styleObjectUrl = sourceUrl;
+      averageStylizeMs = 0;
+      stylizeSamples = 0;
+      syncPerformanceMetrics();
       await new Promise((resolve, reject) => {
         styleImage.onload = resolve;
         styleImage.onerror = () => reject(new Error("Couldn't decode the style image."));
@@ -637,11 +689,16 @@
 
       stylizeBusy = true;
       lastStylizeAt = now;
+      const inferenceStartedAt = performance.now();
 
       try {
         drawRawCameraFrame();
         const imageData = await model.stylize(contentCanvas, styleCanvas, getStrength());
         outputCtx.putImageData(imageData, 0, 0);
+        const inferenceMs = performance.now() - inferenceStartedAt;
+        stylizeSamples += 1;
+        averageStylizeMs = stylizeSamples === 1 ? inferenceMs : (averageStylizeMs * 0.8) + (inferenceMs * 0.2);
+        recordOutputFrame(now);
         updateStatus(
           prefersReducedMotion()
             ? "Stylizing reduced-motion snapshots."
@@ -655,12 +712,13 @@
       }
     }
 
-    function drawLivePreview() {
+    function drawLivePreview(now = performance.now()) {
       if (!stream || video.readyState < 2) {
         return;
       }
       drawRawCameraFrame();
       outputCtx.drawImage(contentCanvas, 0, 0);
+      recordOutputFrame(now);
     }
 
     async function renderLoop(now) {
@@ -670,7 +728,7 @@
         return;
       }
       if (!styleImage.src || !modelReady) {
-        drawLivePreview();
+        drawLivePreview(now);
       } else {
         await stylizeFrame(now);
       }
@@ -681,6 +739,7 @@
     function syncMotionPreference() {
       lastPreviewAt = 0;
       lastStylizeAt = 0;
+      resetPerformanceMetrics();
       if (stream && video.readyState >= 2) {
         drawLivePreview();
       }
@@ -707,6 +766,7 @@
         video.srcObject = stream;
         await video.play();
         fitCanvasToVideo();
+        resetPerformanceMetrics();
         drawLivePreview();
         cancelAnimationFrame(animationFrameId);
         lastPreviewAt = 0;
@@ -802,6 +862,7 @@
     startButton.addEventListener("click", startCamera);
     reducedMotionQuery.addEventListener?.("change", syncMotionPreference);
     syncUiMetrics();
+    syncPerformanceMetrics();
 
     if (!navigator.mediaDevices?.getUserMedia) {
       updateStatus("This browser does not support webcam capture.");

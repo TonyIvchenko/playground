@@ -337,3 +337,14 @@ def test_realitymix_page_includes_sample_style_buttons() -> None:
     assert "Blueprint Bloom" in text
     assert "Poster Pulse" in text
     assert "Loading sample style image…" in text
+
+
+def test_realitymix_page_includes_live_performance_readout() -> None:
+    text = (ROOT / "src" / "realitymix" / "index.html").read_text(encoding="utf-8")
+
+    assert 'id="output-fps-text"' in text
+    assert 'id="inference-text"' in text
+    assert "Output FPS:" in text
+    assert "Inference:" in text
+    assert "measuredOutputFps" in text
+    assert "averageStylizeMs" in text
