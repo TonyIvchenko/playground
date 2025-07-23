@@ -226,6 +226,19 @@
       line-height: 1.5;
     }
 
+    .troubleshooting-summary {
+      color: var(--ink);
+      line-height: 1.5;
+    }
+
+    .troubleshooting-list {
+      margin: 0;
+      padding-left: 1.1rem;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
     @media (max-width: 64rem) {
       .canvas-wrap {
         min-height: 300px;
@@ -309,6 +322,12 @@
             <h3>Notes</h3>
             <div class="note">Lower internal size is much faster. The last stylized frame stays on screen while the next frame is being inferred.</div>
           </section>
+
+          <section class="card" id="camera-troubleshooting-card" hidden>
+            <h3>Camera Troubleshooting</h3>
+            <div class="troubleshooting-summary" id="camera-troubleshooting-summary">Camera troubleshooting details will appear here if webcam access fails.</div>
+            <ul class="troubleshooting-list" id="camera-troubleshooting-list"></ul>
+          </section>
         </aside>
 
         <div class="canvas-wrap">
@@ -376,6 +395,9 @@
     const fpsText = document.getElementById("fps-text");
     const outputFpsText = document.getElementById("output-fps-text");
     const inferenceText = document.getElementById("inference-text");
+    const cameraTroubleshootingCard = document.getElementById("camera-troubleshooting-card");
+    const cameraTroubleshootingSummary = document.getElementById("camera-troubleshooting-summary");
+    const cameraTroubleshootingList = document.getElementById("camera-troubleshooting-list");
     const stylePreview = document.getElementById("style-preview");
     const styleImage = document.getElementById("style-image");
     const video = document.getElementById("source-video");
@@ -506,6 +528,113 @@
     function syncUiMetrics() {
       resolutionText.textContent = `${getInternalSize()} px`;
       fpsText.textContent = `${fpsSelect.value} fps`;
+    }
+
+    function setCameraTroubleshooting(summary, steps) {
+      cameraTroubleshootingCard.hidden = false;
+      cameraTroubleshootingSummary.textContent = summary;
+      cameraTroubleshootingList.innerHTML = "";
+      for (const step of steps) {
+        const item = document.createElement("li");
+        item.textContent = step;
+        cameraTroubleshootingList.appendChild(item);
+      }
+    }
+
+    function hideCameraTroubleshooting() {
+      cameraTroubleshootingCard.hidden = true;
+      cameraTroubleshootingSummary.textContent = "Camera troubleshooting details will appear here if webcam access fails.";
+      cameraTroubleshootingList.innerHTML = "";
+    }
+
+    function describeCameraTroubleshooting(error) {
+      const name = String(error?.name || "");
+
+      if (!navigator.mediaDevices?.getUserMedia) {
+        return {
+          summary: "This browser does not expose webcam capture to RealityMix.",
+          steps: [
+            "Use a current browser with getUserMedia support, such as recent Chrome, Edge, Firefox, or Safari.",
+            "If you are in a locked-down embedded browser, reopen RealityMix in a normal browser window.",
+            "If camera support is disabled by policy, try another browser profile or device.",
+          ],
+        };
+      }
+
+      if (!window.isSecureContext) {
+        return {
+          summary: "Camera access needs a secure context before the browser will prompt for webcam permission.",
+          steps: [
+            "Open RealityMix on https:// or on localhost instead of an insecure remote http:// page.",
+            "If you already use localhost, reload the page and try Start Camera again.",
+            "After moving to a secure origin, check browser and OS privacy settings if the prompt still does not appear.",
+          ],
+        };
+      }
+
+      if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+        return {
+          summary: "Camera permission was denied or blocked for this page.",
+          steps: [
+            "Open the browser site settings for this page and allow camera access.",
+            "Check macOS or system privacy settings if the browser itself is blocked from using the camera.",
+            "After updating permissions, reload the page and click Start Camera again.",
+          ],
+        };
+      }
+
+      if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+        return {
+          summary: "No camera device was found for RealityMix to open.",
+          steps: [
+            "Connect a webcam or re-enable the built-in camera.",
+            "If you use Continuity Camera or an external device, make sure it is available before retrying.",
+            "Reload the page after the device appears so the browser refreshes its media device list.",
+          ],
+        };
+      }
+
+      if (name === "NotReadableError" || name === "TrackStartError" || name === "AbortError") {
+        return {
+          summary: "The camera exists, but another app or browser tab may already be using it.",
+          steps: [
+            "Close Zoom, FaceTime, OBS, or other tabs that might be holding the camera.",
+            "Wait a moment, then click Start Camera again.",
+            "If the camera still looks busy, unplug and reconnect the device or restart the browser.",
+          ],
+        };
+      }
+
+      if (name === "OverconstrainedError" || name === "ConstraintNotSatisfiedError") {
+        return {
+          summary: "The browser could not satisfy the current camera constraints.",
+          steps: [
+            "Retry with the same page first; the browser may pick a simpler default camera on the next attempt.",
+            "Disconnect unusual virtual cameras if one of them is selected by default.",
+            "If the problem repeats, try another browser to confirm whether the camera reports capabilities differently there.",
+          ],
+        };
+      }
+
+      if (name === "SecurityError") {
+        return {
+          summary: "The browser blocked camera access for security reasons before opening the device.",
+          steps: [
+            "Make sure you are running RealityMix on a secure origin such as https:// or localhost.",
+            "Check browser privacy settings or extensions that may block camera prompts.",
+            "Reload the page after adjusting those settings and retry Start Camera.",
+          ],
+        };
+      }
+
+      return {
+        summary: "RealityMix hit an unexpected camera-start problem.",
+        steps: [
+          "Reload the page and try Start Camera again.",
+          "Check browser permissions and close other apps that might be using the camera.",
+          "If it still fails, try another browser to narrow down whether the issue is browser-specific.",
+        ],
+      };
     }
 
     function syncPerformanceMetrics() {
@@ -748,6 +877,7 @@
     async function startCamera() {
       startButton.disabled = true;
       updateStatus("Requesting webcam access…");
+      hideCameraTroubleshooting();
 
       try {
         if (stream) {
@@ -792,6 +922,8 @@
         }
       } catch (error) {
         console.error(error);
+        const troubleshooting = describeCameraTroubleshooting(error);
+        setCameraTroubleshooting(troubleshooting.summary, troubleshooting.steps);
         updateStatus(`Couldn't start the camera. ${String(error.message || error)}`, { isError: true });
       } finally {
         startButton.disabled = false;
@@ -865,6 +997,8 @@
     syncPerformanceMetrics();
 
     if (!navigator.mediaDevices?.getUserMedia) {
+      const troubleshooting = describeCameraTroubleshooting(new Error("Webcam capture unavailable."));
+      setCameraTroubleshooting(troubleshooting.summary, troubleshooting.steps);
       updateStatus("This browser does not support webcam capture.");
       startButton.disabled = true;
     }

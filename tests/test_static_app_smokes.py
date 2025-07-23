@@ -348,3 +348,17 @@ def test_realitymix_page_includes_live_performance_readout() -> None:
     assert "Inference:" in text
     assert "measuredOutputFps" in text
     assert "averageStylizeMs" in text
+
+
+def test_realitymix_page_includes_camera_troubleshooting_panel() -> None:
+    text = (ROOT / "src" / "realitymix" / "index.html").read_text(encoding="utf-8")
+
+    assert 'id="camera-troubleshooting-card"' in text
+    assert 'id="camera-troubleshooting-summary"' in text
+    assert 'id="camera-troubleshooting-list"' in text
+    assert "Camera Troubleshooting" in text
+    assert "Camera permission was denied or blocked for this page." in text
+    assert (
+        "Camera access needs a secure context before the browser will prompt for webcam permission."
+        in text
+    )
