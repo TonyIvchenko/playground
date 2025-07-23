@@ -72,6 +72,14 @@
       text-transform: uppercase;
     }
 
+    .hero-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
     .composer {
       display: grid;
       gap: 16px;
@@ -312,7 +320,10 @@
           <h1 class="app-title">VibeDJ</h1>
           <p class="app-subtitle">Paste writing and get a creative direction pack: soundtrack, palette, typography, motion, and a one-shot art brief that all feel like they belong together.</p>
         </div>
-        <div class="hero-badge app-header-badge" id="hero-badge">Waiting for text</div>
+        <div class="hero-controls">
+          <button id="global-stop-button" class="app-button secondary" type="button" disabled>Stop All Audio</button>
+          <div class="hero-badge app-header-badge" id="hero-badge">Waiting for text</div>
+        </div>
       </div>
     </section>
 
@@ -745,6 +756,7 @@
     const analyzeButton = document.getElementById("analyze-button");
     const clearButton = document.getElementById("clear-button");
     const copyButton = document.getElementById("copy-button");
+    const globalStopButton = document.getElementById("global-stop-button");
     const modelPill = document.getElementById("model-pill");
     const fallbackPill = document.getElementById("fallback-pill");
     const statusText = document.getElementById("status-text");
@@ -813,6 +825,10 @@
 
     function setFallbackPill(active) {
       fallbackPill.hidden = !active;
+    }
+
+    function syncGlobalStopButton() {
+      globalStopButton.disabled = !audioState;
     }
 
     function clamp(value, min, max) {
@@ -1129,6 +1145,7 @@
       refreshStageMotionPreference();
       playButton.disabled = !currentMix;
       stopButton.disabled = true;
+      syncGlobalStopButton();
       if (updateStatus && currentMix) {
         setSoundtrackStatus(`Mix stopped. Ready at ${currentMix.bpm} BPM in ${currentMix.keyLabel}.`);
       }
@@ -1243,6 +1260,7 @@
       visualState.mode = plan.mode;
       visualState.playing = true;
       visualState.label = `${mixName} / ${plan.bpm} BPM / ${plan.keyLabel}`;
+      syncGlobalStopButton();
       refreshStageMotionPreference();
     }
 
@@ -1524,6 +1542,7 @@
       visualState.bursts = [];
       visualState.playing = false;
       setBackground(["#dce7ff", "#fff1de", "#f8fbff"]);
+      syncGlobalStopButton();
       refreshStageMotionPreference();
     });
 
@@ -1561,6 +1580,11 @@
     stopButton.addEventListener("click", () => {
       stopPlayback();
       setStatus("Playback stopped.");
+    });
+
+    globalStopButton.addEventListener("click", () => {
+      stopPlayback();
+      setStatus("All playback stopped.");
     });
 
     remixButton.addEventListener("click", async () => {
@@ -1612,6 +1636,7 @@
     sourceText.value = SAMPLE_TEXTS.afterglow;
     reducedMotionQuery.addEventListener?.("change", refreshStageMotionPreference);
     startStage();
+    syncGlobalStopButton();
     ensureSentiment();
   </script>
 </body>

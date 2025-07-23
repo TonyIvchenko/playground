@@ -372,3 +372,12 @@ def test_realitymix_page_includes_mirror_toggle() -> None:
     assert "Mirror: On" in text
     assert "Mirror: Off" in text
     assert "mirrorEnabled" in text
+
+
+def test_vibedj_page_includes_global_stop_audio_control() -> None:
+    text = (ROOT / "src" / "vibedj" / "index.html").read_text(encoding="utf-8")
+
+    assert 'id="global-stop-button"' in text
+    assert "Stop All Audio" in text
+    assert "syncGlobalStopButton" in text
+    assert 'setStatus("All playback stopped.")' in text
