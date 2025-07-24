@@ -392,3 +392,11 @@ def test_vibedj_page_includes_recommendation_export_buttons() -> None:
     assert "Export JSON" in text
     assert "buildRecommendationMarkdown" in text
     assert "buildRecommendationJson" in text
+
+
+def test_vibedj_page_includes_audio_unlock_hint() -> None:
+    text = (ROOT / "src" / "vibedj" / "index.html").read_text(encoding="utf-8")
+
+    assert 'id="audio-unlock-hint"' in text
+    assert "Audio starts only after your first click." in text
+    assert "syncAudioUnlockHint" in text

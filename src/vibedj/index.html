@@ -305,6 +305,11 @@
       color: var(--muted);
     }
 
+    .audio-unlock-hint {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
     .hidden {
       display: none;
     }
@@ -368,6 +373,7 @@
             <button id="stop-button" class="app-button secondary" type="button" disabled>Stop</button>
             <button id="remix-button" class="app-button secondary" type="button" disabled>Remix</button>
           </div>
+          <p class="audio-unlock-hint help" id="audio-unlock-hint" hidden>Audio starts only after your first click. Press Play Mix to unlock browser audio in this tab.</p>
           <p class="soundtrack-status app-status" id="soundtrack-status">Generate a mix to begin.</p>
           <div class="stage">
             <canvas id="stage-canvas" width="1000" height="360"></canvas>
@@ -781,6 +787,7 @@
     const playButton = document.getElementById("play-button");
     const stopButton = document.getElementById("stop-button");
     const remixButton = document.getElementById("remix-button");
+    const audioUnlockHint = document.getElementById("audio-unlock-hint");
     const soundtrackStatus = document.getElementById("soundtrack-status");
     const stageCanvas = document.getElementById("stage-canvas");
     const stageContext = stageCanvas.getContext("2d");
@@ -796,6 +803,7 @@
     let stageFrame = null;
     let stageSeed = 0;
     let fallbackMode = false;
+    let audioPrimed = false;
     const visualState = {
       colors: ["#dce7ff", "#fff1de", "#f8fbff"],
       mode: "embers",
@@ -833,6 +841,10 @@
 
     function syncGlobalStopButton() {
       globalStopButton.disabled = !audioState;
+    }
+
+    function syncAudioUnlockHint() {
+      audioUnlockHint.hidden = !currentMix || audioPrimed;
     }
 
     function clamp(value, min, max) {
@@ -1129,6 +1141,8 @@
         throw new Error("Tone.js failed to load");
       }
       await window.Tone.start();
+      audioPrimed = true;
+      syncAudioUnlockHint();
     }
 
     function stopPlayback(updateStatus = true) {
@@ -1550,6 +1564,7 @@
         currentAnalysis = { text, family, axes, soundtrack, palette, typography, motion, name };
         currentMix = mix;
         stageSeed = hashString(`${name}|${family}|${text.slice(0, 400)}`);
+        syncAudioUnlockHint();
 
         metrics.innerHTML = "";
         metrics.appendChild(metricRow("Energy", axes.energy));
@@ -1618,6 +1633,7 @@
       currentMix = null;
       remixIndex = 0;
       stageSeed = 0;
+      syncAudioUnlockHint();
       setStatus("Cleared. Paste writing and spin the set.");
       setSoundtrackStatus("Generate a mix to begin.");
       visualState.colors = ["#dce7ff", "#fff1de", "#f8fbff"];
@@ -1755,6 +1771,7 @@
     reducedMotionQuery.addEventListener?.("change", refreshStageMotionPreference);
     startStage();
     syncGlobalStopButton();
+    syncAudioUnlockHint();
     ensureSentiment();
   </script>
 </body>
