@@ -381,3 +381,14 @@ def test_vibedj_page_includes_global_stop_audio_control() -> None:
     assert "Stop All Audio" in text
     assert "syncGlobalStopButton" in text
     assert 'setStatus("All playback stopped.")' in text
+
+
+def test_vibedj_page_includes_recommendation_export_buttons() -> None:
+    text = (ROOT / "src" / "vibedj" / "index.html").read_text(encoding="utf-8")
+
+    assert 'id="export-md-button"' in text
+    assert 'id="export-json-button"' in text
+    assert "Export Markdown" in text
+    assert "Export JSON" in text
+    assert "buildRecommendationMarkdown" in text
+    assert "buildRecommendationJson" in text

@@ -344,6 +344,8 @@
             <button id="analyze-button" class="app-button" type="button" disabled>Spin The Set</button>
             <button id="clear-button" class="app-button secondary" type="button">Clear</button>
             <button id="copy-button" class="app-button secondary" type="button" disabled>Copy Brief</button>
+            <button id="export-md-button" class="app-button secondary" type="button" disabled>Export Markdown</button>
+            <button id="export-json-button" class="app-button secondary" type="button" disabled>Export JSON</button>
           </div>
         </section>
 
@@ -756,6 +758,8 @@
     const analyzeButton = document.getElementById("analyze-button");
     const clearButton = document.getElementById("clear-button");
     const copyButton = document.getElementById("copy-button");
+    const exportMdButton = document.getElementById("export-md-button");
+    const exportJsonButton = document.getElementById("export-json-button");
     const globalStopButton = document.getElementById("global-stop-button");
     const modelPill = document.getElementById("model-pill");
     const fallbackPill = document.getElementById("fallback-pill");
@@ -1441,6 +1445,82 @@
       ].join("\n");
     }
 
+    function slugify(text) {
+      return text
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 64) || "vibedj-set";
+    }
+
+    function recommendationFilename(extension) {
+      if (!currentAnalysis) {
+        return `vibedj-recommendations.${extension}`;
+      }
+      return `${slugify(currentAnalysis.name)}-recommendations.${extension}`;
+    }
+
+    function downloadExport(filename, content, mimeType) {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function buildRecommendationMarkdown(analysis) {
+      return [
+        `# ${analysis.name} Recommendations`,
+        ``,
+        `Core mood: ${analysis.family}.`,
+        `Source text: ${analysis.text}`,
+        ``,
+        `## Palette`,
+        `${analysis.palette.summary}`,
+        ``,
+        ...analysis.palette.swatches.map(([label, hex]) => `- ${label}: ${hex}`),
+        ``,
+        `## Typography`,
+        `${analysis.typography.summary}`,
+        ``,
+        ...analysis.typography.items.map(([label, note]) => `- ${label}: ${note}`),
+        ``,
+        `## Motion`,
+        `${analysis.motion.summary}`,
+        ``,
+        ...analysis.motion.items.map(([label, note]) => `- ${label}: ${note}`)
+      ].join("\n");
+    }
+
+    function buildRecommendationJson(analysis) {
+      return JSON.stringify(
+        {
+          name: analysis.name,
+          family: analysis.family,
+          axes: analysis.axes,
+          source_text: analysis.text,
+          palette: {
+            summary: analysis.palette.summary,
+            swatches: analysis.palette.swatches.map(([label, hex]) => ({ label, hex }))
+          },
+          typography: {
+            summary: analysis.typography.summary,
+            items: analysis.typography.items.map(([label, note]) => ({ label, note }))
+          },
+          motion: {
+            summary: analysis.motion.summary,
+            items: analysis.motion.items.map(([label, note]) => ({ label, note }))
+          }
+        },
+        null,
+        2
+      );
+    }
+
     async function analyze() {
       const text = sourceText.value.trim();
       if (!text) {
@@ -1467,7 +1547,7 @@
 
         heroBadge.textContent = `${name} / ${family}`;
         vibePill.textContent = name;
-        currentAnalysis = { text, family, axes, palette, name };
+        currentAnalysis = { text, family, axes, soundtrack, palette, typography, motion, name };
         currentMix = mix;
         stageSeed = hashString(`${name}|${family}|${text.slice(0, 400)}`);
 
@@ -1499,6 +1579,8 @@
         resultsShell.classList.remove("hidden");
         briefShell.classList.remove("hidden");
         copyButton.disabled = false;
+        exportMdButton.disabled = false;
+        exportJsonButton.disabled = false;
         playButton.disabled = false;
         remixButton.disabled = false;
         stopButton.disabled = true;
@@ -1526,6 +1608,8 @@
       resultsShell.classList.add("hidden");
       briefShell.classList.add("hidden");
       copyButton.disabled = true;
+      exportMdButton.disabled = true;
+      exportJsonButton.disabled = true;
       playButton.disabled = true;
       remixButton.disabled = true;
       stopButton.disabled = true;
@@ -1556,6 +1640,40 @@
       } catch (error) {
         console.error(error);
         setStatus(`Couldn't copy the brief. ${String(error.message || error)}`, { isError: true });
+      }
+    });
+
+    exportMdButton.addEventListener("click", () => {
+      if (!currentAnalysis) {
+        return;
+      }
+      try {
+        downloadExport(
+          recommendationFilename("md"),
+          buildRecommendationMarkdown(currentAnalysis),
+          "text/markdown;charset=utf-8"
+        );
+        setStatus("Recommendations exported as Markdown.");
+      } catch (error) {
+        console.error(error);
+        setStatus(`Couldn't export the Markdown file. ${String(error.message || error)}`, { isError: true });
+      }
+    });
+
+    exportJsonButton.addEventListener("click", () => {
+      if (!currentAnalysis) {
+        return;
+      }
+      try {
+        downloadExport(
+          recommendationFilename("json"),
+          buildRecommendationJson(currentAnalysis),
+          "application/json;charset=utf-8"
+        );
+        setStatus("Recommendations exported as JSON.");
+      } catch (error) {
+        console.error(error);
+        setStatus(`Couldn't export the JSON file. ${String(error.message || error)}`, { isError: true });
       }
     });
 
