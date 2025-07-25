@@ -42,6 +42,27 @@ def test_health_and_predict_endpoint(make_ct_zip):
     assert "_viewer" not in payload
 
 
+def test_health_contract_exposes_backend_fields():
+    client = TestClient(ctscan_main.api)
+
+    health = client.get("/health")
+    assert health.status_code == 200
+
+    payload = health.json()
+    assert payload["status"] == "ok"
+    assert payload["service"] == "CT Scan"
+    assert payload["version"] == "segmentation-v1"
+    assert payload["segmentation_backend"] == ctscan_main.segmentation_backend_name()
+    assert (
+        payload["segmentation_backend_error"]
+        == ctscan_main.segmentation_backend_error()
+    )
+    assert payload["issue_backend"] == ctscan_main.model_backend_name()
+    assert payload["issue_backend_error"] == ctscan_main.model_backend_error()
+    assert payload["issue_backend_metadata"] == ctscan_main.model_backend_metadata()
+    assert payload["issues"] == ctscan_main.supported_issues()
+
+
 def test_blank_viewer_html():
     html = ctscan_main.render_upload_html(None)
     assert "Upload DICOM file." in html
@@ -105,3 +126,46 @@ def test_auto_demo_manifest_from_legacy_ct_zips(
     assert json.loads(samples_manifest.read_text(encoding="utf-8"))["demo_lung1-001"][
         "study_zip"
     ] == str(target_zip.resolve())
+
+
+def test_load_samples_manifest_falls_back_to_default_manifest(
+    tmp_path: Path, monkeypatch
+):
+    default_manifest = tmp_path / "samples" / "samples.json"
+    default_manifest.parent.mkdir(parents=True, exist_ok=True)
+    default_manifest.write_text(
+        json.dumps({"demo_scan": {"study_zip": "/tmp/demo.zip"}}), encoding="utf-8"
+    )
+
+    broken_manifest = tmp_path / "broken.json"
+    broken_manifest.write_text("{not valid json", encoding="utf-8")
+
+    monkeypatch.setattr(ctscan_main, "SAMPLES_MANIFEST_PATH", default_manifest)
+    monkeypatch.setenv("CTSCAN_SAMPLES_MANIFEST_PATH", str(broken_manifest))
+    ctscan_main.load_samples_manifest.cache_clear()
+
+    manifest = ctscan_main.load_samples_manifest()
+
+    assert manifest == {"demo_scan": {"study_zip": "/tmp/demo.zip"}}
+    ctscan_main.load_samples_manifest.cache_clear()
+
+
+def test_load_samples_manifest_falls_back_to_auto_demo_when_manifests_missing(
+    tmp_path: Path, monkeypatch
+):
+    missing_manifest = tmp_path / "samples" / "missing.json"
+    sentinel_manifest = {"auto_demo": {"study_zip": "/tmp/auto-demo.zip"}}
+
+    monkeypatch.setattr(ctscan_main, "SAMPLES_MANIFEST_PATH", missing_manifest)
+    monkeypatch.setenv(
+        "CTSCAN_SAMPLES_MANIFEST_PATH", str(tmp_path / "env-missing.json")
+    )
+    monkeypatch.setattr(
+        ctscan_main, "_ensure_auto_demo_manifest", lambda: sentinel_manifest
+    )
+    ctscan_main.load_samples_manifest.cache_clear()
+
+    manifest = ctscan_main.load_samples_manifest()
+
+    assert manifest == sentinel_manifest
+    ctscan_main.load_samples_manifest.cache_clear()
