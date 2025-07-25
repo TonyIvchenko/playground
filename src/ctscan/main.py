@@ -61,6 +61,8 @@ except ModuleNotFoundError:
 HOST = os.getenv("API_HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "8080"))
 SERVICE_NAME = os.getenv("SERVICE_NAME", "CT Scan")
+CTSCAN_STATIC_DIR = Path(__file__).resolve().parent / "static"
+CTSCAN_STATIC_URL = "/ctscan-static"
 SAMPLES_MANIFEST_PATH = (
     Path(__file__).resolve().parent / "data" / "ctscan" / "samples" / "samples.json"
 )
@@ -94,97 +96,8 @@ def print_http_startup(service_name: str, host: str, port: int) -> None:
 DEFAULT_OPACITY = 0.2
 VIEWER_CACHE_DIR = Path(__file__).resolve().parent / "data" / "ctscan" / "viewer_cache"
 VIEWER_HEAD = """
-<style>
-.ctscan-viewer-root { display: grid; gap: 16px; }
-.ctscan-viewer-root .ctscan-toolbar { display: grid; grid-template-columns: 220px minmax(240px, 1fr) 240px; gap: 16px; align-items: end; }
-.ctscan-viewer-root .ctscan-control { display: grid; gap: 6px; }
-.ctscan-viewer-root .ctscan-control label { font-size: 14px; font-weight: 600; }
-.ctscan-viewer-root .ctscan-checks { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; min-height: 40px; }
-.ctscan-viewer-root .ctscan-check { font-size: 14px; display: inline-flex; gap: 6px; align-items: center; }
-.ctscan-viewer-root .ctscan-stage { display: grid; gap: 10px; }
-.ctscan-viewer-root .ctscan-viewer { position: relative; width: fit-content; max-width: 100%; background: #000; overflow: hidden; }
-.ctscan-viewer-root .ctscan-viewer img { display: block; max-width: 100%; height: auto; }
-.ctscan-viewer-root .ctscan-overlay { position: absolute; inset: 0; pointer-events: none; }
-.ctscan-viewer-root .ctscan-slider-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }
-.ctscan-viewer-root .ctscan-table { border-collapse: collapse; width: 100%; font-size: 14px; }
-.ctscan-viewer-root .ctscan-table th,
-.ctscan-viewer-root .ctscan-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #e5e7eb; }
-.ctscan-viewer-root .ctscan-table th { font-weight: 600; }
-@media (max-width: 900px) {
-  .ctscan-viewer-root .ctscan-toolbar { grid-template-columns: 1fr; }
-}
-</style>
-<script>
-(() => {
-  function initViewer(root) {
-    if (!root || root.dataset.ctscanReady === "1") {
-      return;
-    }
-    const stateNode = root.querySelector(".ctscan-state");
-    if (!stateNode) {
-      return;
-    }
-    const state = JSON.parse(stateNode.value || stateNode.textContent || "{}");
-    root.dataset.ctscanReady = "1";
-
-    const overlay = root.querySelector(".ctscan-overlay-select");
-    const findingWrap = root.querySelector(".ctscan-finding-wrap");
-    const opacity = root.querySelector(".ctscan-opacity");
-    const opacityValue = root.querySelector(".ctscan-opacity-value");
-    const slice = root.querySelector(".ctscan-slice");
-    const sliceLabel = root.querySelector(".ctscan-slice-label");
-    const base = root.querySelector(".ctscan-base");
-    const lung = root.querySelector(".ctscan-lung");
-    const rows = Array.from(root.querySelectorAll(".ctscan-table tbody tr"));
-    const findingImages = Object.fromEntries(
-      state.rows.map((row) => [row.key, root.querySelector('.ctscan-finding[data-key="' + row.key + '"]')])
-    );
-    const findingChecks = Array.from(root.querySelectorAll(".ctscan-finding-wrap input[type='checkbox']"));
-
-    function selectedKeys() {
-      return new Set(findingChecks.filter((node) => node.checked).map((node) => node.value));
-    }
-
-    function render() {
-      const index = Number(slice.value || 0);
-      const alpha = Number(opacity.value || 0);
-      const mode = overlay.value;
-      const selected = selectedKeys();
-
-      base.src = state.base_images[index];
-      lung.src = state.lung_images[index];
-      lung.style.opacity = mode === "Lungs" ? String(alpha) : "0";
-      findingWrap.style.display = mode === "Findings" ? "grid" : "none";
-      opacityValue.textContent = alpha.toFixed(2);
-      sliceLabel.textContent = `Slice ${index + 1} / ${state.slice_count}`;
-
-      state.rows.forEach((row, rowIndex) => {
-        const image = findingImages[row.key];
-        image.src = state.finding_images[row.key][index];
-        image.style.opacity = mode === "Findings" && selected.has(row.key) ? String(alpha) : "0";
-        const cells = rows[rowIndex].querySelectorAll("td");
-        cells[3].textContent = Number(row.slice_percents[index] || 0).toFixed(4);
-      });
-    }
-
-    overlay.addEventListener("change", render);
-    opacity.addEventListener("input", render);
-    slice.addEventListener("input", render);
-    findingChecks.forEach((node) => node.addEventListener("change", render));
-    render();
-  }
-
-  function scan() {
-    document.querySelectorAll(".ctscan-viewer-root").forEach(initViewer);
-  }
-
-  window.addEventListener("load", () => {
-    scan();
-    const observer = new MutationObserver(() => scan());
-    observer.observe(document.body, { childList: true, subtree: true });
-  });
-})();
-</script>
+<link rel="stylesheet" href="/ctscan-static/viewer.css">
+<script src="/ctscan-static/viewer.js" defer></script>
 """
 
 
@@ -664,28 +577,10 @@ def _viewer_html(viewer_state: dict[str, Any]) -> str:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    body {{ margin: 0; font-family: Arial, Helvetica, sans-serif; color: #1f2937; background: transparent; }}
-    .ctscan-viewer-root {{ display: grid; gap: 16px; }}
-    .ctscan-toolbar {{ display: grid; grid-template-columns: 220px minmax(240px, 1fr) 240px; gap: 16px; align-items: end; }}
-    .ctscan-control {{ display: grid; gap: 6px; }}
-    .ctscan-control label {{ font-size: 14px; font-weight: 600; }}
-    .ctscan-checks {{ display: flex; gap: 14px; flex-wrap: wrap; align-items: center; min-height: 40px; }}
-    .ctscan-check {{ font-size: 14px; display: inline-flex; gap: 6px; align-items: center; }}
-    .ctscan-stage {{ display: grid; gap: 10px; }}
-    .ctscan-viewer {{ position: relative; width: fit-content; max-width: 100%; background: #000; overflow: hidden; }}
-    .ctscan-viewer img {{ display: block; max-width: 100%; height: auto; }}
-    .ctscan-overlay {{ position: absolute; inset: 0; pointer-events: none; }}
-    .ctscan-slider-row {{ display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }}
-    .ctscan-table {{ border-collapse: collapse; width: 100%; font-size: 14px; }}
-    .ctscan-table th, .ctscan-table td {{ padding: 8px 10px; text-align: left; border-bottom: 1px solid #e5e7eb; }}
-    .ctscan-table th {{ font-weight: 600; }}
-    @media (max-width: 900px) {{
-      .ctscan-toolbar {{ grid-template-columns: 1fr; }}
-    }}
-  </style>
+  <link rel="stylesheet" href="{CTSCAN_STATIC_URL}/viewer.css">
+  <script src="{CTSCAN_STATIC_URL}/viewer.js" defer></script>
 </head>
-<body>
+<body class="ctscan-viewer-page">
 <div class="ctscan-viewer-root">
   <div class="ctscan-toolbar">
     <div class="ctscan-control">
@@ -730,58 +625,7 @@ def _viewer_html(viewer_state: dict[str, Any]) -> str:
     <tbody>{table_rows}</tbody>
   </table>
 </div>
-<script type="application/json" id="ctscan-state">{payload_json}</script>
-<script>
-(() => {{
-  const root = document.querySelector(".ctscan-viewer-root");
-  const state = JSON.parse(document.getElementById("ctscan-state").textContent || "{{}}");
-  const overlay = root.querySelector(".ctscan-overlay-select");
-  const findingWrap = root.querySelector(".ctscan-finding-wrap");
-  const opacity = root.querySelector(".ctscan-opacity");
-  const opacityValue = root.querySelector(".ctscan-opacity-value");
-  const slice = root.querySelector(".ctscan-slice");
-  const sliceLabel = root.querySelector(".ctscan-slice-label");
-  const base = root.querySelector(".ctscan-base");
-  const lung = root.querySelector(".ctscan-lung");
-  const rows = Array.from(root.querySelectorAll(".ctscan-table tbody tr"));
-  const findingImages = Object.fromEntries(
-    state.rows.map((row) => [row.key, root.querySelector('.ctscan-finding[data-key="' + row.key + '"]')])
-  );
-  const findingChecks = Array.from(root.querySelectorAll(".ctscan-finding-wrap input[type='checkbox']"));
-
-  function selectedKeys() {{
-    return new Set(findingChecks.filter((node) => node.checked).map((node) => node.value));
-  }}
-
-  function render() {{
-    const index = Number(slice.value || 0);
-    const alpha = Number(opacity.value || 0);
-    const mode = overlay.value;
-    const selected = selectedKeys();
-
-    base.src = `${{state.asset_root}}/base/${{String(index).padStart(4, "0")}}.png`;
-    lung.src = `${{state.asset_root}}/lung/${{String(index).padStart(4, "0")}}.png`;
-    lung.style.opacity = mode === "Lungs" ? String(alpha) : "0";
-    findingWrap.style.display = mode === "Findings" ? "grid" : "none";
-    opacityValue.textContent = alpha.toFixed(2);
-    sliceLabel.textContent = `Slice ${{index + 1}} / ${{state.slice_count}}`;
-
-    state.rows.forEach((row, rowIndex) => {{
-      const image = findingImages[row.key];
-      image.src = `${{state.asset_root}}/findings/${{row.key}}/${{String(index).padStart(4, "0")}}.png`;
-      image.style.opacity = mode === "Findings" && selected.has(row.key) ? String(alpha) : "0";
-      const cells = rows[rowIndex].querySelectorAll("td");
-      cells[3].textContent = Number(row.slice_percents[index] || 0).toFixed(4);
-    }});
-  }}
-
-  overlay.addEventListener("change", render);
-  opacity.addEventListener("input", render);
-  slice.addEventListener("input", render);
-  findingChecks.forEach((node) => node.addEventListener("change", render));
-  render();
-}})();
-</script>
+<script type="application/json" class="ctscan-state">{payload_json}</script>
 </body>
 </html>
 """
@@ -829,6 +673,11 @@ def render_upload_html(study_file: str | None) -> str:
 
 api = FastAPI(title=SERVICE_NAME)
 VIEWER_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+api.mount(
+    CTSCAN_STATIC_URL,
+    StaticFiles(directory=str(CTSCAN_STATIC_DIR)),
+    name="ctscan-static",
+)
 api.mount(
     "/viewer-cache", StaticFiles(directory=str(VIEWER_CACHE_DIR)), name="viewer-cache"
 )

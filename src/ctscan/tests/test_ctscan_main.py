@@ -51,6 +51,38 @@ def test_blank_viewer_html():
 def test_demo_injects_viewer_head():
     demo = ctscan_main.build_demo()
     assert demo.head == ctscan_main.VIEWER_HEAD
+    assert "/ctscan-static/viewer.css" in demo.head
+    assert "/ctscan-static/viewer.js" in demo.head
+
+
+def test_viewer_page_references_external_assets():
+    html = ctscan_main._viewer_html(
+        {
+            "default_slice": 0,
+            "default_opacity": 0.2,
+            "slice_count": 1,
+            "asset_root": "/viewer-cache/demo",
+            "rows": [],
+        }
+    )
+    assert '<link rel="stylesheet" href="/ctscan-static/viewer.css">' in html
+    assert '<script src="/ctscan-static/viewer.js" defer></script>' in html
+    assert '<script type="application/json" class="ctscan-state">' in html
+    assert "<style>" not in html
+
+
+def test_ctscan_static_viewer_assets_are_served():
+    client = TestClient(ctscan_main.api)
+
+    css_response = client.get("/ctscan-static/viewer.css")
+    assert css_response.status_code == 200
+    assert "text/css" in css_response.headers["content-type"]
+    assert ".ctscan-viewer-root" in css_response.text
+
+    js_response = client.get("/ctscan-static/viewer.js")
+    assert js_response.status_code == 200
+    assert "text/javascript" in js_response.headers["content-type"]
+    assert "function initViewer" in js_response.text
 
 
 def test_auto_demo_manifest_from_legacy_ct_zips(

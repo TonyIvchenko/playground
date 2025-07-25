@@ -1,0 +1,98 @@
+body.ctscan-viewer-page {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #1f2937;
+  background: transparent;
+}
+
+.ctscan-viewer-root {
+  display: grid;
+  gap: 16px;
+}
+
+.ctscan-toolbar {
+  display: grid;
+  grid-template-columns: 220px minmax(240px, 1fr) 240px;
+  gap: 16px;
+  align-items: end;
+}
+
+.ctscan-control {
+  display: grid;
+  gap: 6px;
+}
+
+.ctscan-control label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ctscan-checks {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  align-items: center;
+  min-height: 40px;
+}
+
+.ctscan-check {
+  font-size: 14px;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.ctscan-stage {
+  display: grid;
+  gap: 10px;
+}
+
+.ctscan-viewer {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  background: #000;
+  overflow: hidden;
+}
+
+.ctscan-viewer img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.ctscan-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.ctscan-slider-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.ctscan-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 14px;
+}
+
+.ctscan-table th,
+.ctscan-table td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.ctscan-table th {
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .ctscan-toolbar {
+    grid-template-columns: 1fr;
+  }
+}
