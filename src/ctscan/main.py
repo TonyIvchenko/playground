@@ -81,6 +81,15 @@ LOCAL_LEGACY_CT_ZIPS_PATH = (
 DEFAULT_SAMPLE = ""
 METRICS_TABLE_COLUMNS = ["Issue", "Lung %", "Volume ml", "Current slice %"]
 LUNG_COLOR = "#10b981"
+CTSCAN_INTRO_MARKDOWN = """
+# CT Scan Semantic Segmentation
+**Research use only.** Upload DICOM file and review semantic issue overlays by slice.
+""".strip()
+CTSCAN_UPLOAD_HINT_MARKDOWN = """
+Accepted upload: one `.zip` bundle containing one DICOM study.
+
+Upload tip: single-study bundles under roughly `500 MB` feel best locally. Larger uploads can take longer to parse, segment, and render.
+""".strip()
 
 
 def print_http_startup(service_name: str, host: str, port: int) -> None:
@@ -763,12 +772,8 @@ def build_demo() -> gr.Blocks:
     initial_sample = DEFAULT_SAMPLE or (sample_keys[0] if sample_keys else "")
     with gr.Blocks(title=SERVICE_NAME, head=VIEWER_HEAD) as demo:
         sample_state = gr.State(value=initial_sample)
-        gr.Markdown(
-            """
-            # CT Scan Semantic Segmentation
-            **Research use only.** Upload DICOM file and review semantic issue overlays by slice.
-            """
-        )
+        gr.Markdown(CTSCAN_INTRO_MARKDOWN)
+        gr.Markdown(CTSCAN_UPLOAD_HINT_MARKDOWN)
         study_zip = gr.File(label="Upload DICOM file", type="filepath")
         viewer = gr.HTML(value=_blank_viewer_html())
 

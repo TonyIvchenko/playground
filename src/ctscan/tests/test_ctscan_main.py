@@ -76,6 +76,23 @@ def test_demo_injects_viewer_head():
     assert "/ctscan-static/viewer.js" in demo.head
 
 
+def test_demo_includes_upload_hint_markdown():
+    demo = ctscan_main.build_demo()
+    markdown_values = [
+        component.get("props", {}).get("value")
+        for component in demo.config.get("components", [])
+        if component.get("type") == "markdown"
+    ]
+
+    assert ctscan_main.CTSCAN_INTRO_MARKDOWN in markdown_values
+    assert ctscan_main.CTSCAN_UPLOAD_HINT_MARKDOWN in markdown_values
+    assert (
+        "one `.zip` bundle containing one DICOM study"
+        in ctscan_main.CTSCAN_UPLOAD_HINT_MARKDOWN
+    )
+    assert "500 MB" in ctscan_main.CTSCAN_UPLOAD_HINT_MARKDOWN
+
+
 def test_viewer_page_references_external_assets():
     html = ctscan_main._viewer_html(
         {
