@@ -39,6 +39,7 @@ Chest CT semantic segmentation service.
 - `scripts/segmentation/train_unet.py`
 - `scripts/segmentation/train_unet_backbone.py`
 - `scripts/segmentation/search_unet_backbone.py`
+- `scripts/warm_sample_viewer_cache.py`
 - `tests/test_study.py`
 - `tests/test_ctscan_main.py`
 
@@ -531,6 +532,19 @@ Optional runtime overrides:
 - `CTSCAN_SAMPLES_MANIFEST_PATH`: point the app at a specific sample manifest file.
 - `CTSCAN_DEMO_CT_ZIPS_ROOT`: point auto-demo discovery at a directory of study zip bundles.
 - `CTSCAN_LIDC_ROOT`: point LIDC demo fallback discovery at a specific extracted LIDC tree.
+
+To prebuild cached sample viewer assets before opening the app:
+
+```bash
+python scripts/warm_sample_viewer_cache.py
+```
+
+You can also warm a subset or print JSON:
+
+```bash
+python scripts/warm_sample_viewer_cache.py demo_lung1-001 --json
+python scripts/warm_sample_viewer_cache.py --limit 3
+```
 
 ## Docker
 

@@ -169,3 +169,33 @@ def test_load_samples_manifest_falls_back_to_auto_demo_when_manifests_missing(
 
     assert manifest == sentinel_manifest
     ctscan_main.load_samples_manifest.cache_clear()
+
+
+def test_warm_sample_viewer_cache_returns_cache_paths(
+    tmp_path: Path, monkeypatch, make_ct_zip
+):
+    sample_zip = make_ct_zip(patient_id="LUNG1-002")
+    manifest_path = tmp_path / "samples" / "samples.json"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(
+        json.dumps({"demo_lung1-002": {"study_zip": str(sample_zip.resolve())}}),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(ctscan_main, "SAMPLES_MANIFEST_PATH", manifest_path)
+    monkeypatch.setattr(ctscan_main, "SAMPLE_CACHE_DIR", tmp_path / "sample-cache")
+    monkeypatch.setattr(ctscan_main, "VIEWER_CACHE_DIR", tmp_path / "viewer-cache")
+    monkeypatch.delenv("CTSCAN_SAMPLES_MANIFEST_PATH", raising=False)
+    ctscan_main.load_samples_manifest.cache_clear()
+
+    warmed = ctscan_main.warm_sample_viewer_cache()
+
+    assert len(warmed) == 1
+    row = warmed[0]
+    assert row["sample_id"] == "demo_lung1-002"
+    assert row["study_zip"] == str(sample_zip.resolve())
+    assert row["viewer_url"].startswith("/viewer/sample-demo_lung1-002-")
+    assert Path(row["viewer_state_path"]).exists()
+    assert Path(row["cached_payload_path"]).exists()
+    assert Path(row["cached_bundle_path"]).exists()
+    ctscan_main.load_samples_manifest.cache_clear()

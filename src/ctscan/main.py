@@ -661,6 +661,35 @@ def render_sample_cached_html(sample_id: str) -> str:
     return _viewer_iframe_html(token, len(payload.get("issues", [])))
 
 
+def warm_sample_viewer_cache(
+    sample_ids: list[str] | None = None, limit: int | None = None
+) -> list[dict[str, str]]:
+    manifest = load_samples_manifest()
+    resolved_ids = list(sample_ids) if sample_ids is not None else sorted(manifest)
+    if limit is not None:
+        resolved_ids = resolved_ids[:limit]
+
+    warmed: list[dict[str, str]] = []
+    for sample_id in resolved_ids:
+        study_path = _resolve_sample_path(sample_id)
+        payload_path, bundle_path, _html_path = _sample_cache_paths(
+            sample_id, study_path
+        )
+        render_sample_cached_html(sample_id)
+        token = _viewer_token_for_sample(sample_id, study_path)
+        warmed.append(
+            {
+                "sample_id": sample_id,
+                "study_zip": str(study_path),
+                "viewer_url": f"/viewer/{token}",
+                "viewer_state_path": str(_viewer_state_path(token)),
+                "cached_payload_path": str(payload_path),
+                "cached_bundle_path": str(bundle_path),
+            }
+        )
+    return warmed
+
+
 def render_upload_html(study_file: str | None) -> str:
     if not study_file:
         return _blank_viewer_html()
