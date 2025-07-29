@@ -1,4 +1,4 @@
-"""Unified climate-risk service with wildfires + huricaines overlays and inference."""
+"""Unified climate-risk service with wildfires and hurricanes overlays and inference."""
 
 from __future__ import annotations
 
@@ -34,6 +34,7 @@ HOST = os.getenv("API_HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "8080"))
 GMAPS_API_KEY = os.getenv("GMAPS_API_KEY", "")
 SERVICE_NAME = os.getenv("SERVICE_NAME", "Disasters")
+HURRICANES_LABEL = "Hurricanes"
 
 WILDFIRES_MODEL_PATH = Path(
     os.getenv(
@@ -510,7 +511,7 @@ def _map_html() -> str:
         <div class="overlay-row">
           <select id="hazard-select" class="layer-select">
             <option value="wildfires" selected>Wildfires</option>
-            <option value="huricaines">Huricaines</option>
+            <option value="huricaines">{HURRICANES_LABEL}</option>
           </select>
         </div>
         <div class="overlay-row metrics-row">
@@ -780,7 +781,7 @@ def _map_bootstrap_js() -> str:
 
 
 def _toggle_model_panel(selection: str) -> tuple[dict[str, bool], dict[str, bool]]:
-    show_huricaines = selection == "Huricaines"
+    show_huricaines = selection == HURRICANES_LABEL
     return gr.update(visible=show_huricaines), gr.update(visible=not show_huricaines)
 
 
@@ -795,8 +796,8 @@ with gr.Blocks(title=SERVICE_NAME) as demo:
             with gr.Row():
                 with gr.Column(scale=1, min_width=170):
                     model_selector = gr.Radio(
-                        choices=["Huricaines", "Wildfires"],
-                        value="Huricaines",
+                        choices=[HURRICANES_LABEL, "Wildfires"],
+                        value=HURRICANES_LABEL,
                         show_label=False,
                         container=False,
                     )
@@ -819,8 +820,10 @@ with gr.Blocks(title=SERVICE_NAME) as demo:
                                 label="Recent Pressure Change (mb per 6h)", value=-3.0
                             )
 
-                        huricaines_output = gr.JSON(label="Huricaines Prediction")
-                        huricaines_run = gr.Button("Predict Huricaines")
+                        huricaines_output = gr.JSON(
+                            label=f"{HURRICANES_LABEL} Prediction"
+                        )
+                        huricaines_run = gr.Button(f"Predict {HURRICANES_LABEL}")
                         huricaines_run.click(
                             fn=predict_huricaines,
                             inputs=[

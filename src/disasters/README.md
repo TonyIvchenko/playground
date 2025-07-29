@@ -2,6 +2,8 @@
 
 Unified Gradio app service that overlays wildfires and hurricanes predictions on one Google Map.
 
+User-facing app copy now says `hurricanes`, but legacy internal paths, model names, and API hazard keys still use `huricaines` for backward compatibility.
+
 ## Layout
 
 - `models/wildfires.py`
@@ -68,6 +70,8 @@ Allowed values:
 
 - `hazard`: `wildfires` or `huricaines`
 - Legacy `layer`: `risk`, `activity`, `confidence` (all map to the same single hazard overlay)
+
+The app UI shows `Hurricanes`, but the API still accepts the legacy `huricaines` hazard key for compatibility.
 
 ## Docker
 
