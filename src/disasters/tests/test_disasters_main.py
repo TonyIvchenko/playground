@@ -134,6 +134,33 @@ def test_disasters_static_map_assets_are_served():
     assert "window.bootstrapDisastersMap" in js_response.text
 
 
+def test_tiles_reject_unknown_hazard():
+    client = TestClient(api)
+
+    response = client.get("/tiles/not-a-hazard/0/4/0/0.png")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "unknown hazard"}
+
+
+def test_tiles_reject_out_of_range_frame_index():
+    client = TestClient(api)
+
+    response = client.get("/tiles/wildfires/999999/4/0/0.png")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "frame index out of range"}
+
+
+def test_legacy_tiles_reject_unknown_layer():
+    client = TestClient(api)
+
+    response = client.get("/tiles/wildfires/not-a-layer/0/4/0/0.png")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "unknown layer"}
+
+
 def test_toggle_model_panel_accepts_hurricanes_label():
     hurricanes_panel, wildfires_panel = _toggle_model_panel(HURRICANES_LABEL)
 
