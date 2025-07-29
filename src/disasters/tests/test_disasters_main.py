@@ -5,11 +5,19 @@ pytest.importorskip("torch")
 from fastapi.testclient import TestClient
 import gradio as gr
 
-from src.disasters.main import HURRICANES_LABEL, api, demo
+from src.disasters.main import (
+    DISASTERS_STATIC_URL,
+    HURRICANES_LABEL,
+    MAP_HEAD,
+    api,
+    demo,
+)
 from src.disasters.main import (
     HURICAINES_MODEL_VERSION,
     WILDFIRES_MODEL_VERSION,
     _toggle_model_panel,
+    _map_bootstrap_js,
+    _map_html,
     predict_huricaines,
     predict_wildfires,
 )
@@ -94,6 +102,36 @@ def test_demo_uses_hurricanes_user_facing_labels():
         if component.get("type") == "html"
     ]
     assert any(">Hurricanes</option>" in value for value in html_values)
+
+
+def test_demo_includes_external_map_assets():
+    assert demo.head == MAP_HEAD
+    assert f"{DISASTERS_STATIC_URL}/map.css" in demo.head
+    assert f"{DISASTERS_STATIC_URL}/map.js" in demo.head
+    assert "bootstrapDisastersMap" in _map_bootstrap_js()
+
+
+def test_map_html_uses_external_assets_not_inline_css():
+    html = _map_html()
+
+    assert '<div id="risk-map-shell"' in html
+    assert "<style>" not in html
+    assert 'data-config="' in html
+    assert ">Hurricanes</option>" in html
+
+
+def test_disasters_static_map_assets_are_served():
+    client = TestClient(api)
+
+    css_response = client.get(f"{DISASTERS_STATIC_URL}/map.css")
+    assert css_response.status_code == 200
+    assert "text/css" in css_response.headers["content-type"]
+    assert ".risk-map-shell" in css_response.text
+
+    js_response = client.get(f"{DISASTERS_STATIC_URL}/map.js")
+    assert js_response.status_code == 200
+    assert "javascript" in js_response.headers["content-type"]
+    assert "window.bootstrapDisastersMap" in js_response.text
 
 
 def test_toggle_model_panel_accepts_hurricanes_label():

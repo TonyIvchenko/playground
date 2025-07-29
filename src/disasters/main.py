@@ -12,6 +12,7 @@ from pathlib import Path
 import sys
 
 from fastapi import FastAPI, HTTPException, Response
+from fastapi.staticfiles import StaticFiles
 import gradio as gr
 import numpy as np
 from PIL import Image
@@ -35,6 +36,12 @@ PORT = int(os.getenv("PORT", "8080"))
 GMAPS_API_KEY = os.getenv("GMAPS_API_KEY", "")
 SERVICE_NAME = os.getenv("SERVICE_NAME", "Disasters")
 HURRICANES_LABEL = "Hurricanes"
+DISASTERS_STATIC_DIR = Path(__file__).resolve().parent / "static"
+DISASTERS_STATIC_URL = "/disasters-static"
+MAP_HEAD = """
+<link rel="stylesheet" href="/disasters-static/map.css">
+<script src="/disasters-static/map.js" defer></script>
+""".strip()
 
 WILDFIRES_MODEL_PATH = Path(
     os.getenv(
@@ -524,257 +531,22 @@ def _map_html() -> str:
     <div id="risk-map-status" class="risk-map-status"></div>
   </section>
 </div>
-<style>
-  .risk-map-shell {{ padding: 0; background: #ffffff; }}
-  .risk-map-pane {{ width: 100%; }}
-  .layer-select {{ min-width: 180px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 10px; background: #ffffff; font-size: 14px; }}
-  .metric-inline {{ display: inline-flex; align-items: baseline; gap: 6px; color: #0f172a; }}
-  .metric-inline span {{ font-size: 12px; color: #64748b; }}
-  .metric-inline strong {{ font-size: 14px; font-weight: 700; }}
-  .risk-map-header {{ display: grid; gap: 8px; margin-bottom: 10px; }}
-  .timeline-row {{ display: flex; align-items: flex-end; gap: 10px; }}
-  .timeline-wrap {{ flex: 1; min-width: 0; }}
-  .timeline-years {{ position: relative; height: 18px; margin-bottom: 4px; }}
-  .year-tick {{ position: absolute; bottom: 0; transform: translateX(-50%); font-size: 11px; color: #64748b; transition: color .2s ease; }}
-  .year-tick span {{ position: relative; z-index: 1; }}
-  .year-tick::before {{ content: ""; position: absolute; left: 50%; transform: translateX(-50%); top: 13px; width: 1px; height: 6px; background: #cbd5e1; }}
-  .year-tick.active {{ color: #0f172a; font-weight: 700; }}
-  .timeline-track {{ position: relative; height: 30px; border-radius: 999px; overflow: hidden; }}
-  .timeline-track::after {{
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: repeating-linear-gradient(to right, rgba(15,23,42,0.12), rgba(15,23,42,0.12) 1px, transparent 1px, transparent var(--month-step));
-    opacity: 0.35;
-  }}
-  .timeline-phases {{ position: absolute; inset: 0; display: flex; z-index: 0; }}
-  .phase-seg.train {{ background: #c9f7d7; }}
-  .phase-seg.eval {{ background: #fde68a; }}
-  .phase-seg.infer {{ background: #fecaca; }}
-  .timeline-progress {{ position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: rgba(30, 64, 175, 0.16); z-index: 1; pointer-events: none; }}
-  .timeline-marker {{ position: absolute; top: 50%; left: 0%; width: 14px; height: 14px; border-radius: 999px; background: #1d4ed8; border: 2px solid #ffffff; box-shadow: 0 0 0 1px rgba(29,78,216,0.35); transform: translate(-50%, -50%); z-index: 3; pointer-events: none; }}
-  #risk-time-slider {{ position: absolute; inset: 0; width: 100%; margin: 0; appearance: none; background: transparent; z-index: 4; }}
-  #risk-time-slider::-webkit-slider-thumb {{ appearance: none; width: 18px; height: 18px; border-radius: 999px; background: transparent; border: none; }}
-  #risk-time-slider::-moz-range-thumb {{ width: 18px; height: 18px; border-radius: 999px; background: transparent; border: none; }}
-  #risk-play {{ width: 36px; height: 36px; border-radius: 999px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }}
-  #risk-play .pause-icon {{ display: none; }}
-  #risk-play.playing .play-icon {{ display: none; }}
-  #risk-play.playing .pause-icon {{ display: inline; }}
-  .risk-map-stage {{ position: relative; }}
-  .map-overlay-panel {{
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    z-index: 8;
-    display: grid;
-    gap: 6px;
-    padding: 8px 10px;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(2px);
-  }}
-  .panel-title {{ font-size: 12px; color: #334155; font-weight: 700; }}
-  .overlay-row {{ display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }}
-  .metrics-row {{ gap: 12px; }}
-  .risk-map {{ width: 100%; height: 680px; border-radius: 8px; }}
-  .risk-map-status {{ display: none; margin-top: 8px; font-size: 13px; color: #b91c1c; min-height: 18px; }}
-  .risk-map-status.show {{ display: block; }}
-  .risk-map-status.error {{ color: #b91c1c; font-weight: 600; }}
-  @media (max-width: 1100px) {{
-    .risk-map {{ height: 520px; }}
-    .map-overlay-panel {{ max-width: calc(100% - 20px); }}
-  }}
-</style>
 """
 
 
 def _map_bootstrap_js() -> str:
     return """
-() => {
-  const root = document.getElementById("risk-map-shell");
-  if (!root || root.dataset.ready === "1") return [];
-  root.dataset.ready = "1";
-
-  let cfg = {};
-  try {
-    cfg = JSON.parse(root.dataset.config || "{}");
-  } catch (err) {
-    console.error("Failed to parse map config", err);
+async () => {
+  if (window.bootstrapDisastersMap) {
+    return window.bootstrapDisastersMap();
   }
-
-  const slider = root.querySelector("#risk-time-slider");
-  const playBtn = root.querySelector("#risk-play");
-  const progressNode = root.querySelector("#risk-time-progress");
-  const markerNode = root.querySelector("#risk-now-marker");
-  const mapNode = root.querySelector("#risk-map");
-  const statusNode = root.querySelector("#risk-map-status");
-
-  const yearTicks = Array.from(root.querySelectorAll(".year-tick"));
-  const hazardSelect = root.querySelector("#hazard-select");
-  const modelMetricAcc = root.querySelector("#model-metric-acc");
-  const modelMetricAuc = root.querySelector("#model-metric-auc");
-
-  const frameCount = Array.isArray(cfg.frames) && cfg.frames.length > 0 ? cfg.frames.length : 1;
-  const maxFrameIdx = Math.max(1, frameCount - 1);
-  if (slider) {
-    slider.max = String(frameCount - 1);
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await new Promise((resolve) => window.setTimeout(resolve, 50));
+    if (window.bootstrapDisastersMap) {
+      return window.bootstrapDisastersMap();
+    }
   }
-
-  let timer = null;
-  let map = null;
-
-  const updateStatus = (text, isError = false) => {
-    if (!text || !isError) {
-      statusNode.textContent = "";
-      statusNode.classList.remove("show", "error");
-      return;
-    }
-    statusNode.textContent = text;
-    statusNode.classList.add("show");
-    statusNode.classList.toggle("error", Boolean(isError));
-  };
-
-  const fmtPct = (value) => {
-    if (typeof value !== "number" || Number.isNaN(value)) return "n/a";
-    return `${(value * 100).toFixed(2)}%`;
-  };
-
-  const renderModelSummary = () => {
-    const key = hazardSelect.value;
-    const model = (cfg.model_metrics && cfg.model_metrics[key]) || null;
-    modelMetricAcc.textContent = model ? fmtPct(model.val_accuracy) : "n/a";
-    modelMetricAuc.textContent = model ? fmtPct(model.val_auc) : "n/a";
-  };
-
-  const updateTimeline = () => {
-    const idx = Math.min(maxFrameIdx, Math.max(0, Number(slider.value) || 0));
-    slider.value = String(idx);
-    const pct = (idx / maxFrameIdx) * 100.0;
-    progressNode.style.width = `${pct}%`;
-    markerNode.style.left = `${pct}%`;
-
-    let activeYear = -1;
-    yearTicks.forEach((tick, i) => {
-      const startIdx = Number(tick.dataset.frameIndex || "0");
-      if (idx >= startIdx) {
-        activeYear = i;
-      }
-    });
-    yearTicks.forEach((tick, i) => tick.classList.toggle("active", i === activeYear));
-  };
-
-  const setPlaying = (on) => {
-    if (on && !timer) {
-      playBtn.classList.add("playing");
-      playBtn.setAttribute("aria-label", "Pause timeline");
-      timer = setInterval(() => {
-        const next = (Number(slider.value) + 1) % frameCount;
-        slider.value = String(next);
-        installOverlay();
-      }, 900);
-      return;
-    }
-    if (!on && timer) {
-      clearInterval(timer);
-      timer = null;
-    }
-    playBtn.classList.remove("playing");
-    playBtn.setAttribute("aria-label", "Play timeline");
-  };
-
-  const tileUrl = (hazard, frameIdx, z, x, y) =>
-    `/tiles/${hazard}/${frameIdx}/${z}/${x}/${y}.png`;
-
-  const clearOverlays = () => {
-    if (!map) return;
-    map.overlayMapTypes.clear();
-  };
-
-  const pushOverlay = (hazard, frameIdx) => {
-    if (!map) return;
-    const overlay = new google.maps.ImageMapType({
-      tileSize: new google.maps.Size(256, 256),
-      opacity: 1.0,
-      getTileUrl: (coord, zoom) => {
-        if (coord.y < 0 || coord.y >= (1 << zoom)) return "";
-        const wrappedX = ((coord.x % (1 << zoom)) + (1 << zoom)) % (1 << zoom);
-        return tileUrl(hazard, frameIdx, zoom, wrappedX, coord.y);
-      },
-    });
-    map.overlayMapTypes.push(overlay);
-  };
-
-  const installOverlay = () => {
-    updateTimeline();
-    renderModelSummary();
-    if (!map) return;
-
-    const frameIdx = Number(slider.value);
-    clearOverlays();
-
-    const selectedHazard = hazardSelect.value;
-    if (selectedHazard === "wildfires" || selectedHazard === "huricaines") {
-      pushOverlay(selectedHazard, frameIdx);
-      return;
-    }
-    updateStatus("Unknown layer selection.", true);
-  };
-
-  const initGoogleMap = () => {
-    map = new google.maps.Map(mapNode, {
-      center: { lat: Number(cfg.center_lat || 36.0), lng: Number(cfg.center_lon || -95.0) },
-      zoom: Number(cfg.default_zoom || 4),
-      minZoom: Number(cfg.zoom_min || 2),
-      maxZoom: Number(cfg.zoom_max || 10),
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: false,
-      zoomControl: true,
-      zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_BOTTOM },
-      rotateControl: false,
-      scaleControl: false,
-      clickableIcons: false,
-    });
-    setTimeout(() => {
-      if (window.google && window.google.maps) {
-        google.maps.event.trigger(map, "resize");
-      }
-    }, 150);
-    installOverlay();
-  };
-
-  const loadGoogleMaps = () => {
-    if (!cfg.api_key) {
-      updateStatus("GMAPS_API_KEY is required.", true);
-      return;
-    }
-    if (window.google && window.google.maps) {
-      initGoogleMap();
-      return;
-    }
-    const callbackName = `gmapsInit_${cfg.service_id}_${Date.now()}`;
-    window[callbackName] = () => {
-      delete window[callbackName];
-      initGoogleMap();
-    };
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${cfg.api_key}&callback=${callbackName}&v=weekly`;
-    script.async = true;
-    script.defer = true;
-    script.onerror = () => {
-      updateStatus("Failed to load Google Maps JavaScript API.", true);
-    };
-    document.head.appendChild(script);
-  };
-
-  slider.addEventListener("input", installOverlay);
-  hazardSelect.addEventListener("change", installOverlay);
-  playBtn.addEventListener("click", () => setPlaying(!timer));
-
-  updateTimeline();
-  renderModelSummary();
-  loadGoogleMaps();
+  console.error("Disasters map bootstrap script did not load.");
   return [];
 }
 """
@@ -785,7 +557,7 @@ def _toggle_model_panel(selection: str) -> tuple[dict[str, bool], dict[str, bool
     return gr.update(visible=show_huricaines), gr.update(visible=not show_huricaines)
 
 
-with gr.Blocks(title=SERVICE_NAME) as demo:
+with gr.Blocks(title=SERVICE_NAME, head=MAP_HEAD) as demo:
     gr.Markdown(f"# {SERVICE_NAME}")
 
     with gr.Tabs():
@@ -886,6 +658,11 @@ with gr.Blocks(title=SERVICE_NAME) as demo:
 
 
 api = FastAPI(title=SERVICE_NAME)
+api.mount(
+    DISASTERS_STATIC_URL,
+    StaticFiles(directory=str(DISASTERS_STATIC_DIR)),
+    name="disasters-static",
+)
 
 
 @api.get("/health")

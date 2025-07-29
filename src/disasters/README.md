@@ -10,6 +10,8 @@ User-facing app copy now says `hurricanes`, but legacy internal paths, model nam
 - `models/huricaines.py`
 - `models/wildfires.pt`
 - `models/huricaines.pt`
+- `static/map.css`
+- `static/map.js`
 - `scripts/wildfires/download_data.py`
 - `scripts/wildfires/train_model.py`
 - `scripts/wildfires/generate_tiles.py`
