@@ -20,7 +20,9 @@ The downloader uses `torchaudio` dataset loaders so it pulls the official archiv
 
 ## Layout
 
+- `inference.py`
 - `model/speecht5.py`
+- `ui.py`
 - `scripts/download_data.py`
 - `scripts/prepare_dataset.py`
 - `scripts/train_model.py`

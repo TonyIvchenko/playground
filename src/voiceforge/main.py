@@ -7,17 +7,19 @@ import gradio as gr
 import uvicorn
 
 try:
-    from model.speecht5 import (
-        DEFAULT_MODEL_DIR,
-        load_speecht5_bundle,
-        synthesize_to_temp_wav,
+    from inference import (
+        format_initial_status,
+        run_inference as run_voiceforge_inference,
     )
+    from model.speecht5 import DEFAULT_MODEL_DIR
+    from ui import build_app as build_voiceforge_app
 except ImportError:
-    from src.voiceforge.model.speecht5 import (
-        DEFAULT_MODEL_DIR,
-        load_speecht5_bundle,
-        synthesize_to_temp_wav,
+    from src.voiceforge.inference import (
+        format_initial_status,
+        run_inference as run_voiceforge_inference,
     )
+    from src.voiceforge.model.speecht5 import DEFAULT_MODEL_DIR
+    from src.voiceforge.ui import build_app as build_voiceforge_app
 
 
 PORT = int(os.getenv("PORT", "8080"))
@@ -36,59 +38,14 @@ def print_http_startup(service_name: str, host: str, port: int) -> None:
 
 
 def run_inference(reference_audio: str | None, text: str) -> tuple[str | None, str]:
-    text = (text or "").strip()
-    if not reference_audio:
-        return None, "Upload a reference clip first."
-    if not text:
-        return None, "Type text to synthesize first."
-
-    try:
-        bundle = load_speecht5_bundle(model_dir=str(MODEL_DIR))
-        output_path, status = synthesize_to_temp_wav(
-            text=text, reference_audio_path=reference_audio, bundle=bundle
-        )
-        return output_path, status
-    except Exception as exc:  # noqa: BLE001
-        return None, f"Voice synthesis failed: {exc}"
+    return run_voiceforge_inference(reference_audio, text, model_dir=MODEL_DIR)
 
 
-def build_app() -> gr.Blocks:
-    with gr.Blocks(title="VoiceForge") as demo:
-        gr.Markdown(
-            """
-            # VoiceForge
-            Upload a short clean reference voice clip, type text, and synthesize speech in that voice.
-            The reference upload uses a plain file picker so the app does not depend on system `ffprobe`.
-
-            If `models/speecht5-finetuned` exists, the app uses the fine-tuned checkpoint.
-            Otherwise it falls back to the base pretrained SpeechT5 model.
-            """
-        )
-        with gr.Row():
-            reference_audio = gr.File(
-                label="Reference Voice File",
-                type="filepath",
-                file_types=[".wav", ".flac", ".mp3", ".m4a", ".ogg"],
-            )
-            text_input = gr.Textbox(
-                label="Text",
-                lines=8,
-                value="I am ready for the fine-tuned voice cloning demo. This sentence should be spoken in the uploaded reference voice.",
-            )
-        generate_button = gr.Button("Generate Voice")
-        output_audio = gr.Audio(label="Synthesized Audio")
-        status = gr.Textbox(label="Status", value=f"Looking for model in {MODEL_DIR}")
-
-        # Gradio's API schema generation is broken for file-backed components in the
-        # pinned version we ship, so keep the interactive UI but hide the auto API docs.
-        generate_button.click(
-            run_inference,
-            inputs=[reference_audio, text_input],
-            outputs=[output_audio, status],
-            show_api=False,
-        )
-
-    return demo
+def build_app():
+    return build_voiceforge_app(
+        run_inference_fn=run_inference,
+        initial_status=format_initial_status(MODEL_DIR),
+    )
 
 
 demo = build_app()
