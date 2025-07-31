@@ -1,5 +1,6 @@
 import numpy as np
 
+from src.voiceforge.scripts.prune_checkpoints import prune_checkpoints
 from src.voiceforge.scripts.train_model import (
     SpeechT5TTSDataCollator,
     filter_manifest_rows,
@@ -54,12 +55,32 @@ def test_collator_pads_labels_and_embeddings():
 
 def test_select_preview_rows_prefers_eval_then_unique_speakers():
     eval_rows = [
-        {"speaker_id": "eval_a", "audio_path": "/eval_a.wav", "source": "libritts", "utterance_id": "eval_a_1"},
-        {"speaker_id": "eval_a", "audio_path": "/eval_a2.wav", "source": "libritts", "utterance_id": "eval_a_2"},
+        {
+            "speaker_id": "eval_a",
+            "audio_path": "/eval_a.wav",
+            "source": "libritts",
+            "utterance_id": "eval_a_1",
+        },
+        {
+            "speaker_id": "eval_a",
+            "audio_path": "/eval_a2.wav",
+            "source": "libritts",
+            "utterance_id": "eval_a_2",
+        },
     ]
     train_rows = [
-        {"speaker_id": "train_b", "audio_path": "/train_b.wav", "source": "vctk", "utterance_id": "train_b_1"},
-        {"speaker_id": "train_c", "audio_path": "/train_c.wav", "source": "vctk", "utterance_id": "train_c_1"},
+        {
+            "speaker_id": "train_b",
+            "audio_path": "/train_b.wav",
+            "source": "vctk",
+            "utterance_id": "train_b_1",
+        },
+        {
+            "speaker_id": "train_c",
+            "audio_path": "/train_c.wav",
+            "source": "vctk",
+            "utterance_id": "train_c_1",
+        },
     ]
 
     selected = select_preview_rows(eval_rows, train_rows, limit=3)
@@ -68,7 +89,12 @@ def test_select_preview_rows_prefers_eval_then_unique_speakers():
 
 def test_write_preview_manifest(tmp_path):
     rows = [
-        {"speaker_id": "speaker_1", "audio_path": "/ref.wav", "source": "libritts", "utterance_id": "utt_1"},
+        {
+            "speaker_id": "speaker_1",
+            "audio_path": "/ref.wav",
+            "source": "libritts",
+            "utterance_id": "utt_1",
+        },
     ]
     manifest_path = write_preview_manifest(tmp_path, rows, ["/generated.wav"])
     payload = manifest_path.read_text(encoding="utf-8")
@@ -78,9 +104,24 @@ def test_write_preview_manifest(tmp_path):
 
 def test_filter_manifest_rows_applies_duration_and_text_limits():
     rows = [
-        {"audio_path": "/a.wav", "text": "short", "audio_seconds": 3.0, "text_length": 5},
-        {"audio_path": "/b.wav", "text": "long enough", "audio_seconds": 14.0, "text_length": 11},
-        {"audio_path": "/c.wav", "text": "x" * 300, "audio_seconds": 4.0, "text_length": 300},
+        {
+            "audio_path": "/a.wav",
+            "text": "short",
+            "audio_seconds": 3.0,
+            "text_length": 5,
+        },
+        {
+            "audio_path": "/b.wav",
+            "text": "long enough",
+            "audio_seconds": 14.0,
+            "text_length": 11,
+        },
+        {
+            "audio_path": "/c.wav",
+            "text": "x" * 300,
+            "audio_seconds": 4.0,
+            "text_length": 300,
+        },
     ]
 
     filtered = filter_manifest_rows(
@@ -91,3 +132,38 @@ def test_filter_manifest_rows_applies_duration_and_text_limits():
     )
 
     assert filtered == [rows[0]]
+
+
+def test_prune_checkpoints_keeps_newest_steps(tmp_path):
+    checkpoint_64 = tmp_path / "checkpoint-64"
+    checkpoint_128 = tmp_path / "checkpoint-128"
+    checkpoint_256 = tmp_path / "checkpoint-256"
+    preview_dir = tmp_path / "previews"
+    for path in (checkpoint_64, checkpoint_128, checkpoint_256, preview_dir):
+        path.mkdir()
+
+    summary = prune_checkpoints(tmp_path, keep=2)
+
+    assert checkpoint_64.exists() is False
+    assert checkpoint_128.exists() is True
+    assert checkpoint_256.exists() is True
+    assert preview_dir.exists() is True
+    assert summary["kept_checkpoints"] == [
+        str(checkpoint_128.resolve()),
+        str(checkpoint_256.resolve()),
+    ]
+    assert summary["removed_checkpoints"] == [str(checkpoint_64.resolve())]
+
+
+def test_prune_checkpoints_dry_run_leaves_directories_in_place(tmp_path):
+    checkpoint_8 = tmp_path / "checkpoint-8"
+    checkpoint_16 = tmp_path / "checkpoint-16"
+    checkpoint_8.mkdir()
+    checkpoint_16.mkdir()
+
+    summary = prune_checkpoints(tmp_path, keep=1, dry_run=True)
+
+    assert checkpoint_8.exists() is True
+    assert checkpoint_16.exists() is True
+    assert summary["kept_checkpoints"] == [str(checkpoint_16.resolve())]
+    assert summary["removed_checkpoints"] == [str(checkpoint_8.resolve())]
