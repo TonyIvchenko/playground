@@ -22,6 +22,8 @@ def test_root_page_renders():
 
     assert response.status_code == 200
     assert "VoiceForge" in response.text
+    assert "Resolved device:" in response.text
+    assert "Active checkpoint:" in response.text
 
 
 def test_build_app_api_info_does_not_crash():
@@ -56,10 +58,23 @@ def test_voiceforge_ui_constants():
 
 def test_inference_status_formatters(tmp_path):
     model_dir = tmp_path / "model-dir"
+    model_dir.mkdir()
+    (model_dir / "config.json").write_text("{}", encoding="utf-8")
 
-    assert format_initial_status(model_dir) == f"Looking for model in {model_dir}"
-    assert format_missing_reference_status() == "Upload a reference clip first."
-    assert format_missing_text_status() == "Type text to synthesize first."
-    assert (
-        format_inference_failure(RuntimeError("boom")) == "Voice synthesis failed: boom"
-    )
+    initial_status = format_initial_status(model_dir)
+    missing_reference_status = format_missing_reference_status(model_dir)
+    missing_text_status = format_missing_text_status(model_dir)
+    failure_status = format_inference_failure(RuntimeError("boom"), model_dir)
+
+    assert "Ready to synthesize" in initial_status
+    assert "Resolved device:" in initial_status
+    assert f"Active checkpoint: {model_dir.resolve()}" in initial_status
+    assert "Upload a reference clip first." in missing_reference_status
+    assert "Resolved device:" in missing_reference_status
+    assert f"Active checkpoint: {model_dir.resolve()}" in missing_reference_status
+    assert "Type text to synthesize first." in missing_text_status
+    assert "Resolved device:" in missing_text_status
+    assert f"Active checkpoint: {model_dir.resolve()}" in missing_text_status
+    assert "Voice synthesis failed: boom" in failure_status
+    assert "Resolved device:" in failure_status
+    assert f"Active checkpoint: {model_dir.resolve()}" in failure_status
