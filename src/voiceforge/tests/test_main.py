@@ -9,6 +9,7 @@ from src.voiceforge.inference import (
 from src.voiceforge.main import app, build_app
 from src.voiceforge.ui import (
     DEFAULT_TEXT,
+    REFERENCE_AUDIO_HINT_MARKDOWN,
     REFERENCE_FILE_TYPES,
     VOICEFORGE_INTRO_MARKDOWN,
 )
@@ -47,6 +48,10 @@ def test_voiceforge_ui_constants():
     assert "ffprobe" in VOICEFORGE_INTRO_MARKDOWN
     assert DEFAULT_TEXT.startswith("I am ready for the fine-tuned voice cloning demo.")
     assert REFERENCE_FILE_TYPES == [".wav", ".flac", ".mp3", ".m4a", ".ogg"]
+    assert ".wav" in REFERENCE_AUDIO_HINT_MARKDOWN
+    assert ".ogg" in REFERENCE_AUDIO_HINT_MARKDOWN
+    assert "WAV" in REFERENCE_AUDIO_HINT_MARKDOWN
+    assert "clear speaker" in REFERENCE_AUDIO_HINT_MARKDOWN
 
 
 def test_inference_status_formatters(tmp_path):

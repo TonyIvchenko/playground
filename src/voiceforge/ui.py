@@ -20,6 +20,12 @@ DEFAULT_TEXT = (
 )
 
 REFERENCE_FILE_TYPES = [".wav", ".flac", ".mp3", ".m4a", ".ogg"]
+REFERENCE_AUDIO_HINT_MARKDOWN = """
+**Accepted reference audio:** `.wav`, `.flac`, `.mp3`, `.m4a`, `.ogg`
+
+**Best results:** use a short clip with one clear speaker, low background noise,
+and minimal reverb. `WAV` and `FLAC` are the safest local formats.
+""".strip()
 
 
 def build_app(
@@ -30,11 +36,13 @@ def build_app(
     with gr.Blocks(title="VoiceForge") as demo:
         gr.Markdown(VOICEFORGE_INTRO_MARKDOWN)
         with gr.Row():
-            reference_audio = gr.File(
-                label="Reference Voice File",
-                type="filepath",
-                file_types=REFERENCE_FILE_TYPES,
-            )
+            with gr.Column():
+                reference_audio = gr.File(
+                    label="Reference Voice File",
+                    type="filepath",
+                    file_types=REFERENCE_FILE_TYPES,
+                )
+                gr.Markdown(REFERENCE_AUDIO_HINT_MARKDOWN)
             text_input = gr.Textbox(
                 label="Text",
                 lines=8,
