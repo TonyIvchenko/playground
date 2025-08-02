@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from importlib.util import module_from_spec, spec_from_file_location
+import json
 from pathlib import Path
 import sys
 import types
@@ -214,3 +215,58 @@ def test_main_dry_run_skips_redis_runtime(monkeypatch):
     assert calls["build_client"] == 0
     assert calls["run_forever"] == 0
     assert signal_calls == []
+
+
+def test_main_config_json_echoes_machine_readable_settings(monkeypatch, capsys):
+    calls = {"build_client": 0, "run_forever": 0}
+
+    service_module = types.ModuleType("service")
+    settings_module = types.ModuleType("settings")
+
+    def fake_build_client(**_kwargs):
+        calls["build_client"] += 1
+        raise AssertionError("build_client should not be called during --dry-run")
+
+    def fake_run_forever(*_args, **_kwargs):
+        calls["run_forever"] += 1
+        raise AssertionError("run_forever should not be called during --dry-run")
+
+    def fake_load_settings():
+        return FakeSettings()
+
+    service_module.build_client = fake_build_client
+    service_module.run_forever = fake_run_forever
+    settings_module.load_settings = fake_load_settings
+    sys.modules["service"] = service_module
+    sys.modules["settings"] = settings_module
+
+    spec = spec_from_file_location("test_main_runtime_config_json", MODULE_PATH)
+    main_module = module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(main_module)
+
+    monkeypatch.setattr(main_module.logging, "basicConfig", lambda **_kwargs: None)
+    monkeypatch.setattr(main_module.signal, "signal", lambda *_args: None)
+
+    assert main_module.main(["--dry-run", "--config-json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+
+    assert calls["build_client"] == 0
+    assert calls["run_forever"] == 0
+    assert payload == {
+        "service": "test-service",
+        "startup_url": "redis://cache.local:6380",
+        "dry_run": True,
+        "settings": {
+            "redis_host": "cache.local",
+            "redis_port": 6380,
+            "redis_key": "alpha",
+            "redis_value": "beta",
+            "sleep_seconds": 2.5,
+            "redis_socket_connect_timeout": 1.5,
+            "redis_socket_timeout": 4.5,
+            "redis_backoff_initial_seconds": 0.5,
+            "redis_backoff_max_seconds": 8.0,
+            "redis_backoff_multiplier": 1.75,
+        },
+    }

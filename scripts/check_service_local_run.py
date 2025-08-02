@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 from pathlib import Path
 import shlex
@@ -31,8 +32,9 @@ SERVICE_SPECS: dict[str, dict[str, object]] = {
     "realitycheck": {"readme_command": "python main.py", "mode": "smoke"},
     "realitymix": {"readme_command": "python main.py", "mode": "smoke"},
     "test": {
-        "readme_command": "REDIS_HOST=localhost REDIS_PORT=6379 python main.py --dry-run",
+        "readme_command": "REDIS_HOST=localhost REDIS_PORT=6379 python main.py --dry-run --config-json",
         "mode": "oneshot",
+        "argv": ["--dry-run", "--config-json"],
         "env": {
             "REDIS_HOST": "localhost",
             "REDIS_PORT": "6379",
@@ -163,7 +165,8 @@ def run_process_only_service(name: str, timeout: float) -> None:
 
 def run_oneshot_service(name: str, timeout: float) -> None:
     path = service_dir(name)
-    command = [sys.executable, "main.py", "--dry-run"]
+    argv = [str(part) for part in SERVICE_SPECS[name].get("argv", [])]
+    command = [sys.executable, "main.py", *argv]
     print("Running " + " ".join(shlex.quote(part) for part in command), flush=True)
     completed = subprocess.run(
         command,
@@ -178,8 +181,27 @@ def run_oneshot_service(name: str, timeout: float) -> None:
         raise SystemExit(
             "One-shot Local Run check failed.\n"
             f"Exit code: {completed.returncode}\n"
-            f"Output:\n{output or '(no output)'}"
+            f"Stdout:\n{completed.stdout or '(no stdout)'}\n"
+            f"Stderr:\n{completed.stderr or '(no stderr)'}"
         )
+    if "--config-json" in argv:
+        try:
+            payload = json.loads(completed.stdout or "")
+        except json.JSONDecodeError as exc:
+            raise SystemExit(
+                "One-shot Local Run check did not produce valid JSON config output.\n"
+                f"Stdout:\n{completed.stdout or '(no stdout)'}"
+            ) from exc
+        if payload.get("service") != f"{name}-service":
+            raise SystemExit(
+                "One-shot Local Run check produced unexpected service metadata.\n"
+                f"Stdout:\n{completed.stdout or '(no stdout)'}"
+            )
+        if payload.get("dry_run") is not True:
+            raise SystemExit(
+                "One-shot Local Run check produced config JSON, but dry_run was not true.\n"
+                f"Stdout:\n{completed.stdout or '(no stdout)'}"
+            )
     if "Dry run only; skipping Redis connection and write loop" not in output:
         raise SystemExit(
             "One-shot Local Run check passed but did not emit the expected dry-run marker.\n"

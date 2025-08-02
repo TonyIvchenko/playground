@@ -1,4 +1,6 @@
 import argparse
+from dataclasses import asdict
+import json
 from pathlib import Path
 import logging
 import signal
@@ -30,11 +32,27 @@ def build_parser() -> argparse.ArgumentParser:
         description="Minimal Redis write-loop service used for runtime and smoke checks."
     )
     parser.add_argument(
+        "--config-json",
+        action="store_true",
+        help="Print the resolved runtime config as JSON to stdout before starting.",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Load settings, print startup context, and exit without connecting to Redis.",
     )
     return parser
+
+
+def build_runtime_config_payload(
+    *, startup_url: str, settings, dry_run: bool
+) -> dict[str, object]:
+    return {
+        "service": "test-service",
+        "startup_url": startup_url,
+        "dry_run": dry_run,
+        "settings": asdict(settings),
+    }
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -47,10 +65,18 @@ def main(argv: list[str] | None = None) -> int:
     settings = load_settings()
     stop_event = threading.Event()
     startup_url = f"redis://{settings.redis_host}:{settings.redis_port}"
+    runtime_config = build_runtime_config_payload(
+        startup_url=startup_url,
+        settings=settings,
+        dry_run=args.dry_run,
+    )
 
     def _handle_signal(signum, _frame):
         logger.info("Received signal %s, stopping service", signum)
         stop_event.set()
+
+    if args.config_json:
+        print(json.dumps(runtime_config, indent=2), flush=True)
 
     logger.info(
         "%s key=%s sleep=%s connect_timeout=%s socket_timeout=%s backoff_initial=%s backoff_max=%s backoff_multiplier=%s",
