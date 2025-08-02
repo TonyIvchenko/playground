@@ -1,5 +1,11 @@
 import numpy as np
 
+from src.voiceforge.scripts.run_tiny_smoke_train import (
+    SMOKE_TRAIN_PRESET_ARGS,
+    TRAIN_MODEL_SCRIPT,
+    build_smoke_train_command,
+    normalize_passthrough_args,
+)
 from src.voiceforge.scripts.prune_checkpoints import prune_checkpoints
 from src.voiceforge.scripts.train_model import (
     SpeechT5TTSDataCollator,
@@ -167,3 +173,25 @@ def test_prune_checkpoints_dry_run_leaves_directories_in_place(tmp_path):
     assert checkpoint_16.exists() is True
     assert summary["kept_checkpoints"] == [str(checkpoint_16.resolve())]
     assert summary["removed_checkpoints"] == [str(checkpoint_8.resolve())]
+
+
+def test_tiny_smoke_train_command_uses_named_preset_and_passthrough_args():
+    command = build_smoke_train_command(
+        python_executable="/usr/bin/python3",
+        extra_args=["--device", "mps", "--output-dir", "/tmp/voiceforge-smoke"],
+    )
+
+    assert command[:2] == ["/usr/bin/python3", str(TRAIN_MODEL_SCRIPT)]
+    assert "--max-train-samples" in command
+    assert command[command.index("--max-train-samples") + 1] == "32"
+    assert "--max-eval-samples" in command
+    assert command[command.index("--max-eval-samples") + 1] == "8"
+    assert "--save-total-limit" in command
+    assert command[command.index("--save-total-limit") + 1] == "1"
+    assert command[-4:] == ["--device", "mps", "--output-dir", "/tmp/voiceforge-smoke"]
+
+
+def test_tiny_smoke_train_passthrough_normalization_strips_separator():
+    assert normalize_passthrough_args(["--", "--device", "cpu"]) == ["--device", "cpu"]
+    assert normalize_passthrough_args(["--device", "cpu"]) == ["--device", "cpu"]
+    assert "--preview-samples" in SMOKE_TRAIN_PRESET_ARGS
