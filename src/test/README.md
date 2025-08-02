@@ -7,6 +7,14 @@ Minimal Redis write-loop service used for runtime/container smoke checks.
 From `src/test`:
 
 ```bash
+REDIS_HOST=localhost REDIS_PORT=6379 python main.py --dry-run
+```
+
+That is the quickest local smoke path because it loads and validates settings without needing a live Redis instance.
+
+Run the real write loop against a local Redis:
+
+```bash
 REDIS_HOST=localhost REDIS_PORT=6379 python main.py
 ```
 

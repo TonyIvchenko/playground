@@ -1,3 +1,4 @@
+import argparse
 from pathlib import Path
 import logging
 import signal
@@ -24,25 +25,36 @@ def format_worker_startup(url: str) -> str:
     return format_service_startup("test-service", url)
 
 
-def main():
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Minimal Redis write-loop service used for runtime and smoke checks."
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Load settings, print startup context, and exit without connecting to Redis.",
+    )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+    args = build_parser().parse_args(argv)
 
     settings = load_settings()
     stop_event = threading.Event()
+    startup_url = f"redis://{settings.redis_host}:{settings.redis_port}"
 
     def _handle_signal(signum, _frame):
         logger.info("Received signal %s, stopping service", signum)
         stop_event.set()
 
-    signal.signal(signal.SIGINT, _handle_signal)
-    signal.signal(signal.SIGTERM, _handle_signal)
-
     logger.info(
         "%s key=%s sleep=%s connect_timeout=%s socket_timeout=%s backoff_initial=%s backoff_max=%s backoff_multiplier=%s",
-        format_worker_startup(f"redis://{settings.redis_host}:{settings.redis_port}"),
+        format_worker_startup(startup_url),
         settings.redis_key,
         settings.sleep_seconds,
         settings.redis_socket_connect_timeout,
@@ -51,6 +63,13 @@ def main():
         settings.redis_backoff_max_seconds,
         settings.redis_backoff_multiplier,
     )
+    if args.dry_run:
+        logger.info("Dry run only; skipping Redis connection and write loop")
+        return 0
+
+    signal.signal(signal.SIGINT, _handle_signal)
+    signal.signal(signal.SIGTERM, _handle_signal)
+
     cache = build_client(
         host=settings.redis_host,
         port=settings.redis_port,
@@ -73,7 +92,8 @@ def main():
         if callable(close_method):
             close_method()
         logger.info("Service stopped")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

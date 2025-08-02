@@ -31,8 +31,8 @@ SERVICE_SPECS: dict[str, dict[str, object]] = {
     "realitycheck": {"readme_command": "python main.py", "mode": "smoke"},
     "realitymix": {"readme_command": "python main.py", "mode": "smoke"},
     "test": {
-        "readme_command": "REDIS_HOST=localhost REDIS_PORT=6379 python main.py",
-        "mode": "process",
+        "readme_command": "REDIS_HOST=localhost REDIS_PORT=6379 python main.py --dry-run",
+        "mode": "oneshot",
         "env": {
             "REDIS_HOST": "localhost",
             "REDIS_PORT": "6379",
@@ -161,6 +161,33 @@ def run_process_only_service(name: str, timeout: float) -> None:
         terminate_process(process)
 
 
+def run_oneshot_service(name: str, timeout: float) -> None:
+    path = service_dir(name)
+    command = [sys.executable, "main.py", "--dry-run"]
+    print("Running " + " ".join(shlex.quote(part) for part in command), flush=True)
+    completed = subprocess.run(
+        command,
+        cwd=path,
+        env=service_env(name),
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+    )
+    output = (completed.stdout or "") + (completed.stderr or "")
+    if completed.returncode != 0:
+        raise SystemExit(
+            "One-shot Local Run check failed.\n"
+            f"Exit code: {completed.returncode}\n"
+            f"Output:\n{output or '(no output)'}"
+        )
+    if "Dry run only; skipping Redis connection and write loop" not in output:
+        raise SystemExit(
+            "One-shot Local Run check passed but did not emit the expected dry-run marker.\n"
+            f"Output:\n{output or '(no output)'}"
+        )
+    print(f"One-shot local run check passed for '{name}'.")
+
+
 def run_service_check(name: str, port: int, timeout: float) -> None:
     readme_command = str(SERVICE_SPECS[name]["readme_command"])
     if not readme_contains_local_run(readme_path(name), readme_command):
@@ -171,6 +198,9 @@ def run_service_check(name: str, port: int, timeout: float) -> None:
     mode = str(SERVICE_SPECS[name]["mode"])
     if mode == "process":
         run_process_only_service(name, timeout)
+        return
+    if mode == "oneshot":
+        run_oneshot_service(name, timeout)
         return
     run_smoke_service(name, port, timeout)
 
