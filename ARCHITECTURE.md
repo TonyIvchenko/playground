@@ -1,81 +1,38 @@
-# Architecture Notes
+# Repo Shape
 
-This repo is intentionally mixed-shape. It is a playground, not a single product, so the architecture optimizes for fast iteration, low ceremony, and keeping each app in the smallest shape that still fits the problem.
+This repo is a multi-service playground. Keep each service in the smallest
+shape that still does the job, and keep repo-wide rules short.
 
-## Why Some Apps Are Static
+## Where Things Live
 
-Many services in `src/` are really browser apps with a thin Python launcher:
+- `src/<service>`: each app or service
+- `shared/`: browser-app shared assets
+- `scripts/`: repo tooling
+- `tests/`: root smoke and shared behavior tests
 
-- `bert`
-- `counterpoint`
-- `debate`
-- `facemesh`
-- `manipulation`
-- `memorypalace`
-- `realitycheck`
-- `realitymix`
-- `vibedj`
+## Service Shapes
 
-These stay mostly static because:
+- Static browser apps: keep product logic in the browser, keep `main.py` thin,
+  and use the shared launcher behavior for `HOST`, `PORT`, and `/health`.
+- Python web services: use these only when the app needs server-side inference,
+  uploads, larger local assets, or Gradio/FastAPI runtime behavior. Keep
+  `main.py` thin and move reusable logic into service modules.
+- Worker service: `src/test` is a narrow Redis-backed runtime check. Keep it
+  explicit, one-shot friendly, and separate from the user-facing apps.
 
-- most of the product logic lives in the browser
-- the local run story stays simple
-- there is less backend code to maintain
-- demos remain easy to move, rewrite, or delete
+Some heavier services also keep training or data-prep code next to the app.
+That is acceptable here when the app and training flow share assets and
+assumptions.
 
-For these apps, `main.py` is usually just a static file server plus a little routing when needed.
+## Working Rules
 
-## Why Some Apps Are Python Services
-
-Some services need server-side runtime behavior, not just static assets:
-
-- `ctscan`
-- `disasters`
-- `voiceforge`
-
-These use Python services because they need one or more of:
-
-- model loading and inference
-- larger local assets or model checkpoints
-- upload handling
-- health endpoints for local smoke checks and Docker
-- integration with Gradio or FastAPI
-
-The goal is still to keep the service entrypoint small and push reusable logic into service modules.
-
-## Why `test` Is Different
-
-`src/test` is not a browser app and not a user-facing ML app. It exists as runtime tooling for Redis-backed smoke checks and container validation.
-
-That service is intentionally narrow:
-
-- it exercises runtime wiring
-- it gives CI and Docker something simple to validate
-- it keeps infrastructure checks separate from the heavier ML apps
-
-## Why Training Code Lives Next To Apps
-
-Some services carry training, notebooks, or data-prep code alongside the app:
-
-- `ctscan`
-- `disasters`
-- `voiceforge`
-
-That is a pragmatic choice:
-
-- the training and inference code share assets and assumptions
-- the service README can document the full local workflow in one place
-- experimentation stays close to the app it supports
-
-This does make some service folders heavier. The tradeoff is accepted here because the repo favors local iteration over strict package boundaries.
-
-## Practical Rule Of Thumb
-
-When adding or reshaping a service:
-
-1. keep it static if the browser can do the real work
-2. use a Python service when you need server-side inference, uploads, or health-checked runtime behavior
-3. keep `main.py` thin even when the service is server-backed
-4. keep service-specific docs, tests, and dependencies local to that service
-
-The repo should feel lightweight by default. Heavier architecture is justified only when the app actually needs it.
+- Keep changes local to one service unless the work is intentionally repo-wide.
+- Put service-specific dependencies in `src/<service>/requirements.txt`; keep
+  root dependencies shared-only, and add new service requirements files to
+  `environment.yml`.
+- Document service-specific env vars, data setup, and caveats in that service's
+  README instead of repeating them at the root.
+- Run the narrowest relevant test or smoke check for the service you changed.
+- When behavior changes, update the service README and tests in the same change.
+- Keep generated outputs, logs, caches, and checkpoints predictable and out of
+  git unless there is a clear reason to track them.

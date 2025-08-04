@@ -12,7 +12,7 @@ Use it to answer questions like:
 
 - Expanded the root [README.md](/Users/toxa/git/playground/README.md) so it reflects the full service inventory under `src/`.
 - Added a root service inventory table, repo map, browser app checklist, troubleshooting section, first-run internet note, and fastest-local-command summary.
-- Added [CONTRIBUTING.md](/Users/toxa/git/playground/CONTRIBUTING.md) and [ARCHITECTURE.md](/Users/toxa/git/playground/ARCHITECTURE.md) to make repo conventions and service shapes easier to understand quickly.
+- Added a short root [ARCHITECTURE.md](/Users/toxa/git/playground/ARCHITECTURE.md) so repo shape and conventions have one place to live.
 - Added a root [.editorconfig](/Users/toxa/git/playground/.editorconfig) for whitespace and indentation consistency.
 
 ## New Root Tooling

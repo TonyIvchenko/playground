@@ -17,7 +17,6 @@ python scripts/list_services.py --json
 That generated view is backed by `scripts/service_manifest.json`.
 
 For repo-wide conventions and service-shape reasoning, see
-[CONTRIBUTING.md](/Users/toxa/git/playground/CONTRIBUTING.md) and
 [ARCHITECTURE.md](/Users/toxa/git/playground/ARCHITECTURE.md).
 For rolling repo notes, see
 [RECENT_CHANGES.md](/Users/toxa/git/playground/RECENT_CHANGES.md).
@@ -83,6 +82,5 @@ usually be:
 
 - `python scripts/list_services.py`
 - `src/<service>/README.md`
-- [CONTRIBUTING.md](/Users/toxa/git/playground/CONTRIBUTING.md)
 - [ARCHITECTURE.md](/Users/toxa/git/playground/ARCHITECTURE.md)
 - [RECENT_CHANGES.md](/Users/toxa/git/playground/RECENT_CHANGES.md)
