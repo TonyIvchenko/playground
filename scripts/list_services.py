@@ -5,9 +5,11 @@ import argparse
 import json
 from pathlib import Path
 
+try:
+    from .service_manifest import ROOT, SRC_DIR, load_service_manifest
+except ImportError:
+    from service_manifest import ROOT, SRC_DIR, load_service_manifest
 
-ROOT = Path(__file__).resolve().parents[1]
-SRC_DIR = ROOT / "src"
 KEY_PATHS = (
     "main.py",
     "README.md",
@@ -41,6 +43,7 @@ def iter_services() -> list[Path]:
 
 
 def collect_service(path: Path) -> dict[str, object]:
+    manifest = load_service_manifest()
     rel_path = path.relative_to(ROOT).as_posix()
     readme_path = path / "README.md"
     tests_path = path / "tests"
@@ -48,39 +51,21 @@ def collect_service(path: Path) -> dict[str, object]:
     record: dict[str, object] = {
         "service": path.name,
         "path": rel_path,
-        "type": detect_service_type(path),
-        "run": detect_run_command(path),
-        "tests_path": tests_path.relative_to(ROOT).as_posix() if tests_path.exists() else "-",
-        "docker_path": docker_path.relative_to(ROOT).as_posix() if docker_path.exists() else "-",
-        "health_endpoint": detect_health_endpoint(path),
+        "type": str(manifest[path.name]["type"]),
+        "run": str(manifest[path.name]["run"]),
+        "tests_path": tests_path.relative_to(ROOT).as_posix()
+        if tests_path.exists()
+        else "-",
+        "docker_path": docker_path.relative_to(ROOT).as_posix()
+        if docker_path.exists()
+        else "-",
+        "health_endpoint": str(manifest[path.name]["health_endpoint"] or "-"),
         "readme_path": readme_path.relative_to(ROOT).as_posix(),
     }
     for key_path in KEY_PATHS:
         target = path / key_path
         record[key_path] = target.exists()
     return record
-
-
-def detect_service_type(path: Path) -> str:
-    if path.name == "test":
-        return "worker service"
-    if (path / "index.html").exists():
-        return "static browser app"
-    if (path / "Dockerfile").exists():
-        return "python web service"
-    return "python service"
-
-
-def detect_run_command(path: Path) -> str:
-    if path.name == "test":
-        return "make run test"
-    return f"make run {path.name} 8080"
-
-
-def detect_health_endpoint(path: Path) -> str:
-    if path.name == "test":
-        return "-"
-    return "/health"
 
 
 def render_table(records: list[dict[str, object]]) -> str:

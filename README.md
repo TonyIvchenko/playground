@@ -14,6 +14,8 @@ For machine-readable output, run:
 python scripts/list_services.py --json
 ```
 
+That generated view is backed by `scripts/service_manifest.json`.
+
 For repo-wide conventions and service-shape reasoning, see
 [CONTRIBUTING.md](/Users/toxa/git/playground/CONTRIBUTING.md) and
 [ARCHITECTURE.md](/Users/toxa/git/playground/ARCHITECTURE.md).

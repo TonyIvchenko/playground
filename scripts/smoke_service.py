@@ -4,18 +4,22 @@ from __future__ import annotations
 import argparse
 import os
 from pathlib import Path
-from poll_http_health import poll_url
 import subprocess
 import sys
 import tempfile
 
+try:
+    from .poll_http_health import poll_url
+except ImportError:
+    from poll_http_health import poll_url
 
-ROOT = Path(__file__).resolve().parents[1]
-SRC_DIR = ROOT / "src"
+try:
+    from .service_manifest import SRC_DIR, load_service_manifest
+except ImportError:
+    from service_manifest import SRC_DIR, load_service_manifest
+
 DEFAULT_PORT = 8080
-UNSUPPORTED_SERVICES = {
-    "test": "The Redis-backed test service does not expose a local HTTP smoke path yet. Use the service README until item 99 lands.",
-}
+SERVICE_SPECS = load_service_manifest()
 
 
 def parse_args() -> argparse.Namespace:
@@ -57,15 +61,17 @@ def service_dir(name: str) -> Path:
     path = SRC_DIR / name
     if not path.is_dir():
         raise SystemExit(f"Unknown service '{name}'. Expected a directory at {path}.")
-    if name in UNSUPPORTED_SERVICES:
-        raise SystemExit(UNSUPPORTED_SERVICES[name])
     if not (path / "main.py").exists():
         raise SystemExit(f"Service '{name}' is missing {path / 'main.py'}.")
+    if not SERVICE_SPECS[name]["health_endpoint"]:
+        raise SystemExit(
+            f"Service '{name}' does not expose an HTTP smoke path. Use its documented local run path instead."
+        )
     return path
 
 
 def smoke_path(name: str) -> str:
-    return "/health"
+    return str(SERVICE_SPECS[name]["health_endpoint"])
 
 
 def expected_content_type(name: str) -> str:

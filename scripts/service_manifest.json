@@ -1,0 +1,130 @@
+{
+  "bert": {
+    "type": "static browser app",
+    "run": "make run bert 8080",
+    "health_endpoint": "/health",
+    "local_run": {
+      "readme_command": "python main.py",
+      "mode": "smoke"
+    }
+  },
+  "counterpoint": {
+    "type": "static browser app",
+    "run": "make run counterpoint 8080",
+    "health_endpoint": "/health",
+    "local_run": {
+      "readme_command": "python main.py",
+      "mode": "smoke"
+    }
+  },
+  "ctscan": {
+    "type": "python web service",
+    "run": "make run ctscan 8080",
+    "health_endpoint": "/health",
+    "local_run": {
+      "readme_command": "python main.py",
+      "mode": "smoke"
+    }
+  },
+  "debate": {
+    "type": "static browser app",
+    "run": "make run debate 8080",
+    "health_endpoint": "/health",
+    "local_run": {
+      "readme_command": "python main.py",
+      "mode": "smoke"
+    }
+  },
+  "disasters": {
+    "type": "python web service",
+    "run": "make run disasters 8080",
+    "health_endpoint": "/health",
+    "local_run": {
+      "readme_command": "GMAPS_API_KEY=<google_maps_js_api_key> PORT=8080 python main.py",
+      "mode": "smoke",
+      "env": {
+        "GMAPS_API_KEY": "ci-local-run-key"
+      }
+    }
+  },
+  "facemesh": {
+    "type": "static browser app",
+    "run": "make run facemesh 8080",
+    "health_endpoint": "/health",
+    "local_run": {
+      "readme_command": "python main.py",
+      "mode": "smoke"
+    }
+  },
+  "manipulation": {
+    "type": "static browser app",
+    "run": "make run manipulation 8080",
+    "health_endpoint": "/health",
+    "local_run": {
+      "readme_command": "python main.py",
+      "mode": "smoke"
+    }
+  },
+  "memorypalace": {
+    "type": "static browser app",
+    "run": "make run memorypalace 8080",
+    "health_endpoint": "/health",
+    "local_run": {
+      "readme_command": "python main.py",
+      "mode": "smoke"
+    }
+  },
+  "realitycheck": {
+    "type": "static browser app",
+    "run": "make run realitycheck 8080",
+    "health_endpoint": "/health",
+    "local_run": {
+      "readme_command": "python main.py",
+      "mode": "smoke"
+    }
+  },
+  "realitymix": {
+    "type": "static browser app",
+    "run": "make run realitymix 8080",
+    "health_endpoint": "/health",
+    "local_run": {
+      "readme_command": "python main.py",
+      "mode": "smoke"
+    }
+  },
+  "test": {
+    "type": "worker service",
+    "run": "make run test",
+    "health_endpoint": null,
+    "local_run": {
+      "readme_command": "REDIS_HOST=localhost REDIS_PORT=6379 python main.py --dry-run --config-json",
+      "mode": "oneshot",
+      "argv": [
+        "--dry-run",
+        "--config-json"
+      ],
+      "env": {
+        "REDIS_HOST": "localhost",
+        "REDIS_PORT": "6379"
+      }
+    }
+  },
+  "vibedj": {
+    "type": "static browser app",
+    "run": "make run vibedj 8080",
+    "health_endpoint": "/health",
+    "local_run": {
+      "readme_command": "python main.py",
+      "mode": "smoke"
+    }
+  },
+  "voiceforge": {
+    "type": "python web service",
+    "run": "make run voiceforge 8080",
+    "health_endpoint": "/health",
+    "local_run": {
+      "readme_command": "python main.py",
+      "mode": "smoke"
+    }
+  }
+}

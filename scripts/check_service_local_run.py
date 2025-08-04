@@ -11,38 +11,14 @@ import sys
 import tempfile
 import time
 
+try:
+    from .service_manifest import ROOT, SRC_DIR, load_service_manifest, service_names
+except ImportError:
+    from service_manifest import ROOT, SRC_DIR, load_service_manifest, service_names
 
-ROOT = Path(__file__).resolve().parents[1]
-SRC_DIR = ROOT / "src"
 DEFAULT_PORT = 18080
 
-SERVICE_SPECS: dict[str, dict[str, object]] = {
-    "bert": {"readme_command": "python main.py", "mode": "smoke"},
-    "counterpoint": {"readme_command": "python main.py", "mode": "smoke"},
-    "ctscan": {"readme_command": "python main.py", "mode": "smoke"},
-    "debate": {"readme_command": "python main.py", "mode": "smoke"},
-    "disasters": {
-        "readme_command": "GMAPS_API_KEY=<google_maps_js_api_key> PORT=8080 python main.py",
-        "mode": "smoke",
-        "env": {"GMAPS_API_KEY": "ci-local-run-key"},
-    },
-    "facemesh": {"readme_command": "python main.py", "mode": "smoke"},
-    "manipulation": {"readme_command": "python main.py", "mode": "smoke"},
-    "memorypalace": {"readme_command": "python main.py", "mode": "smoke"},
-    "realitycheck": {"readme_command": "python main.py", "mode": "smoke"},
-    "realitymix": {"readme_command": "python main.py", "mode": "smoke"},
-    "test": {
-        "readme_command": "REDIS_HOST=localhost REDIS_PORT=6379 python main.py --dry-run --config-json",
-        "mode": "oneshot",
-        "argv": ["--dry-run", "--config-json"],
-        "env": {
-            "REDIS_HOST": "localhost",
-            "REDIS_PORT": "6379",
-        },
-    },
-    "vibedj": {"readme_command": "python main.py", "mode": "smoke"},
-    "voiceforge": {"readme_command": "python main.py", "mode": "smoke"},
-}
+SERVICE_SPECS = load_service_manifest()
 
 
 def parse_args() -> argparse.Namespace:
@@ -51,7 +27,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--service",
-        choices=["all", *sorted(SERVICE_SPECS)],
+        choices=["all", *service_names()],
         default="all",
         help="Service to check. Default runs all services.",
     )
@@ -89,7 +65,7 @@ def readme_contains_local_run(path: Path, command: str) -> bool:
 def service_env(name: str) -> dict[str, str]:
     env = os.environ.copy()
     env.setdefault("PYTHONUNBUFFERED", "1")
-    extra_env = SERVICE_SPECS[name].get("env", {})
+    extra_env = SERVICE_SPECS[name]["local_run"].get("env", {})
     for key, value in extra_env.items():
         env.setdefault(str(key), str(value))
     return env
@@ -165,7 +141,7 @@ def run_process_only_service(name: str, timeout: float) -> None:
 
 def run_oneshot_service(name: str, timeout: float) -> None:
     path = service_dir(name)
-    argv = [str(part) for part in SERVICE_SPECS[name].get("argv", [])]
+    argv = [str(part) for part in SERVICE_SPECS[name]["local_run"].get("argv", [])]
     command = [sys.executable, "main.py", *argv]
     print("Running " + " ".join(shlex.quote(part) for part in command), flush=True)
     completed = subprocess.run(
@@ -211,13 +187,13 @@ def run_oneshot_service(name: str, timeout: float) -> None:
 
 
 def run_service_check(name: str, port: int, timeout: float) -> None:
-    readme_command = str(SERVICE_SPECS[name]["readme_command"])
+    readme_command = str(SERVICE_SPECS[name]["local_run"]["readme_command"])
     if not readme_contains_local_run(readme_path(name), readme_command):
         raise SystemExit(
             f"{readme_path(name).relative_to(ROOT)} is missing the expected Local Run command: {readme_command}"
         )
 
-    mode = str(SERVICE_SPECS[name]["mode"])
+    mode = str(SERVICE_SPECS[name]["local_run"]["mode"])
     if mode == "process":
         run_process_only_service(name, timeout)
         return
@@ -229,11 +205,11 @@ def run_service_check(name: str, port: int, timeout: float) -> None:
 
 def main() -> int:
     args = parse_args()
-    service_names = sorted(SERVICE_SPECS) if args.service == "all" else [args.service]
-    for offset, service_name in enumerate(service_names):
+    names = service_names() if args.service == "all" else [args.service]
+    for offset, service_name in enumerate(names):
         port = args.port + offset
         run_service_check(service_name, port, args.timeout)
-    print(f"README Local Run checks passed for {len(service_names)} services.")
+    print(f"README Local Run checks passed for {len(names)} services.")
     return 0
 
 
