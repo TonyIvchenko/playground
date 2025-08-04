@@ -19,7 +19,7 @@ KEY_PATHS = (
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="List Playground services and whether their key files are present."
+        description="List Playground services with generated command-reference details."
     )
     parser.add_argument(
         "--json",
@@ -42,9 +42,18 @@ def iter_services() -> list[Path]:
 
 def collect_service(path: Path) -> dict[str, object]:
     rel_path = path.relative_to(ROOT).as_posix()
+    readme_path = path / "README.md"
+    tests_path = path / "tests"
+    docker_path = path / "Dockerfile"
     record: dict[str, object] = {
         "service": path.name,
         "path": rel_path,
+        "type": detect_service_type(path),
+        "run": detect_run_command(path),
+        "tests_path": tests_path.relative_to(ROOT).as_posix() if tests_path.exists() else "-",
+        "docker_path": docker_path.relative_to(ROOT).as_posix() if docker_path.exists() else "-",
+        "health_endpoint": detect_health_endpoint(path),
+        "readme_path": readme_path.relative_to(ROOT).as_posix(),
     }
     for key_path in KEY_PATHS:
         target = path / key_path
@@ -52,8 +61,38 @@ def collect_service(path: Path) -> dict[str, object]:
     return record
 
 
+def detect_service_type(path: Path) -> str:
+    if path.name == "test":
+        return "worker service"
+    if (path / "index.html").exists():
+        return "static browser app"
+    if (path / "Dockerfile").exists():
+        return "python web service"
+    return "python service"
+
+
+def detect_run_command(path: Path) -> str:
+    if path.name == "test":
+        return "make run test"
+    return f"make run {path.name} 8080"
+
+
+def detect_health_endpoint(path: Path) -> str:
+    if path.name == "test":
+        return "-"
+    return "/health"
+
+
 def render_table(records: list[dict[str, object]]) -> str:
-    headers = ["service", "path", *KEY_PATHS]
+    headers = [
+        "service",
+        "type",
+        "run",
+        "tests_path",
+        "docker_path",
+        "health_endpoint",
+        "readme_path",
+    ]
     rendered_rows: list[list[str]] = []
     for record in records:
         row = []
