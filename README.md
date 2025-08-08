@@ -18,9 +18,6 @@ That generated view is backed by `scripts/service_manifest.json`.
 
 For repo-wide conventions and service-shape reasoning, see
 [ARCHITECTURE.md](/Users/toxa/git/playground/ARCHITECTURE.md).
-For rolling repo notes, see
-[RECENT_CHANGES.md](/Users/toxa/git/playground/RECENT_CHANGES.md).
-
 ## Services
 
 The repo currently has three broad service shapes:
@@ -83,4 +80,4 @@ usually be:
 - `python scripts/list_services.py`
 - `src/<service>/README.md`
 - [ARCHITECTURE.md](/Users/toxa/git/playground/ARCHITECTURE.md)
-- [RECENT_CHANGES.md](/Users/toxa/git/playground/RECENT_CHANGES.md)
+- `git log --oneline -n 20`
