@@ -16,36 +16,10 @@ python scripts/list_services.py --json
 
 That generated view is backed by `scripts/service_manifest.json`.
 
-For repo-wide conventions and service-shape reasoning, see
-[ARCHITECTURE.md](/Users/toxa/git/playground/ARCHITECTURE.md).
-## Services
+Use the generated service reference and each service's own README instead of
+repeating service details here.
 
-The repo currently has three broad service shapes:
-
-- Browser apps:
-  - `bert`
-  - `counterpoint`
-  - `debate`
-  - `facemesh`
-  - `manipulation`
-  - `memorypalace`
-  - `realitycheck`
-  - `realitymix`
-  - `vibedj`
-- Python web services:
-  - `ctscan`
-  - `disasters`
-  - `voiceforge`
-- Worker service:
-  - `test`
-
-Use `python scripts/list_services.py` for the current run command, tests,
-Docker path, health support, and per-service README path.
-
-Service-specific env vars, data requirements, Docker commands, and caveats live
-in `src/<service>/README.md`.
-
-## Quick Start
+## Common Commands
 
 ```bash
 make update
@@ -55,22 +29,6 @@ make test <service>
 make lint
 make format
 ```
-
-Notes:
-
-- Most services use `make run <service> [port]`.
-- `test` uses `make run test`.
-- `test` is a Redis-backed worker, so its narrow local smoke path is a one-shot
-  dry run instead of an HTTP probe.
-- `ctscan`, `disasters`, and `voiceforge` are the heavy data or ML services;
-  use their own READMEs for setup and runtime details.
-
-## Repo Layout
-
-- `src/`: services
-- `shared/`: browser-app shared assets
-- `scripts/`: repo tooling
-- `tests/`: root smoke and shared behavior tests
 
 ## More Detail
 
