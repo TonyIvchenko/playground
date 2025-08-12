@@ -2,6 +2,12 @@
 
 Minimal browser-side toxicity analyzer.
 
+## What It Is
+
+- browser-side toxicity scoring with `Xenova/toxic-bert`
+- built-in toxic and non-toxic sample buttons for quick checks
+- no server-side inference path
+
 ## Local Run
 
 From `src/bert`:
@@ -14,9 +20,7 @@ Optional: set `HOST` and `PORT` before running, for example `HOST=127.0.0.1 PORT
 
 Then open `http://127.0.0.1:8080`.
 
-## Notes
+## Key Caveats
 
-- The page loads the model directly in the browser.
-- It includes built-in toxic and non-toxic sample buttons for quick sanity checks.
-- The first run downloads model assets, so internet access is required.
-- It uses `Xenova/toxic-bert`, which ships ONNX weights compatible with `@xenova/transformers`.
+- first run downloads model assets, so internet access is required
+- the page loads the model directly in the browser

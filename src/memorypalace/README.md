@@ -2,6 +2,13 @@
 
 Browser-based 3D memory palace builder.
 
+## What It Is
+
+- turn pasted notes into a connected 3D palace
+- generate quick room titles, anchors, and keywords automatically
+- walk the palace locally in the browser
+- save and reload the last built palace from local browser storage
+
 ## Local Run
 
 From `src/memorypalace`:
@@ -14,21 +21,13 @@ Optional: set `HOST` and `PORT` before running, for example `HOST=127.0.0.1 PORT
 
 Then open `http://127.0.0.1:8080`.
 
-## What It Does
-
-- Takes pasted notes.
-- Turns each note into a distinct room in a connected 3D palace.
-- Lets you walk the palace in the browser.
-- Highlights the current room and its mnemonic cues.
-- Generates quick room titles, anchors, and keywords automatically.
-
 ## Controls
 
 - `W A S D` to move
 - Arrow keys or drag on the scene to look around
 - Click a room chip to jump straight there
 
-## Notes
+## Key Caveats
 
-- This is a browser-only app built with `three.js`.
-- It is for memorization and recall practice, not long-form document storage.
+- browser-only app built with `three.js`
+- intended for memorization and recall practice, not long-form document storage

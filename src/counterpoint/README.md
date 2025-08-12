@@ -2,6 +2,13 @@
 
 Browser-based argument ghostwriter.
 
+## What It Is
+
+- takes one pasted point of view
+- builds the strongest opposing case in the browser
+- generates likely attacks, trap questions, weak spots, and phrases to avoid
+- produces prep notes for stress-testing your side before a real conversation
+
 ## Local Run
 
 From `src/counterpoint`:
@@ -14,15 +21,8 @@ Optional: set `HOST` and `PORT` before running, for example `HOST=127.0.0.1 PORT
 
 Then open `http://127.0.0.1:8080`.
 
-## What It Does
+## Key Caveats
 
-- Takes one pasted point of view.
-- Builds the strongest opposing case in the browser.
-- Generates likely attack lines, trap questions, weak spots, and phrases to avoid.
-- Produces prep notes so you can stress-test your side before a real conversation.
-
-## Notes
-
-- First run downloads a small browser text model.
-- If the model cannot load, the app falls back to heuristic counterargument templates.
-- Short, clear positions work better than dumping long reports.
+- first run downloads a small browser text model
+- if the model cannot load, the app falls back to heuristic templates
+- short, clear positions work better than dumping long reports

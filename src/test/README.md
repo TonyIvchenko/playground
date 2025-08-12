@@ -2,6 +2,12 @@
 
 Minimal Redis write-loop service used for runtime/container smoke checks.
 
+## What It Is
+
+- narrow Redis-backed worker for runtime and container validation
+- supports dry-run and config JSON output for one-shot local smoke checks
+- not a user-facing app
+
 ## Local Run
 
 From `src/test`:
@@ -24,7 +30,7 @@ If you want the same machine-readable config echo before the real loop starts:
 REDIS_HOST=localhost REDIS_PORT=6379 python main.py --config-json
 ```
 
-Environment variables:
+Key environment variables:
 
 - `REDIS_HOST` (default `redis-service`; for a local Redis on your machine, set `REDIS_HOST=localhost`)
 - `REDIS_PORT` (default `6379`)
@@ -80,10 +86,13 @@ redis-cli -h 127.0.0.1 -p 6379 GET smoke
 Use `host.docker.internal` on Docker Desktop. Use `--network host` only on Linux.
 The container healthcheck uses the same `REDIS_HOST`, `REDIS_PORT`, `REDIS_SOCKET_CONNECT_TIMEOUT`, and `REDIS_SOCKET_TIMEOUT` env vars as the service runtime.
 
-The CI workflow uses the same Redis-backed smoke pattern for this service.
-
 ## Tests
 
 ```bash
 python -m pytest -q src/test/tests
 ```
+
+## Key Caveats
+
+- dry-run is the quickest local smoke path because it does not need a live Redis instance
+- the real write loop needs reachable Redis settings
