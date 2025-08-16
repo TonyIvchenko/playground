@@ -13,8 +13,6 @@ Voice-cloning text-to-speech service built around SpeechT5 fine-tuning.
 
 ## Local Run
 
-From `src/voiceforge`:
-
 ```bash
 python main.py
 ```
@@ -60,8 +58,6 @@ python scripts/prune_checkpoints.py --keep 2
 ```
 
 ## Docker
-
-From repo root:
 
 ```bash
 docker build --pull -t voiceforge -f src/voiceforge/Dockerfile .

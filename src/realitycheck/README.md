@@ -11,8 +11,6 @@ Browser-based AI-likelihood analyzer.
 
 ## Local Run
 
-From `src/realitycheck`:
-
 ```bash
 python main.py
 ```

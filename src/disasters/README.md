@@ -10,8 +10,6 @@ Unified Gradio app service that overlays wildfires and hurricanes predictions on
 
 ## Local Run
 
-From `src/disasters`:
-
 ```bash
 GMAPS_API_KEY=<google_maps_js_api_key> PORT=8080 python main.py
 ```
@@ -53,8 +51,6 @@ Allowed values:
 - legacy `layer`: `risk`, `activity`, `confidence`
 
 ## Docker
-
-From repo root:
 
 ```bash
 docker build --pull -t disasters -f src/disasters/Dockerfile .

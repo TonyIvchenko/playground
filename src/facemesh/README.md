@@ -10,8 +10,6 @@ Minimal MediaPipe Face Mesh browser demo.
 
 ## Local Run
 
-From `src/facemesh`:
-
 ```bash
 python main.py
 ```

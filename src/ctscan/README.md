@@ -16,8 +16,6 @@ study bundles.
 
 ## Local Run
 
-From `src/ctscan`:
-
 ```bash
 python main.py
 ```
@@ -76,8 +74,6 @@ Use the relevant script `--help` for exact knobs instead of keeping long
 runbooks in this README.
 
 ## Docker
-
-From repo root:
 
 ```bash
 docker build --pull -t ctscan -f src/ctscan/Dockerfile .

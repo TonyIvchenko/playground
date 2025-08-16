@@ -11,8 +11,6 @@ Browser-based creative direction generator for writing.
 
 ## Local Run
 
-From `src/vibedj`:
-
 ```bash
 python main.py
 ```

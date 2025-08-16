@@ -11,8 +11,6 @@ Browser-based 3D memory palace builder.
 
 ## Local Run
 
-From `src/memorypalace`:
-
 ```bash
 python main.py
 ```

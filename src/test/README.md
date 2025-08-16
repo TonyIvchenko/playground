@@ -10,8 +10,6 @@ Minimal Redis write-loop service used for runtime/container smoke checks.
 
 ## Local Run
 
-From `src/test`:
-
 ```bash
 REDIS_HOST=localhost REDIS_PORT=6379 python main.py --dry-run --config-json
 ```
@@ -46,8 +44,6 @@ Key environment variables:
 `REDIS_HOST`, `REDIS_KEY`, and `REDIS_VALUE` are trimmed at startup, and blank values are rejected.
 
 ## Docker
-
-From repo root:
 
 ```bash
 docker build --pull -t test -f src/test/Dockerfile .

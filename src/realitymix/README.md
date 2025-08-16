@@ -11,8 +11,6 @@ Browser-based live neural style transfer.
 
 ## Local Run
 
-From `src/realitymix`:
-
 ```bash
 python main.py
 ```

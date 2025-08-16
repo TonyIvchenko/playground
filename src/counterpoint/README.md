@@ -11,8 +11,6 @@ Browser-based argument ghostwriter.
 
 ## Local Run
 
-From `src/counterpoint`:
-
 ```bash
 python main.py
 ```

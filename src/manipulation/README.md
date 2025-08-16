@@ -11,8 +11,6 @@ Browser-based manipulation-pattern analyzer for newsletters, community posts, an
 
 ## Local Run
 
-From `src/manipulation`:
-
 ```bash
 python main.py
 ```

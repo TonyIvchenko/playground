@@ -11,8 +11,6 @@ Browser-based argument sparring simulator.
 
 ## Local Run
 
-From `src/debate`:
-
 ```bash
 python main.py
 ```

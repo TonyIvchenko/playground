@@ -30,6 +30,9 @@ assumptions.
 - Put service-specific dependencies in `src/<service>/requirements.txt`; keep
   root dependencies shared-only, and add new service requirements files to
   `environment.yml`.
+- In `src/<service>/README.md`, command blocks run from that service directory
+  unless the README says otherwise. Docker blocks run from repo root unless
+  noted.
 - Document service-specific env vars, data setup, and caveats in that service's
   README instead of repeating them at the root.
 - Run the narrowest relevant test or smoke check for the service you changed.

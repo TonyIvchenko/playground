@@ -11,7 +11,6 @@ SERVICE_SNIPPETS: dict[str, dict[str, object]] = {
         "readme": ROOT / "src/ctscan/README.md",
         "snippets": [
             "## Docker",
-            "From repo root:",
             "docker build --pull -t ctscan -f src/ctscan/Dockerfile .",
             "docker run --rm --name ctscan -p 8080:8080 -e PORT=8080 ctscan",
             "curl --fail --silent --show-error http://127.0.0.1:8080/health",
@@ -21,7 +20,6 @@ SERVICE_SNIPPETS: dict[str, dict[str, object]] = {
         "readme": ROOT / "src/disasters/README.md",
         "snippets": [
             "## Docker",
-            "From repo root:",
             "docker build --pull -t disasters -f src/disasters/Dockerfile .",
             "docker run --rm --name disasters -p 8080:8080 -e PORT=8080 disasters",
             "curl --fail --silent --show-error http://127.0.0.1:8080/health",
@@ -31,7 +29,6 @@ SERVICE_SNIPPETS: dict[str, dict[str, object]] = {
         "readme": ROOT / "src/test/README.md",
         "snippets": [
             "## Docker",
-            "From repo root:",
             "docker build --pull -t test -f src/test/Dockerfile .",
             "# macOS / Windows Docker Desktop",
             "docker run --rm --name test \\",
@@ -48,7 +45,6 @@ SERVICE_SNIPPETS: dict[str, dict[str, object]] = {
         "readme": ROOT / "src/voiceforge/README.md",
         "snippets": [
             "## Docker",
-            "From repo root:",
             "docker build --pull -t voiceforge -f src/voiceforge/Dockerfile .",
             "docker run --rm --name voiceforge -p 8080:8080 -e PORT=8080 voiceforge",
             "curl --fail --silent --show-error http://127.0.0.1:8080/health",

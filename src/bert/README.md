@@ -10,8 +10,6 @@ Minimal browser-side toxicity analyzer.
 
 ## Local Run
 
-From `src/bert`:
-
 ```bash
 python main.py
 ```
