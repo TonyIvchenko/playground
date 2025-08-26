@@ -38,6 +38,8 @@ assumptions.
   instead of repeating that example in every service README.
 - Document service-specific env vars, data setup, and caveats in that service's
   README instead of repeating them at the root.
+- When docs drift or overlap, prefer replacing or merging the old doc instead
+  of adding another nearby doc that says almost the same thing.
 - Run the narrowest relevant test or smoke check for the service you changed.
 - When behavior changes, update the service README and tests in the same change.
 - Keep generated outputs, logs, caches, and checkpoints predictable and out of
