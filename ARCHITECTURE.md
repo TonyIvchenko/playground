@@ -33,6 +33,9 @@ assumptions.
 - In `src/<service>/README.md`, command blocks run from that service directory
   unless the README says otherwise. Docker blocks run from repo root unless
   noted.
+- Static browser launchers honor `HOST` and `PORT`. If you need an override,
+  use one shared pattern like `HOST=127.0.0.1 PORT=8090 python main.py`
+  instead of repeating that example in every service README.
 - Document service-specific env vars, data setup, and caveats in that service's
   README instead of repeating them at the root.
 - Run the narrowest relevant test or smoke check for the service you changed.
