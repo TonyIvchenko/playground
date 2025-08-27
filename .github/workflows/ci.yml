@@ -74,9 +74,8 @@ jobs:
               - '*.md'
               - 'shared/**/*.md'
               - 'src/**/README.md'
-              - 'scripts/check_readme_code_paths.py'
-              - 'scripts/check_markdown_readmes.py'
-              - 'scripts/check_docs_spelling.py'
+              - 'tests/test_check_docs.py'
+              - 'scripts/check_docs.py'
               - 'scripts/check_docker_smoke_docs.py'
               - 'scripts/check_browser_apps.py'
               - 'scripts/browser_app_contracts.json'
@@ -154,7 +153,7 @@ jobs:
         shell: bash
         run: python -m pytest -q --collect-only
 
-  readme-code-paths:
+  docs-validation:
     needs: changes
     if: |
       github.event_name == 'workflow_dispatch' ||
@@ -162,48 +161,14 @@ jobs:
       needs.changes.outputs.shared_ci == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    name: docs-readme-code-paths
+    name: docs-validation
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate README code block paths
+      - name: Run docs validation
         shell: bash
-        run: python scripts/check_readme_code_paths.py
-
-  readme-markdown:
-    needs: changes
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      needs.changes.outputs.docs == 'true' ||
-      needs.changes.outputs.shared_ci == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    name: docs-readme-markdown
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Lint README markdown consistency
-        shell: bash
-        run: python scripts/check_markdown_readmes.py
-
-  docs-spelling:
-    needs: changes
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      needs.changes.outputs.docs == 'true' ||
-      needs.changes.outputs.shared_ci == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    name: docs-spelling
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Check docs spelling
-        shell: bash
-        run: python scripts/check_docs_spelling.py
+        run: python scripts/check_docs.py
 
   docker-smoke-docs:
     needs: changes
@@ -553,9 +518,7 @@ jobs:
     needs:
       - changes
       - collect
-      - readme-code-paths
-      - readme-markdown
-      - docs-spelling
+      - docs-validation
       - docker-smoke-docs
       - config-json-yaml
       - tracked-junk
