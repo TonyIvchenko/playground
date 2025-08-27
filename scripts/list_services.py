@@ -6,9 +6,9 @@ import json
 from pathlib import Path
 
 try:
-    from .service_manifest import ROOT, SRC_DIR, load_service_manifest
+    from .service_manifest import ROOT, iter_service_dirs, load_service_manifest
 except ImportError:
-    from service_manifest import ROOT, SRC_DIR, load_service_manifest
+    from service_manifest import ROOT, iter_service_dirs, load_service_manifest
 
 KEY_PATHS = (
     "main.py",
@@ -29,17 +29,6 @@ def parse_args() -> argparse.Namespace:
         help="Emit machine-readable JSON instead of the default table.",
     )
     return parser.parse_args()
-
-
-def iter_services() -> list[Path]:
-    services = []
-    for path in sorted(SRC_DIR.iterdir()):
-        if not path.is_dir():
-            continue
-        if path.name.startswith(".") or path.name == "__pycache__":
-            continue
-        services.append(path)
-    return services
 
 
 def collect_service(path: Path) -> dict[str, object]:
@@ -106,7 +95,7 @@ def render_table(records: list[dict[str, object]]) -> str:
 
 def main() -> None:
     args = parse_args()
-    records = [collect_service(path) for path in iter_services()]
+    records = [collect_service(path) for path in iter_service_dirs()]
     if args.json:
         print(json.dumps(records, indent=2))
         return

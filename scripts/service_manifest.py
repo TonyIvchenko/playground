@@ -9,6 +9,23 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SRC_DIR = ROOT / "src"
 MANIFEST_PATH = Path(__file__).with_name("service_manifest.json")
+TYPE_REQUIREMENTS = {
+    "static browser app": ("main.py", "README.md", "index.html"),
+    "python web service": (
+        "main.py",
+        "README.md",
+        "requirements.txt",
+        "Dockerfile",
+        "tests",
+    ),
+    "worker service": (
+        "main.py",
+        "README.md",
+        "requirements.txt",
+        "Dockerfile",
+        "tests",
+    ),
+}
 
 
 @lru_cache(maxsize=1)
@@ -21,3 +38,14 @@ def load_service_manifest() -> dict[str, dict[str, object]]:
 
 def service_names() -> list[str]:
     return sorted(load_service_manifest())
+
+
+def iter_service_dirs() -> list[Path]:
+    services: list[Path] = []
+    for path in sorted(SRC_DIR.iterdir()):
+        if not path.is_dir():
+            continue
+        if path.name.startswith(".") or path.name == "__pycache__":
+            continue
+        services.append(path)
+    return services

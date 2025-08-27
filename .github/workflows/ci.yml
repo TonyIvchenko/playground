@@ -79,7 +79,6 @@ jobs:
               - 'scripts/check_docker_smoke_docs.py'
               - 'scripts/check_browser_apps.py'
               - 'scripts/browser_app_contracts.json'
-              - 'scripts/check_service_type_files.py'
             config:
               - '.github/**/*.yml'
               - '.github/**/*.yaml'
@@ -96,7 +95,8 @@ jobs:
               - 'scripts/poll_http_health.py'
               - 'scripts/run_ml_smoke_jobs.py'
               - 'scripts/service_startup.py'
-              - 'scripts/check_service_local_run.py'
+              - 'scripts/check_services.py'
+              - 'tests/test_check_services.py'
             static_apps:
               - 'tests/test_check_browser_apps.py'
               - 'tests/test_static_app_smokes.py'
@@ -236,7 +236,7 @@ jobs:
         shell: bash
         run: python scripts/check_browser_apps.py
 
-  service-type-files:
+  service-validation-static:
     needs: changes
     if: |
       github.event_name == 'workflow_dispatch' ||
@@ -248,14 +248,14 @@ jobs:
       needs.changes.outputs.voiceforge == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    name: service-type-files
+    name: service-validation-static
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Check type-specific service files
+      - name: Check static service contracts
         shell: bash
-        run: python scripts/check_service_type_files.py
+        run: python scripts/check_services.py --check static
 
   readme-local-run:
     needs: changes
@@ -309,7 +309,7 @@ jobs:
 
       - name: Check ${{ matrix.service }} README Local Run
         shell: bash
-        run: python scripts/check_service_local_run.py --service ${{ matrix.service }} --port ${{ matrix.port }}
+        run: python scripts/check_services.py --check local-run --service ${{ matrix.service }} --port ${{ matrix.port }}
 
   service-tests:
     needs:
@@ -522,7 +522,7 @@ jobs:
       - docker-smoke-docs
       - config-json-yaml
       - tracked-junk
-      - service-type-files
+      - service-validation-static
       - readme-local-run
       - service-tests
       - container-smoke
