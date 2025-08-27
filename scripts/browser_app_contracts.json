@@ -1,0 +1,1124 @@
+{
+  "checks": [
+    {
+      "name": "headers",
+      "services": [
+        "bert",
+        "counterpoint",
+        "debate",
+        "facemesh",
+        "manipulation",
+        "memorypalace",
+        "realitycheck",
+        "realitymix",
+        "vibedj"
+      ],
+      "required_classes_anywhere": [
+        "app-header",
+        "app-kicker",
+        "app-title",
+        "app-subtitle"
+      ]
+    },
+    {
+      "name": "empty-states",
+      "services": [
+        "bert",
+        "counterpoint",
+        "debate",
+        "facemesh",
+        "manipulation",
+        "memorypalace",
+        "realitycheck",
+        "realitymix",
+        "vibedj"
+      ],
+      "banned_fragments": [
+        {
+          "text": "No output yet.",
+          "guidance": "Use an action-oriented empty state instead."
+        },
+        {
+          "text": "No palace built yet",
+          "guidance": "Use a ready-to-begin phrase instead."
+        },
+        {
+          "text": "No mix yet",
+          "guidance": "Use a ready-to-begin phrase instead."
+        },
+        {
+          "text": "No image loaded.",
+          "guidance": "Use an upload-to-begin phrase instead."
+        },
+        {
+          "text": "No video loaded.",
+          "guidance": "Use an upload-to-begin phrase instead."
+        },
+        {
+          "text": "No URL analyzed.",
+          "guidance": "Use an enter-a-URL-to-begin phrase instead."
+        },
+        {
+          "text": "Enter text to analyze.",
+          "guidance": "Use a paste-text-to-begin phrase instead."
+        },
+        {
+          "text": "Paste text to score manipulation-related patterns.",
+          "guidance": "Use a shorter paste-text-to-begin phrase instead."
+        },
+        {
+          "text": "Build a palace to start walking.",
+          "guidance": "Use a build-a-palace-to-begin phrase instead."
+        },
+        {
+          "text": "Generate a mix first to hear it.",
+          "guidance": "Use a generate-a-mix-to-begin phrase instead."
+        },
+        {
+          "text": "Point extraction waits for both sides.",
+          "guidance": "Use an add-both-sides-to-begin phrase instead."
+        }
+      ]
+    },
+    {
+      "name": "loading-states",
+      "services": [
+        "bert",
+        "counterpoint",
+        "debate",
+        "manipulation",
+        "realitycheck",
+        "realitymix",
+        "vibedj"
+      ],
+      "banned_fragments": [
+        {
+          "text": "Loading model...",
+          "guidance": "Use a browser-specific loading phrase instead."
+        },
+        {
+          "text": "Loading model\u2026",
+          "guidance": "Use a browser-specific loading phrase instead."
+        },
+        {
+          "text": "Loading flan-t5-small",
+          "guidance": "Use a shared browser generation-model loading phrase instead."
+        },
+        {
+          "text": "Loading sentiment model",
+          "guidance": "Use a shared browser sentiment-model loading phrase instead."
+        },
+        {
+          "text": "Loading text model...",
+          "guidance": "Use a shared browser text-model loading phrase instead."
+        },
+        {
+          "text": "Loading text model\u2026",
+          "guidance": "Use a shared browser text-model loading phrase instead."
+        },
+        {
+          "text": "Loading neural style transfer model\u2026",
+          "guidance": "Use a shared browser style-model loading phrase instead."
+        }
+      ],
+      "required_fragments_by_service": {
+        "bert": [
+          "placeholder=\"Loading browser text model...\"",
+          "Loading browser text model\u2026"
+        ],
+        "counterpoint": [
+          "placeholder=\"Loading browser generation model...\"",
+          "Loading browser generation model\u2026",
+          "Downloading browser generation model\u2026"
+        ],
+        "debate": [
+          "placeholder=\"Loading browser generation model...\"",
+          "Loading browser generation model\u2026"
+        ],
+        "manipulation": [
+          "placeholder=\"Loading browser analysis models...\"",
+          "Loading browser analysis models\u2026",
+          "Loading browser toxicity model\u2026",
+          "Loading browser sentiment model\u2026"
+        ],
+        "realitycheck": [
+          "placeholder=\"Loading browser text model...\"",
+          "Loading browser text model\u2026",
+          "Loading browser image model\u2026"
+        ],
+        "realitymix": [
+          "Loading browser style model\u2026"
+        ],
+        "vibedj": [
+          "Loading browser sentiment model",
+          "Loading browser sentiment model\u2026"
+        ]
+      },
+      "required_element_classes_by_service": {
+        "bert": {
+          "status": [
+            "app-status",
+            "is-loading"
+          ]
+        },
+        "counterpoint": {
+          "model-pill": [
+            "app-pill",
+            "is-loading"
+          ],
+          "status": [
+            "app-status",
+            "is-loading"
+          ]
+        },
+        "debate": {
+          "model-pill": [
+            "app-pill",
+            "is-loading"
+          ],
+          "status-text": [
+            "app-status",
+            "is-loading"
+          ]
+        },
+        "manipulation": {
+          "status-text": [
+            "app-status",
+            "is-loading"
+          ],
+          "toxicity-status": [
+            "app-help",
+            "is-loading"
+          ],
+          "sentiment-status": [
+            "app-help",
+            "is-loading"
+          ]
+        },
+        "realitycheck": {
+          "text-status": [
+            "app-help",
+            "is-loading"
+          ]
+        },
+        "vibedj": {
+          "model-pill": [
+            "app-pill",
+            "is-loading"
+          ],
+          "status-text": [
+            "app-status",
+            "is-loading"
+          ]
+        }
+      }
+    },
+    {
+      "name": "fallback-badges",
+      "services": [
+        "counterpoint",
+        "debate",
+        "manipulation",
+        "realitycheck",
+        "vibedj"
+      ],
+      "banned_fragments": [
+        {
+          "text": "Heuristic mode",
+          "guidance": "Use the shared fallback badge label instead."
+        },
+        {
+          "text": "Model unavailable: heuristic fallback",
+          "guidance": "Use the shared fallback badge label instead."
+        }
+      ],
+      "required_fragments_by_service": {
+        "counterpoint": [
+          "Fallback mode active"
+        ],
+        "debate": [
+          "Fallback mode active"
+        ],
+        "manipulation": [
+          "Fallback mode active"
+        ],
+        "realitycheck": [
+          "Fallback mode active"
+        ],
+        "vibedj": [
+          "Fallback mode active"
+        ]
+      },
+      "required_element_classes_by_service": {
+        "counterpoint": {
+          "fallback-pill": [
+            "app-pill",
+            "is-fallback"
+          ]
+        },
+        "debate": {
+          "fallback-pill": [
+            "app-pill",
+            "is-fallback"
+          ]
+        },
+        "manipulation": {
+          "fallback-pill": [
+            "app-pill",
+            "is-fallback"
+          ]
+        },
+        "realitycheck": {
+          "image-fallback-pill": [
+            "app-pill",
+            "is-fallback"
+          ],
+          "video-fallback-pill": [
+            "app-pill",
+            "is-fallback"
+          ]
+        },
+        "vibedj": {
+          "fallback-pill": [
+            "app-pill",
+            "is-fallback"
+          ]
+        }
+      }
+    },
+    {
+      "name": "error-states",
+      "services": [
+        "bert",
+        "counterpoint",
+        "debate",
+        "facemesh",
+        "manipulation",
+        "memorypalace",
+        "realitycheck",
+        "realitymix",
+        "vibedj"
+      ],
+      "banned_fragments": [
+        {
+          "text": "Analysis failed.",
+          "guidance": "Use a consistent Couldn't-analyze phrasing instead."
+        },
+        {
+          "text": "Failed to load model.",
+          "guidance": "Use a consistent Couldn't-load-the-model phrasing instead."
+        },
+        {
+          "text": "The browser model failed to load, so Counterpoint will use heuristic counterargument templates for this run.",
+          "guidance": "Use the shared Couldn't-load wording and keep the fallback note concise."
+        },
+        {
+          "text": "Model generation failed, so Counterpoint fell back to heuristic output.",
+          "guidance": "Use a Couldn't-build phrasing instead."
+        },
+        {
+          "text": "Model load failed:",
+          "guidance": "Use a Couldn't-load phrasing instead."
+        },
+        {
+          "text": "Model failed",
+          "guidance": "Use a clearer unavailable/error label instead of failed."
+        },
+        {
+          "text": "Sparring failed:",
+          "guidance": "Use a Couldn't-run-sparring phrasing instead."
+        },
+        {
+          "text": "Could not read Point of view A:",
+          "guidance": "Use a consistent Couldn't-read phrasing instead."
+        },
+        {
+          "text": "Could not read Point of view B:",
+          "guidance": "Use a consistent Couldn't-read phrasing instead."
+        },
+        {
+          "text": "Toxicity model: failed (",
+          "guidance": "Use unavailable instead of failed for model fallback lines."
+        },
+        {
+          "text": "Sentiment model: failed (",
+          "guidance": "Use unavailable instead of failed for model fallback lines."
+        },
+        {
+          "text": "Analysis failed:",
+          "guidance": "Use a consistent Couldn't-analyze phrasing instead."
+        },
+        {
+          "text": "Stylization failed:",
+          "guidance": "Use a Couldn't-stylize phrasing instead."
+        },
+        {
+          "text": "Camera start failed:",
+          "guidance": "Use a Couldn't-start-the-camera phrasing instead."
+        },
+        {
+          "text": "Style image failed to load:",
+          "guidance": "Use a Couldn't-load-the-style-image phrasing instead."
+        },
+        {
+          "text": "Model unavailable, using heuristics only:",
+          "guidance": "Use a Couldn't-load-the-model phrasing instead."
+        },
+        {
+          "text": "Copy failed:",
+          "guidance": "Use a Couldn't-copy phrasing instead."
+        },
+        {
+          "text": "Playback failed:",
+          "guidance": "Use a Couldn't-play phrasing instead."
+        },
+        {
+          "text": "Remix failed:",
+          "guidance": "Use a Couldn't-remix phrasing instead."
+        },
+        {
+          "text": "Load failed",
+          "guidance": "Use a clearer load-error label instead of failed."
+        },
+        {
+          "text": "Fetch failed",
+          "guidance": "Use a clearer fetch-error label instead of failed."
+        },
+        {
+          "text": "Failed to load image.",
+          "guidance": "Use a Couldn't-load-the-image phrasing instead."
+        },
+        {
+          "text": "Failed to load image URL.",
+          "guidance": "Use a Couldn't-load-the-image-URL phrasing instead."
+        },
+        {
+          "text": "Failed to load video.",
+          "guidance": "Use a Couldn't-load-the-video phrasing instead."
+        },
+        {
+          "text": "Failed to load video URL.",
+          "guidance": "Use a Couldn't-load-the-video-URL phrasing instead."
+        },
+        {
+          "text": "Image analysis failed.",
+          "guidance": "Use a Couldn't-analyze-the-image phrasing instead."
+        },
+        {
+          "text": "Video analysis failed.",
+          "guidance": "Use a Couldn't-analyze-the-video phrasing instead."
+        },
+        {
+          "text": "Text analysis failed.",
+          "guidance": "Use a Couldn't-analyze-the-text phrasing instead."
+        },
+        {
+          "text": "URL analysis failed.",
+          "guidance": "Use a Couldn't-analyze-the-URL phrasing instead."
+        },
+        {
+          "text": "Failed to load text model.",
+          "guidance": "Use a Couldn't-load-the-text-model phrasing instead."
+        },
+        {
+          "text": "Reference image mesh failed.",
+          "guidance": "Use a Couldn't-map-the-reference-face phrasing instead."
+        },
+        {
+          "text": "Reference image failed to load.",
+          "guidance": "Use a Couldn't-load-the-reference-image phrasing instead."
+        },
+        {
+          "text": "Face mesh update failed.",
+          "guidance": "Use a Couldn't-update-the-face-mesh phrasing instead."
+        },
+        {
+          "text": "Camera access failed.",
+          "guidance": "Use a Couldn't-access-the-camera phrasing instead."
+        }
+      ]
+    },
+    {
+      "name": "buttons",
+      "services": [
+        "counterpoint",
+        "debate",
+        "manipulation",
+        "memorypalace",
+        "realitycheck",
+        "realitymix",
+        "vibedj"
+      ],
+      "button_requires_class": "app-button",
+      "required_fragments_by_service": {
+        "memorypalace": [
+          "button.className = \"app-button chip\";"
+        ]
+      },
+      "file_rules": [
+        {
+          "path": "shared/browser-tokens.css",
+          "required_fragments": [
+            ".app-button {",
+            ".app-button:focus-visible {"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mobile-layouts",
+      "services": [
+        "bert",
+        "counterpoint",
+        "debate",
+        "facemesh",
+        "manipulation",
+        "memorypalace",
+        "realitycheck",
+        "realitymix",
+        "vibedj"
+      ],
+      "required_fragments_by_service": {
+        "bert": [
+          "app-shell",
+          "app-panel"
+        ],
+        "counterpoint": [
+          "app-shell",
+          "app-panel",
+          "app-stack-md"
+        ],
+        "debate": [
+          "app-shell",
+          "app-panel",
+          "app-stack-md"
+        ],
+        "facemesh": [
+          "app-shell",
+          "app-panel",
+          "app-stack-md"
+        ],
+        "manipulation": [
+          "app-shell",
+          "app-panel",
+          "app-stack-md"
+        ],
+        "memorypalace": [
+          "app-shell",
+          "app-panel",
+          "app-stack-md"
+        ],
+        "realitycheck": [
+          "app-shell",
+          "app-panel",
+          "app-stack-md"
+        ],
+        "realitymix": [
+          "app-shell",
+          "app-panel",
+          "app-stack-md"
+        ],
+        "vibedj": [
+          "app-shell",
+          "app-panel",
+          "app-stack-md",
+          "app-two-up-md"
+        ]
+      },
+      "banned_regexes": [
+        "@media\\s*\\(max-width:\\s*\\d+px\\)"
+      ],
+      "file_rules": [
+        {
+          "path": "shared/browser-tokens.css",
+          "required_fragments": [
+            ".app-shell {",
+            ".app-panel {",
+            ".app-stack-md {",
+            ".app-two-up-md {",
+            "@media (max-width: 64rem) {",
+            "@media (max-width: 48rem) {"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "reduced-motion",
+      "required_fragments_by_service": {
+        "vibedj": [
+          "window.matchMedia(\"(prefers-reduced-motion: reduce)\")",
+          "function renderStageFrame(",
+          "function refreshStageMotionPreference()",
+          "renderStageFrame(performance.now(), { animate: false });"
+        ],
+        "memorypalace": [
+          "window.matchMedia(\"(prefers-reduced-motion: reduce)\")",
+          "camera.position.copy(targetPosition);",
+          "camera.position.y = reducedMotion ? 1.75"
+        ],
+        "realitymix": [
+          "window.matchMedia(\"(prefers-reduced-motion: reduce)\")",
+          "let lastPreviewAt = 0;",
+          "return prefersReducedMotion() ? Math.max(baseInterval, 1000) : baseInterval;",
+          "function syncMotionPreference()"
+        ],
+        "facemesh": [
+          "window.matchMedia(\"(prefers-reduced-motion: reduce)\")",
+          "const reducedMotionFrameIntervalMs = prefersReducedMotion() ? 120 : 0;",
+          "Face mesh active in reduced-motion mode."
+        ]
+      },
+      "file_rules": [
+        {
+          "path": "shared/browser-tokens.css",
+          "required_fragments": [
+            "@media (prefers-reduced-motion: reduce) {",
+            "animation: none !important;",
+            "transition: none !important;"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "footers",
+      "services": [
+        "bert",
+        "counterpoint",
+        "debate",
+        "facemesh",
+        "manipulation",
+        "memorypalace",
+        "realitycheck",
+        "realitymix",
+        "vibedj"
+      ],
+      "required_fragments": [
+        "class=\"app-footer app-panel\"",
+        "<p class=\"app-footer-kicker\">Caveats</p>",
+        "<p class=\"app-footer-kicker\">Privacy</p>",
+        "<p class=\"app-footer-kicker\">Local only</p>"
+      ],
+      "required_fragments_by_service": {
+        "bert": [
+          "Scores are directional moderation signals"
+        ],
+        "counterpoint": [
+          "Generated talking points can flatten nuance"
+        ],
+        "debate": [
+          "The sparring transcript is a prep heuristic"
+        ],
+        "facemesh": [
+          "Overlay quality drops with lighting, pose, occlusion"
+        ],
+        "manipulation": [
+          "Pattern scores are heuristics, not proof of intent"
+        ],
+        "memorypalace": [
+          "The palace is a mnemonic aid"
+        ],
+        "realitycheck": [
+          "URL mode asks the local server to fetch page text first."
+        ],
+        "realitymix": [
+          "Style transfer favors mood over exact structure"
+        ],
+        "vibedj": [
+          "These recommendations are taste prompts"
+        ]
+      },
+      "file_rules": [
+        {
+          "path": "shared/browser-tokens.css",
+          "required_fragments": [
+            ".app-footer {",
+            ".app-footer-grid {",
+            ".app-footer-block {",
+            ".app-footer-kicker {",
+            ".app-footer-copy {"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "typography",
+      "services": [
+        "bert",
+        "counterpoint",
+        "debate",
+        "facemesh",
+        "manipulation",
+        "memorypalace",
+        "realitycheck",
+        "realitymix",
+        "vibedj"
+      ],
+      "required_fragments": [
+        "<link rel=\"stylesheet\" href=\"/shared/browser-tokens.css\">"
+      ],
+      "banned_fragments": [
+        {
+          "text": "@import url(\"https://fonts.googleapis.com"
+        },
+        {
+          "text": "font-family:"
+        }
+      ],
+      "file_rules": [
+        {
+          "path": "shared/browser-tokens.css",
+          "required_fragments": [
+            "@import url(\"https://fonts.googleapis.com/css2?family=Fraunces",
+            "body {",
+            "font-family: var(--font-body);",
+            ".app-font-body {",
+            ".app-font-display {",
+            ".app-font-accent {",
+            ".app-font-mono {"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "help-drawers",
+      "services": [
+        "bert",
+        "counterpoint",
+        "debate",
+        "facemesh",
+        "manipulation",
+        "memorypalace",
+        "realitycheck",
+        "realitymix",
+        "vibedj"
+      ],
+      "required_fragments": [
+        "class=\"app-help-drawer app-panel\"",
+        "<summary class=\"app-help-toggle\">Help & Shortcuts</summary>",
+        "<p class=\"app-help-kicker\">How to use</p>",
+        "<p class=\"app-help-kicker\">Best results</p>",
+        "<p class=\"app-help-kicker\">Shortcuts</p>"
+      ],
+      "required_fragments_by_service": {
+        "bert": [
+          "the score refreshes automatically"
+        ],
+        "counterpoint": [
+          "Specific claims and concrete audiences"
+        ],
+        "debate": [
+          "Shorter, focused docs usually outperform giant research dumps."
+        ],
+        "facemesh": [
+          "Bright, even lighting and a mostly frontal pose"
+        ],
+        "manipulation": [
+          "Multi-sentence passages produce better pattern context"
+        ],
+        "memorypalace": [
+          "Blank lines create cleaner room boundaries",
+          "<kbd class=\"app-keycap\">W</kbd>"
+        ],
+        "realitycheck": [
+          "direct image and video URL fields",
+          "<kbd class=\"app-keycap\">Enter</kbd>"
+        ],
+        "realitymix": [
+          "Lower internal resolution is much faster"
+        ],
+        "vibedj": [
+          "Audio controls still require a click."
+        ]
+      },
+      "file_rules": [
+        {
+          "path": "shared/browser-tokens.css",
+          "required_fragments": [
+            ".app-help-drawer {",
+            ".app-help-toggle {",
+            ".app-help-grid {",
+            ".app-help-block {",
+            ".app-help-kicker {",
+            ".app-help-list {",
+            ".app-keycap {"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "contrast",
+      "file_rules": [
+        {
+          "path": "shared/browser-tokens.css",
+          "required_fragments": [
+            "--color-ink-muted: #5c6c7d;",
+            "--color-warning: #9a4a08;",
+            "--color-warning-soft: #fef3c7;"
+          ]
+        },
+        {
+          "path": "src/counterpoint/index.html",
+          "required_fragments": [
+            "--muted: #5c6c7d;"
+          ]
+        },
+        {
+          "path": "src/debate/index.html",
+          "required_fragments": [
+            "--muted: #5c6c7d;"
+          ]
+        },
+        {
+          "path": "src/manipulation/index.html",
+          "required_fragments": [
+            "--muted: #5c6c7d;"
+          ]
+        },
+        {
+          "path": "src/memorypalace/index.html",
+          "required_fragments": [
+            "--muted: #5c6c7d;"
+          ]
+        },
+        {
+          "path": "src/realitycheck/index.html",
+          "required_fragments": [
+            "--muted: #5c6c7d;"
+          ]
+        },
+        {
+          "path": "src/realitymix/index.html",
+          "required_fragments": [
+            "--muted: #5c6c7d;"
+          ]
+        },
+        {
+          "path": "src/vibedj/index.html",
+          "required_fragments": [
+            "--muted: #5c6c7d;"
+          ]
+        },
+        {
+          "path": "src/bert/index.html",
+          "required_fragments": [
+            "color: #5c6c7d;",
+            "background: #f4f6fa;"
+          ]
+        },
+        {
+          "path": "src/facemesh/index.html",
+          "required_fragments": [
+            "color: #5c6c7d;"
+          ]
+        }
+      ],
+      "contrast_cases": [
+        {
+          "label": "shared muted text",
+          "foreground": "#5c6c7d",
+          "background": "#ffffff",
+          "minimum": 4.5
+        },
+        {
+          "label": "shared warning text",
+          "foreground": "#9a4a08",
+          "background": "#fef3c7",
+          "minimum": 4.5
+        },
+        {
+          "label": "counterpoint muted text",
+          "foreground": "#5c6c7d",
+          "background": "#ffffff",
+          "minimum": 4.5
+        },
+        {
+          "label": "debate muted text",
+          "foreground": "#5c6c7d",
+          "background": "#ffffff",
+          "minimum": 4.5
+        },
+        {
+          "label": "manipulation muted text",
+          "foreground": "#5c6c7d",
+          "background": "#ffffff",
+          "minimum": 4.5
+        },
+        {
+          "label": "memorypalace muted text",
+          "foreground": "#5c6c7d",
+          "background": "#ffffff",
+          "minimum": 4.5
+        },
+        {
+          "label": "realitycheck muted text",
+          "foreground": "#5c6c7d",
+          "background": "#ffffff",
+          "minimum": 4.5
+        },
+        {
+          "label": "realitymix muted text",
+          "foreground": "#5c6c7d",
+          "background": "#ffffff",
+          "minimum": 4.5
+        },
+        {
+          "label": "vibedj muted text",
+          "foreground": "#5c6c7d",
+          "background": "#ffffff",
+          "minimum": 4.5
+        },
+        {
+          "label": "bert disabled textarea text",
+          "foreground": "#5c6c7d",
+          "background": "#f4f6fa",
+          "minimum": 4.5
+        },
+        {
+          "label": "facemesh helper text",
+          "foreground": "#5c6c7d",
+          "background": "#eef3fa",
+          "minimum": 4.5
+        }
+      ]
+    },
+    {
+      "name": "starter-css",
+      "services": [
+        "bert",
+        "counterpoint",
+        "debate",
+        "facemesh",
+        "manipulation",
+        "memorypalace",
+        "realitycheck",
+        "realitymix",
+        "vibedj"
+      ],
+      "required_fragments": [
+        "<link rel=\"stylesheet\" href=\"/shared/browser-starter.css\">",
+        "app-starter-surface"
+      ],
+      "required_any_of_fragments": [
+        [
+          "class=\"app-shell app-starter-shell\"",
+          "class=\"app app-shell app-starter-shell\""
+        ],
+        [
+          "app-starter-panel",
+          "app-starter-hero"
+        ]
+      ],
+      "file_rules": [
+        {
+          "path": "shared/browser-starter.css",
+          "required_fragments": [
+            ".app-starter-shell {",
+            ".app-starter-surface {",
+            ".app-starter-hero {",
+            ".app-starter-panel {"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "status-copy",
+      "services": [
+        "bert",
+        "counterpoint",
+        "debate",
+        "facemesh",
+        "manipulation",
+        "realitycheck",
+        "realitymix",
+        "vibedj"
+      ],
+      "banned_fragments": [
+        {
+          "text": "Failed to "
+        }
+      ],
+      "required_fragments_by_service": {
+        "bert": [
+          "Loading browser text model\u2026",
+          "Browser text model ready.",
+          "Analysis ready.",
+          "Couldn't load the browser text model."
+        ],
+        "counterpoint": [
+          "Loading browser generation model\u2026",
+          "Downloading browser generation model\u2026",
+          "Loading browser generation model",
+          "Downloading browser generation model",
+          "Browser generation model ready",
+          "Browser generation model unavailable",
+          "Counter-side ready.",
+          "Couldn't load the browser generation model."
+        ],
+        "debate": [
+          "Loading browser generation model\u2026",
+          "Loading browser generation model",
+          "Browser generation model ready",
+          "Browser generation model unavailable",
+          "Couldn't load the browser generation model.",
+          "Debate is using fallback mode for this run.",
+          "Sparring complete with heuristic fallback."
+        ],
+        "facemesh": [
+          "Loading camera\u2026",
+          "Loading reference image\u2026",
+          "Loading reference mesh\u2026",
+          "Camera ready. Loading face mesh",
+          "Reference mesh ready."
+        ],
+        "manipulation": [
+          "Loading browser analysis models\u2026",
+          "Loading browser toxicity model\u2026",
+          "Loading browser sentiment model\u2026",
+          "Browser toxicity model ready.",
+          "Browser sentiment model ready.",
+          "Browser analysis models ready. Paste text and analyze.",
+          "Analysis ready."
+        ],
+        "realitycheck": [
+          "Loading browser text model\u2026",
+          "Ready. The browser image model loads on the first image analysis.",
+          "Browser image model ready",
+          "Browser text model ready.",
+          "Image ready",
+          "Video ready"
+        ],
+        "realitymix": [
+          "Ready. Upload a style image and start the camera to begin. The browser style model downloads on first use.",
+          "Loading browser style model\u2026",
+          "Browser style model ready.",
+          "Couldn't decode the style image."
+        ],
+        "vibedj": [
+          "Loading browser sentiment model\u2026",
+          "Loading browser sentiment model",
+          "Browser sentiment model ready",
+          "Browser sentiment model unavailable",
+          "Couldn't load the browser sentiment model.",
+          "Mix ready."
+        ]
+      },
+      "banned_fragments_by_service": {
+        "bert": [
+          {
+            "text": "Model ready."
+          },
+          {
+            "text": "Analysis complete."
+          },
+          {
+            "text": "Couldn't load the model."
+          }
+        ],
+        "counterpoint": [
+          {
+            "text": "Generation model loading"
+          },
+          {
+            "text": "Generation model downloading"
+          },
+          {
+            "text": "Counter-side ready from heuristic fallback."
+          },
+          {
+            "text": "Couldn't load the browser model."
+          }
+        ],
+        "debate": [
+          {
+            "text": "Generation model loading"
+          },
+          {
+            "text": "Model ready."
+          },
+          {
+            "text": "Model unavailable"
+          },
+          {
+            "text": "Couldn't load the model."
+          }
+        ],
+        "facemesh": [
+          {
+            "text": "Starting camera..."
+          },
+          {
+            "text": "Loading reference image..."
+          },
+          {
+            "text": "Detecting reference mesh..."
+          },
+          {
+            "text": "Loading face mesh..."
+          }
+        ],
+        "manipulation": [
+          {
+            "text": "Loading browser models\u2026"
+          },
+          {
+            "text": "Toxicity model loading\u2026"
+          },
+          {
+            "text": "Sentiment model loading\u2026"
+          },
+          {
+            "text": "Toxicity model: ready"
+          },
+          {
+            "text": "Sentiment model: ready"
+          },
+          {
+            "text": "Models ready."
+          },
+          {
+            "text": "Analysis complete."
+          }
+        ],
+        "realitycheck": [
+          {
+            "text": "Image model will load on the first image analysis."
+          },
+          {
+            "text": "Image model ready ("
+          },
+          {
+            "text": "Text model ready."
+          },
+          {
+            "text": "Ready to analyze"
+          },
+          {
+            "text": "Couldn't load the text model."
+          },
+          {
+            "text": "Couldn't load the image model ("
+          }
+        ],
+        "realitymix": [
+          {
+            "text": "Model ready. Start the camera or adjust style settings."
+          },
+          {
+            "text": "Failed to decode style image."
+          }
+        ],
+        "vibedj": [
+          {
+            "text": "Sentiment model loading"
+          },
+          {
+            "text": "Model ready."
+          },
+          {
+            "text": "Couldn't load the model."
+          }
+        ]
+      }
+    }
+  ]
+}
