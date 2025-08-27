@@ -52,10 +52,11 @@ def poll_url(
                     continue
 
                 body = response.read()
-                if body_fragment is not None and body_fragment.lower() not in body.lower():
-                    last_error = (
-                        f"response body did not include expected fragment {body_fragment!r}"
-                    )
+                if (
+                    body_fragment is not None
+                    and body_fragment.lower() not in body.lower()
+                ):
+                    last_error = f"response body did not include expected fragment {body_fragment!r}"
                     time.sleep(interval)
                     continue
 

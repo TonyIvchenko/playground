@@ -1,5 +1,7 @@
 app := $(word 2,$(MAKECMDGOALS))
 port := $(or $(word 3,$(MAKECMDGOALS)),8080)
+PYTHON := conda run -n playground python
+RUFF := $(PYTHON) -m ruff
 
 .PHONY: setup update run smoke test lint format
 
@@ -13,16 +15,22 @@ run:
 	cd src/$(app) && PORT=$(port) python main.py
 
 smoke:
-	conda run -n playground python scripts/smoke_service.py $(app) --port $(port)
+	$(PYTHON) scripts/smoke_service.py $(app) --port $(port)
 
 test:
-	conda run -n playground python scripts/test_service.py $(app)
+	$(PYTHON) scripts/test_service.py $(app)
 
 lint:
-	conda run -n playground python scripts/lint_repo.py
+	$(RUFF) check .
+	$(PYTHON) scripts/check_docs.py
+	$(PYTHON) scripts/check_docker_smoke_docs.py
+	$(PYTHON) scripts/check_json_yaml_configs.py
+	$(PYTHON) scripts/check_tracked_junk.py
+	$(PYTHON) scripts/check_browser_apps.py
+	$(PYTHON) scripts/check_services.py --check static
 
 format:
-	conda run -n playground python scripts/format_repo.py
+	$(RUFF) format .
 
 %:
 	@:

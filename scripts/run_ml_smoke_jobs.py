@@ -107,7 +107,16 @@ def run_ctscan_smoke(workspace: Path) -> dict[str, object]:
             {"channel_index": 5, "class_id": 2, "name": "fibrotic_pattern"},
             {"channel_index": 6, "class_id": 7, "name": "pleural_effusion"},
         ],
-        "class_voxels": {"0": 10000, "1": 100, "2": 100, "3": 500, "4": 500, "5": 100, "6": 50, "7": 50},
+        "class_voxels": {
+            "0": 10000,
+            "1": 100,
+            "2": 100,
+            "3": 500,
+            "4": 500,
+            "5": 100,
+            "6": 50,
+            "7": 50,
+        },
     }
     write_json(dataset_dir / "manifest.json", manifest)
 
@@ -165,19 +174,84 @@ def run_ctscan_smoke(workspace: Path) -> dict[str, object]:
 
 def run_disasters_smoke(workspace: Path) -> dict[str, object]:
     wildfires_input = workspace / "wildfires" / "raw" / "wildfires_training_merged.csv"
-    wildfires_processed = workspace / "wildfires" / "processed" / "wildfires_training.csv"
+    wildfires_processed = (
+        workspace / "wildfires" / "processed" / "wildfires_training.csv"
+    )
     wildfires_model = workspace / "wildfires" / "models" / "wildfires.pt"
     wildfires_rows = [
-        {"temp_c": 30.0, "humidity_pct": 20.0, "wind_kph": 15.0, "ffmc": 90.0, "dmc": 100.0, "drought_code": 300.0, "isi": 10.0, "target": 1.0},
-        {"temp_c": 25.0, "humidity_pct": 55.0, "wind_kph": 8.0, "ffmc": 70.0, "dmc": 35.0, "drought_code": 120.0, "isi": 2.0, "target": 0.0},
-        {"temp_c": 32.0, "humidity_pct": 18.0, "wind_kph": 20.0, "ffmc": 92.0, "dmc": 150.0, "drought_code": 450.0, "isi": 14.0, "target": 1.0},
-        {"temp_c": 24.0, "humidity_pct": 60.0, "wind_kph": 7.0, "ffmc": 68.0, "dmc": 30.0, "drought_code": 100.0, "isi": 1.5, "target": 0.0},
-        {"temp_c": 29.0, "humidity_pct": 28.0, "wind_kph": 13.0, "ffmc": 88.0, "dmc": 90.0, "drought_code": 250.0, "isi": 8.0, "target": 1.0},
-        {"temp_c": 22.0, "humidity_pct": 65.0, "wind_kph": 5.0, "ffmc": 62.0, "dmc": 25.0, "drought_code": 80.0, "isi": 1.0, "target": 0.0},
+        {
+            "temp_c": 30.0,
+            "humidity_pct": 20.0,
+            "wind_kph": 15.0,
+            "ffmc": 90.0,
+            "dmc": 100.0,
+            "drought_code": 300.0,
+            "isi": 10.0,
+            "target": 1.0,
+        },
+        {
+            "temp_c": 25.0,
+            "humidity_pct": 55.0,
+            "wind_kph": 8.0,
+            "ffmc": 70.0,
+            "dmc": 35.0,
+            "drought_code": 120.0,
+            "isi": 2.0,
+            "target": 0.0,
+        },
+        {
+            "temp_c": 32.0,
+            "humidity_pct": 18.0,
+            "wind_kph": 20.0,
+            "ffmc": 92.0,
+            "dmc": 150.0,
+            "drought_code": 450.0,
+            "isi": 14.0,
+            "target": 1.0,
+        },
+        {
+            "temp_c": 24.0,
+            "humidity_pct": 60.0,
+            "wind_kph": 7.0,
+            "ffmc": 68.0,
+            "dmc": 30.0,
+            "drought_code": 100.0,
+            "isi": 1.5,
+            "target": 0.0,
+        },
+        {
+            "temp_c": 29.0,
+            "humidity_pct": 28.0,
+            "wind_kph": 13.0,
+            "ffmc": 88.0,
+            "dmc": 90.0,
+            "drought_code": 250.0,
+            "isi": 8.0,
+            "target": 1.0,
+        },
+        {
+            "temp_c": 22.0,
+            "humidity_pct": 65.0,
+            "wind_kph": 5.0,
+            "ffmc": 62.0,
+            "dmc": 25.0,
+            "drought_code": 80.0,
+            "isi": 1.0,
+            "target": 0.0,
+        },
     ]
     write_csv(
         wildfires_input,
-        ["temp_c", "humidity_pct", "wind_kph", "ffmc", "dmc", "drought_code", "isi", "target"],
+        [
+            "temp_c",
+            "humidity_pct",
+            "wind_kph",
+            "ffmc",
+            "dmc",
+            "drought_code",
+            "isi",
+            "target",
+        ],
         wildfires_rows,
     )
     run_command(
@@ -204,7 +278,9 @@ def run_disasters_smoke(workspace: Path) -> dict[str, object]:
     )
 
     hurricane_input = workspace / "huricaines" / "raw" / "huricaines_tracks_merged.csv"
-    hurricane_processed = workspace / "huricaines" / "processed" / "huricaines_training.csv"
+    hurricane_processed = (
+        workspace / "huricaines" / "processed" / "huricaines_training.csv"
+    )
     hurricane_model = workspace / "huricaines" / "models" / "huricaines.pt"
     base_time = datetime(2000, 8, 1, 0, 0, 0)
     hurricane_rows: list[dict[str, object]] = []
@@ -216,7 +292,9 @@ def run_disasters_smoke(workspace: Path) -> dict[str, object]:
             hurricane_rows.append(
                 {
                     "storm_id": storm_id,
-                    "iso_time": (base_time + timedelta(hours=6 * step)).strftime("%Y-%m-%d %H:%M:%S"),
+                    "iso_time": (base_time + timedelta(hours=6 * step)).strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    ),
                     "lat": 20.0 + storm_index + (0.3 * step),
                     "lon": -60.0 - storm_index - (0.2 * step),
                     "vmax_kt": 45.0 + (storm_index * 2.0) + vmax_offsets[step],
@@ -280,13 +358,20 @@ def run_voiceforge_smoke(workspace: Path) -> dict[str, object]:
         ("19_198_000002", "Testing VoiceForge"),
     ):
         (libri_dir / f"{utterance_id}.wav").write_bytes(b"wav")
-        (libri_dir / f"{utterance_id}.normalized.txt").write_text(text + "\n", encoding="utf-8")
+        (libri_dir / f"{utterance_id}.normalized.txt").write_text(
+            text + "\n", encoding="utf-8"
+        )
 
     vctk_txt_dir = raw_dir / "vctk" / "VCTK-Corpus-0.92" / "txt" / "p225"
-    vctk_wav_dir = raw_dir / "vctk" / "VCTK-Corpus-0.92" / "wav48_silence_trimmed" / "p225"
+    vctk_wav_dir = (
+        raw_dir / "vctk" / "VCTK-Corpus-0.92" / "wav48_silence_trimmed" / "p225"
+    )
     vctk_txt_dir.mkdir(parents=True, exist_ok=True)
     vctk_wav_dir.mkdir(parents=True, exist_ok=True)
-    for utterance_id, text in (("p225_001", "One two three"), ("p225_002", "Small smoke run")):
+    for utterance_id, text in (
+        ("p225_001", "One two three"),
+        ("p225_002", "Small smoke run"),
+    ):
         (vctk_txt_dir / f"{utterance_id}.txt").write_text(text, encoding="utf-8")
         (vctk_wav_dir / f"{utterance_id}_mic1.flac").write_bytes(b"flac")
 
@@ -319,9 +404,16 @@ JOB_RUNNERS: dict[str, Callable[[Path], dict[str, object]]] = {
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run capped ML smoke jobs for heavier Playground services.")
+    parser = argparse.ArgumentParser(
+        description="Run capped ML smoke jobs for heavier Playground services."
+    )
     parser.add_argument("--job", choices=["all", *sorted(JOB_RUNNERS)], default="all")
-    parser.add_argument("--workspace", type=Path, default=None, help="Optional directory for smoke-job inputs and outputs.")
+    parser.add_argument(
+        "--workspace",
+        type=Path,
+        default=None,
+        help="Optional directory for smoke-job inputs and outputs.",
+    )
     return parser.parse_args()
 
 

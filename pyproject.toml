@@ -1,0 +1,10 @@
+[tool.ruff]
+include = [
+    "scripts/*.py",
+    "tests/*.py",
+    "src/*/main.py",
+    "src/ctscan/tests/test_ctscan_main.py",
+    "src/disasters/tests/test_disasters_main.py",
+    "src/voiceforge/tests/test_main.py",
+]
+
