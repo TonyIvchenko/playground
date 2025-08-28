@@ -10,13 +10,12 @@ try:
 except ImportError:
     from service_manifest import ROOT, iter_service_dirs, load_service_manifest
 
-KEY_PATHS = (
-    "main.py",
-    "README.md",
-    "requirements.txt",
-    "Dockerfile",
-    "tests",
-)
+try:
+    from .project_config import load_playground_config
+except ImportError:
+    from project_config import load_playground_config
+
+KEY_PATHS = tuple(load_playground_config()["services"]["key_paths"])
 
 
 def parse_args() -> argparse.Namespace:

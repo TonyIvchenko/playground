@@ -8,3 +8,36 @@ include = [
     "src/voiceforge/tests/test_main.py",
 ]
 
+[tool.playground.docs]
+readme_globs = ["README.md", "src/*/README.md"]
+doc_globs = ["*.md", "src/*/README.md"]
+readme_code_path_patterns = [
+    '(?<![\w./-])(src/[A-Za-z0-9_./-]+)',
+    '(?<![\w./-])(scripts/[A-Za-z0-9_./-]+)',
+    '(?<![\w./-])(tests/[A-Za-z0-9_./-]+)',
+    '(?<![\w./-])(notebooks/[A-Za-z0-9_./-]+)',
+    '(?<![\w./-])(main\.py)(?![\w./-])',
+    '(?<![\w./-])(index\.html)(?![\w./-])',
+    '(?<![\w./-])(Dockerfile)(?![\w./-])',
+    '(?<![\w./-])(requirements\.txt)(?![\w./-])',
+    '(?<![\w./-])(environment\.yml)(?![\w./-])',
+]
+
+[tool.playground.config]
+tracked_patterns = [
+    ".github/**/*.yml",
+    ".github/**/*.yaml",
+    "*.yml",
+    "*.yaml",
+    ".vscode/**/*.json",
+    "src/disasters/tiles/*/overlay.json",
+]
+
+[tool.playground.services]
+key_paths = [
+    "main.py",
+    "README.md",
+    "requirements.txt",
+    "Dockerfile",
+    "tests",
+]

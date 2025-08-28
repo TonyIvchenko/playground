@@ -8,10 +8,12 @@ import re
 import sys
 from typing import Any
 
+try:
+    from .project_config import ROOT, load_playground_config
+except ImportError:
+    from project_config import ROOT, load_playground_config
 
-ROOT = Path(__file__).resolve().parents[1]
-README_PATHS = [ROOT / "README.md", *sorted((ROOT / "src").glob("*/README.md"))]
-DOC_PATHS = sorted(ROOT.glob("*.md")) + sorted((ROOT / "src").glob("*/README.md"))
+DOCS_CONFIG = load_playground_config()["docs"]
 AVAILABLE_CHECKS = ("readme-markdown", "docs-spelling", "readme-code-paths")
 
 HEADING_RE = re.compile(r"^(#{1,6}) (.+\S)\s*$")
@@ -21,16 +23,8 @@ URL_RE = re.compile(r"https?://\S+")
 MARKDOWN_LINK_RE = re.compile(r"\[([^\]]+)\]\([^)]+\)")
 WORD_RE = re.compile(r"\b[A-Za-z][A-Za-z']+\b")
 CODE_BLOCK_PATTERN = re.compile(r"(?ms)^```(?P<info>[^\n`]*)\n(?P<body>.*?)^```$")
-PATH_PATTERNS = (
-    re.compile(r"(?<![\w./-])(src/[A-Za-z0-9_./-]+)"),
-    re.compile(r"(?<![\w./-])(scripts/[A-Za-z0-9_./-]+)"),
-    re.compile(r"(?<![\w./-])(tests/[A-Za-z0-9_./-]+)"),
-    re.compile(r"(?<![\w./-])(notebooks/[A-Za-z0-9_./-]+)"),
-    re.compile(r"(?<![\w./-])(main\.py)(?![\w./-])"),
-    re.compile(r"(?<![\w./-])(index\.html)(?![\w./-])"),
-    re.compile(r"(?<![\w./-])(Dockerfile)(?![\w./-])"),
-    re.compile(r"(?<![\w./-])(requirements\.txt)(?![\w./-])"),
-    re.compile(r"(?<![\w./-])(environment\.yml)(?![\w./-])"),
+PATH_PATTERNS = tuple(
+    re.compile(pattern) for pattern in DOCS_CONFIG["readme_code_path_patterns"]
 )
 
 TYPO_FIXES = {
@@ -57,6 +51,14 @@ class MissingPath:
     line: int
     referenced_path: str
     resolved_path: Path
+
+
+def expand_globs(patterns: list[str]) -> list[Path]:
+    return sorted({path for pattern in patterns for path in ROOT.glob(pattern)})
+
+
+README_PATHS = expand_globs(list(DOCS_CONFIG["readme_globs"]))
+DOC_PATHS = expand_globs(list(DOCS_CONFIG["doc_globs"]))
 
 
 def parse_args() -> argparse.Namespace:

@@ -8,16 +8,12 @@ import sys
 
 import yaml
 
+try:
+    from .project_config import ROOT, load_playground_config
+except ImportError:
+    from project_config import ROOT, load_playground_config
 
-ROOT = Path(__file__).resolve().parents[1]
-TRACKED_PATTERNS = (
-    ".github/**/*.yml",
-    ".github/**/*.yaml",
-    "*.yml",
-    "*.yaml",
-    ".vscode/**/*.json",
-    "src/disasters/tiles/*/overlay.json",
-)
+TRACKED_PATTERNS = tuple(load_playground_config()["config"]["tracked_patterns"])
 
 
 class DuplicateKeyError(ValueError):
