@@ -40,13 +40,9 @@ jobs:
     name: changes
     outputs:
       docs: ${{ steps.manual.outputs.docs || steps.filter.outputs.docs }}
-      config: ${{ steps.manual.outputs.config || steps.filter.outputs.config }}
-      shared_ci: ${{ steps.manual.outputs.shared_ci || steps.filter.outputs.shared_ci }}
+      repo: ${{ steps.manual.outputs.repo || steps.filter.outputs.repo }}
       static_apps: ${{ steps.manual.outputs.static_apps || steps.filter.outputs.static_apps }}
-      test_service: ${{ steps.manual.outputs.test_service || steps.filter.outputs.test_service }}
-      disasters: ${{ steps.manual.outputs.disasters || steps.filter.outputs.disasters }}
-      ctscan: ${{ steps.manual.outputs.ctscan || steps.filter.outputs.ctscan }}
-      voiceforge: ${{ steps.manual.outputs.voiceforge || steps.filter.outputs.voiceforge }}
+      backend_services: ${{ steps.manual.outputs.backend_services || steps.filter.outputs.backend_services }}
     steps:
       - name: Mark all filters matched for manual runs
         if: github.event_name == 'workflow_dispatch'
@@ -54,7 +50,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for key in docs config shared_ci static_apps test_service disasters ctscan voiceforge; do
+          for key in docs repo static_apps backend_services; do
             echo "$key=true" >> "$GITHUB_OUTPUT"
           done
 
@@ -77,25 +73,23 @@ jobs:
               - 'tests/test_check_docs.py'
               - 'scripts/check_docs.py'
               - 'scripts/check_docker_smoke_docs.py'
-              - 'scripts/check_browser_apps.py'
-              - 'scripts/browser_app_contracts.json'
-            config:
+            repo:
               - '.github/**/*.yml'
               - '.github/**/*.yaml'
+              - 'pyproject.toml'
               - 'environment.yml'
+              - 'requirements.txt'
+              - 'pytest.ini'
               - '.vscode/**/*.json'
               - 'src/disasters/tiles/*/overlay.json'
-              - 'scripts/check_json_yaml_configs.py'
-            shared_ci:
-              - '.github/workflows/**'
               - '.github/actions/**'
-              - 'pytest.ini'
-              - 'requirements.txt'
-              - 'environment.yml'
+              - 'scripts/check_json_yaml_configs.py'
+              - 'scripts/check_tracked_junk.py'
+              - 'scripts/check_services.py'
+              - 'scripts/project_config.py'
               - 'scripts/poll_http_health.py'
               - 'scripts/run_ml_smoke_jobs.py'
               - 'scripts/service_startup.py'
-              - 'scripts/check_services.py'
               - 'tests/test_check_services.py'
             static_apps:
               - 'tests/test_check_browser_apps.py'
@@ -116,25 +110,19 @@ jobs:
               - 'src/realitycheck/**'
               - 'src/realitymix/**'
               - 'src/vibedj/**'
-            test_service:
+            backend_services:
               - 'src/test/**'
-            disasters:
               - 'src/disasters/**'
-            ctscan:
               - 'src/ctscan/**'
-            voiceforge:
               - 'src/voiceforge/**'
 
   collect:
     needs: changes
     if: |
       github.event_name == 'workflow_dispatch' ||
-      needs.changes.outputs.shared_ci == 'true' ||
+      needs.changes.outputs.repo == 'true' ||
       needs.changes.outputs.static_apps == 'true' ||
-      needs.changes.outputs.test_service == 'true' ||
-      needs.changes.outputs.disasters == 'true' ||
-      needs.changes.outputs.ctscan == 'true' ||
-      needs.changes.outputs.voiceforge == 'true'
+      needs.changes.outputs.backend_services == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     name: tests-collect
@@ -158,11 +146,8 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' ||
       needs.changes.outputs.docs == 'true' ||
-      needs.changes.outputs.shared_ci == 'true' ||
-      needs.changes.outputs.test_service == 'true' ||
-      needs.changes.outputs.disasters == 'true' ||
-      needs.changes.outputs.ctscan == 'true' ||
-      needs.changes.outputs.voiceforge == 'true'
+      needs.changes.outputs.repo == 'true' ||
+      needs.changes.outputs.backend_services == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     name: docs-validation
@@ -171,21 +156,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run docs validation
-        if: |
-          github.event_name == 'workflow_dispatch' ||
-          needs.changes.outputs.docs == 'true' ||
-          needs.changes.outputs.shared_ci == 'true'
         shell: bash
         run: python scripts/check_docs.py
 
       - name: Check documented Docker smoke commands
-        if: |
-          github.event_name == 'workflow_dispatch' ||
-          needs.changes.outputs.docs == 'true' ||
-          needs.changes.outputs.ctscan == 'true' ||
-          needs.changes.outputs.disasters == 'true' ||
-          needs.changes.outputs.test_service == 'true' ||
-          needs.changes.outputs.voiceforge == 'true'
         shell: bash
         run: python scripts/check_docker_smoke_docs.py
 
@@ -199,10 +173,6 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Lint JSON and YAML configs
-        if: |
-          github.event_name == 'workflow_dispatch' ||
-          needs.changes.outputs.config == 'true' ||
-          needs.changes.outputs.shared_ci == 'true'
         shell: bash
         run: python scripts/check_json_yaml_configs.py
 
@@ -214,12 +184,9 @@ jobs:
     needs: changes
     if: |
       github.event_name == 'workflow_dispatch' ||
-      needs.changes.outputs.shared_ci == 'true' ||
+      needs.changes.outputs.repo == 'true' ||
       needs.changes.outputs.static_apps == 'true' ||
-      needs.changes.outputs.test_service == 'true' ||
-      needs.changes.outputs.disasters == 'true' ||
-      needs.changes.outputs.ctscan == 'true' ||
-      needs.changes.outputs.voiceforge == 'true'
+      needs.changes.outputs.backend_services == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     name: contracts-validation
@@ -228,22 +195,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Check static app browser contracts
-        if: |
-          github.event_name == 'workflow_dispatch' ||
-          needs.changes.outputs.static_apps == 'true' ||
-          needs.changes.outputs.shared_ci == 'true'
         shell: bash
         run: python scripts/check_browser_apps.py
 
       - name: Check static service contracts
-        if: |
-          github.event_name == 'workflow_dispatch' ||
-          needs.changes.outputs.shared_ci == 'true' ||
-          needs.changes.outputs.static_apps == 'true' ||
-          needs.changes.outputs.test_service == 'true' ||
-          needs.changes.outputs.disasters == 'true' ||
-          needs.changes.outputs.ctscan == 'true' ||
-          needs.changes.outputs.voiceforge == 'true'
         shell: bash
         run: python scripts/check_services.py --check static
 
@@ -251,12 +206,9 @@ jobs:
     needs: changes
     if: |
       github.event_name == 'workflow_dispatch' ||
-      needs.changes.outputs.shared_ci == 'true' ||
+      needs.changes.outputs.repo == 'true' ||
       needs.changes.outputs.static_apps == 'true' ||
-      needs.changes.outputs.test_service == 'true' ||
-      needs.changes.outputs.disasters == 'true' ||
-      needs.changes.outputs.ctscan == 'true' ||
-      needs.changes.outputs.voiceforge == 'true'
+      needs.changes.outputs.backend_services == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
@@ -307,12 +259,9 @@ jobs:
       - collect
     if: |
       github.event_name == 'workflow_dispatch' ||
-      needs.changes.outputs.shared_ci == 'true' ||
+      needs.changes.outputs.repo == 'true' ||
       (matrix.name == 'static-apps' && needs.changes.outputs.static_apps == 'true') ||
-      (matrix.name == 'test' && needs.changes.outputs.test_service == 'true') ||
-      (matrix.name == 'disasters' && needs.changes.outputs.disasters == 'true') ||
-      (matrix.name == 'ctscan' && needs.changes.outputs.ctscan == 'true') ||
-      (matrix.name == 'voiceforge' && needs.changes.outputs.voiceforge == 'true')
+      (matrix.name != 'static-apps' && needs.changes.outputs.backend_services == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -345,9 +294,8 @@ jobs:
     needs: changes
     if: |
       github.event_name == 'workflow_dispatch' ||
-      needs.changes.outputs.shared_ci == 'true' ||
-      (matrix.name == 'disasters' && needs.changes.outputs.disasters == 'true') ||
-      (matrix.name == 'ctscan' && needs.changes.outputs.ctscan == 'true')
+      needs.changes.outputs.repo == 'true' ||
+      needs.changes.outputs.backend_services == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
@@ -401,8 +349,8 @@ jobs:
     needs: changes
     if: |
       github.event_name == 'workflow_dispatch' ||
-      needs.changes.outputs.shared_ci == 'true' ||
-      needs.changes.outputs.test_service == 'true'
+      needs.changes.outputs.repo == 'true' ||
+      needs.changes.outputs.backend_services == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     name: smoke-redis-test
