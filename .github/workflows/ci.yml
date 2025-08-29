@@ -158,7 +158,11 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' ||
       needs.changes.outputs.docs == 'true' ||
-      needs.changes.outputs.shared_ci == 'true'
+      needs.changes.outputs.shared_ci == 'true' ||
+      needs.changes.outputs.test_service == 'true' ||
+      needs.changes.outputs.disasters == 'true' ||
+      needs.changes.outputs.ctscan == 'true' ||
+      needs.changes.outputs.voiceforge == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     name: docs-validation
@@ -167,76 +171,46 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run docs validation
+        if: |
+          github.event_name == 'workflow_dispatch' ||
+          needs.changes.outputs.docs == 'true' ||
+          needs.changes.outputs.shared_ci == 'true'
         shell: bash
         run: python scripts/check_docs.py
 
-  docker-smoke-docs:
-    needs: changes
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      needs.changes.outputs.docs == 'true' ||
-      needs.changes.outputs.ctscan == 'true' ||
-      needs.changes.outputs.disasters == 'true' ||
-      needs.changes.outputs.test_service == 'true' ||
-      needs.changes.outputs.voiceforge == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    name: docs-docker-smoke
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Check documented Docker smoke commands
+        if: |
+          github.event_name == 'workflow_dispatch' ||
+          needs.changes.outputs.docs == 'true' ||
+          needs.changes.outputs.ctscan == 'true' ||
+          needs.changes.outputs.disasters == 'true' ||
+          needs.changes.outputs.test_service == 'true' ||
+          needs.changes.outputs.voiceforge == 'true'
         shell: bash
         run: python scripts/check_docker_smoke_docs.py
 
-  config-json-yaml:
+  repo-sanity:
     needs: changes
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      needs.changes.outputs.config == 'true' ||
-      needs.changes.outputs.shared_ci == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    name: config-json-yaml
+    name: repo-sanity
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Lint JSON and YAML configs
+        if: |
+          github.event_name == 'workflow_dispatch' ||
+          needs.changes.outputs.config == 'true' ||
+          needs.changes.outputs.shared_ci == 'true'
         shell: bash
         run: python scripts/check_json_yaml_configs.py
-
-  tracked-junk:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    name: tracked-junk
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
 
       - name: Check tracked junk files
         shell: bash
         run: python scripts/check_tracked_junk.py
 
-  browser-app-contracts:
-    needs: changes
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      needs.changes.outputs.static_apps == 'true' ||
-      needs.changes.outputs.shared_ci == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    name: browser-app-contracts
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Check static app browser contracts
-        shell: bash
-        run: python scripts/check_browser_apps.py
-
-  service-validation-static:
+  contracts-validation:
     needs: changes
     if: |
       github.event_name == 'workflow_dispatch' ||
@@ -248,12 +222,28 @@ jobs:
       needs.changes.outputs.voiceforge == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    name: service-validation-static
+    name: contracts-validation
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check static app browser contracts
+        if: |
+          github.event_name == 'workflow_dispatch' ||
+          needs.changes.outputs.static_apps == 'true' ||
+          needs.changes.outputs.shared_ci == 'true'
+        shell: bash
+        run: python scripts/check_browser_apps.py
+
       - name: Check static service contracts
+        if: |
+          github.event_name == 'workflow_dispatch' ||
+          needs.changes.outputs.shared_ci == 'true' ||
+          needs.changes.outputs.static_apps == 'true' ||
+          needs.changes.outputs.test_service == 'true' ||
+          needs.changes.outputs.disasters == 'true' ||
+          needs.changes.outputs.ctscan == 'true' ||
+          needs.changes.outputs.voiceforge == 'true'
         shell: bash
         run: python scripts/check_services.py --check static
 
@@ -519,10 +509,8 @@ jobs:
       - changes
       - collect
       - docs-validation
-      - docker-smoke-docs
-      - config-json-yaml
-      - tracked-junk
-      - service-validation-static
+      - repo-sanity
+      - contracts-validation
       - readme-local-run
       - service-tests
       - container-smoke
