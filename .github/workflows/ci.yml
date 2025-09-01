@@ -6,7 +6,6 @@ on:
   workflow_dispatch:
 
 permissions:
-  actions: read
   contents: read
   pull-requests: read
 
@@ -451,75 +450,3 @@ jobs:
         if: always()
         shell: bash
         run: docker rm --force playground-test || true
-
-  workflow-summary:
-    needs:
-      - changes
-      - collect
-      - docs-validation
-      - repo-sanity
-      - contracts-validation
-      - readme-local-run
-      - service-tests
-      - container-smoke
-      - test-container-smoke
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    name: workflow-summary
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Fetch workflow jobs
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          GITHUB_API_URL: ${{ github.api_url }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_RUN_ID: ${{ github.run_id }}
-          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import json
-          import os
-          import urllib.request
-
-          api_url = os.environ["GITHUB_API_URL"]
-          repo = os.environ["GITHUB_REPOSITORY"]
-          run_id = os.environ["GITHUB_RUN_ID"]
-          run_attempt = os.environ["GITHUB_RUN_ATTEMPT"]
-          token = os.environ["GITHUB_TOKEN"]
-          url = (
-              f"{api_url}/repos/{repo}/actions/runs/{run_id}/attempts/"
-              f"{run_attempt}/jobs?per_page=100"
-          )
-          request = urllib.request.Request(
-              url,
-              headers={
-                  "Authorization": f"Bearer {token}",
-                  "Accept": "application/vnd.github+json",
-                  "X-GitHub-Api-Version": "2022-11-28",
-              },
-          )
-          with urllib.request.urlopen(request) as response:
-              payload = json.load(response)
-          with open("workflow-jobs.json", "w", encoding="utf-8") as handle:
-              json.dump(payload, handle, indent=2)
-          PY
-
-      - name: Render workflow summary
-        shell: bash
-        run: |
-          set -euo pipefail
-          python scripts/render_ci_summary.py workflow-jobs.json workflow-summary.md
-          cat workflow-summary.md >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload workflow summary artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: workflow-summary
-          path: |
-            workflow-summary.md
-            workflow-jobs.json
