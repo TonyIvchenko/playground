@@ -69,8 +69,6 @@ jobs:
               - '*.md'
               - 'shared/**/*.md'
               - 'src/**/README.md'
-              - 'tests/test_check_docs.py'
-              - 'scripts/check_docs.py'
               - 'scripts/check_docker_smoke_docs.py'
             repo:
               - '.github/**/*.yml'
@@ -82,15 +80,15 @@ jobs:
               - '.vscode/**/*.json'
               - 'src/disasters/tiles/*/overlay.json'
               - '.github/actions/**'
-              - 'scripts/check_json_yaml_configs.py'
-              - 'scripts/check_tracked_junk.py'
               - 'scripts/check_services.py'
               - 'scripts/project_config.py'
+              - 'scripts/validate_repo.py'
               - 'scripts/poll_http_health.py'
               - 'scripts/run_ml_smoke_jobs.py'
               - 'scripts/smoke_service.py'
               - 'scripts/service_startup.py'
               - 'tests/test_check_services.py'
+              - 'tests/test_validate_repo.py'
               - 'tests/test_smoke_service.py'
             static_apps:
               - 'tests/test_check_browser_apps.py'
@@ -158,7 +156,7 @@ jobs:
 
       - name: Run docs validation
         shell: bash
-        run: python scripts/check_docs.py
+        run: python scripts/validate_repo.py --check docs
 
       - name: Check documented Docker smoke commands
         shell: bash
@@ -175,11 +173,7 @@ jobs:
 
       - name: Lint JSON and YAML configs
         shell: bash
-        run: python scripts/check_json_yaml_configs.py
-
-      - name: Check tracked junk files
-        shell: bash
-        run: python scripts/check_tracked_junk.py
+        run: python scripts/validate_repo.py --check config --check hygiene
 
   contracts-validation:
     needs: changes

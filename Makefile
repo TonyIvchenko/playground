@@ -22,10 +22,8 @@ test:
 
 lint:
 	$(RUFF) check .
-	$(PYTHON) scripts/check_docs.py
+	$(PYTHON) scripts/validate_repo.py
 	$(PYTHON) scripts/check_docker_smoke_docs.py
-	$(PYTHON) scripts/check_json_yaml_configs.py
-	$(PYTHON) scripts/check_tracked_junk.py
 	$(PYTHON) scripts/check_browser_apps.py
 	$(PYTHON) scripts/check_services.py --check static
 
