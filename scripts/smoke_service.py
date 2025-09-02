@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from typing import Callable
 
 try:
     from .poll_http_health import poll_url
@@ -24,9 +25,17 @@ SERVICE_SPECS = load_service_manifest()
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Start a Playground service, probe a minimal endpoint, and stop it again."
+        description="Smoke a Playground service or probe an already-running HTTP endpoint."
     )
-    parser.add_argument("service", help="Service name under src/<service>.")
+    parser.add_argument(
+        "service",
+        nargs="?",
+        help="Service name under src/<service> when starting a local smoke run.",
+    )
+    parser.add_argument(
+        "--url",
+        help="Probe an already-running HTTP endpoint instead of starting a local service.",
+    )
     parser.add_argument(
         "--port", type=int, default=DEFAULT_PORT, help="Port to bind for the smoke run."
     )
@@ -53,6 +62,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--expect-body-fragment",
         help="Optional body-fragment override for the smoke probe.",
+    )
+    parser.add_argument(
+        "--write-body",
+        help="Optional file path to write the response body to after a successful smoke probe.",
     )
     return parser.parse_args()
 
@@ -112,13 +125,54 @@ def process_abort_message(
     )
 
 
-def main() -> None:
-    args = parse_args()
-    path = service_dir(args.service)
-    probe_path = args.path or smoke_path(args.service)
+def probe_url(
+    *,
+    url: str,
+    timeout: float,
+    interval: float,
+    content_type: str | None,
+    body_fragment: str | None,
+    write_body: str | None,
+    abort_message: Callable[[], str | None] | None = None,
+) -> bytes:
+    body = poll_url(
+        url,
+        timeout=timeout,
+        interval=interval,
+        expect_content_type=content_type,
+        body_fragment=body_fragment.encode("utf-8") if body_fragment else None,
+        abort_message=abort_message,
+    )
+    if write_body:
+        Path(write_body).write_bytes(body)
+    return body
+
+
+def validate_args(args: argparse.Namespace) -> None:
+    if bool(args.service) == bool(args.url):
+        raise SystemExit("Provide exactly one of: <service> or --url.")
+
+
+def smoke_running_url(args: argparse.Namespace) -> None:
+    probe_url(
+        url=str(args.url),
+        timeout=args.timeout,
+        interval=args.interval,
+        content_type=args.expect_content_type,
+        body_fragment=args.expect_body_fragment,
+        write_body=args.write_body,
+    )
+    print(f"Smoke check passed via {args.url}")
+
+
+def smoke_local_service(args: argparse.Namespace) -> None:
+    path = service_dir(str(args.service))
+    probe_path = args.path or smoke_path(str(args.service))
     url = f"http://127.0.0.1:{args.port}{probe_path}"
-    content_type = args.expect_content_type or expected_content_type(args.service)
-    body_fragment = args.expect_body_fragment or expected_body_fragment(args.service)
+    content_type = args.expect_content_type or expected_content_type(str(args.service))
+    body_fragment = args.expect_body_fragment or expected_body_fragment(
+        str(args.service)
+    )
 
     log_path = Path(tempfile.gettempdir()) / f"playground-smoke-{args.service}.log"
     env = os.environ.copy()
@@ -135,12 +189,13 @@ def main() -> None:
         )
 
     try:
-        poll_url(
-            url,
+        probe_url(
+            url=url,
             timeout=args.timeout,
             interval=args.interval,
-            expect_content_type=content_type,
-            body_fragment=body_fragment.encode("utf-8") if body_fragment else None,
+            content_type=content_type,
+            body_fragment=body_fragment,
+            write_body=args.write_body,
             abort_message=lambda: process_abort_message(process, log_path),
         )
     finally:
@@ -148,6 +203,15 @@ def main() -> None:
 
     print(f"Smoke check passed for '{args.service}' via {url}")
     print(f"Log: {log_path}")
+
+
+def main() -> None:
+    args = parse_args()
+    validate_args(args)
+    if args.url:
+        smoke_running_url(args)
+        return
+    smoke_local_service(args)
 
 
 if __name__ == "__main__":

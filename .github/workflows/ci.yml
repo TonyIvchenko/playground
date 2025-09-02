@@ -88,8 +88,10 @@ jobs:
               - 'scripts/project_config.py'
               - 'scripts/poll_http_health.py'
               - 'scripts/run_ml_smoke_jobs.py'
+              - 'scripts/smoke_service.py'
               - 'scripts/service_startup.py'
               - 'tests/test_check_services.py'
+              - 'tests/test_smoke_service.py'
             static_apps:
               - 'tests/test_check_browser_apps.py'
               - 'tests/test_static_app_smokes.py'
@@ -326,7 +328,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python scripts/poll_http_health.py \
+          python scripts/smoke_service.py \
             --url "http://127.0.0.1:${{ matrix.port }}/health" \
             --timeout "$((WEB_HEALTH_RETRIES * WEB_HEALTH_WAIT_SECONDS))" \
             --interval "$WEB_HEALTH_WAIT_SECONDS" \
