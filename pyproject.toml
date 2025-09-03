@@ -8,6 +8,21 @@ include = [
     "src/voiceforge/tests/test_main.py",
 ]
 
+[tool.pytest.ini_options]
+testpaths = [
+    "tests",
+    "src/test/tests",
+    "src/disasters/tests",
+    "src/ctscan/tests",
+    "src/voiceforge/tests",
+]
+norecursedirs = [
+    ".git",
+    ".pytest_cache",
+    "__pycache__",
+    ".ipynb_checkpoints",
+]
+
 [tool.playground.docs]
 readme_globs = ["README.md", "src/*/README.md"]
 doc_globs = ["*.md", "src/*/README.md"]

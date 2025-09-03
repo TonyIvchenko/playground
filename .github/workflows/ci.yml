@@ -76,7 +76,6 @@ jobs:
               - 'pyproject.toml'
               - 'environment.yml'
               - 'requirements.txt'
-              - 'pytest.ini'
               - '.vscode/**/*.json'
               - 'src/disasters/tiles/*/overlay.json'
               - '.github/actions/**'
