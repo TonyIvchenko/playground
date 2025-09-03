@@ -58,11 +58,3 @@ jobs:
             --job "${{ matrix.name }}" \
             --workspace "${RUNNER_TEMP}/ml-smoke"
           cat "${RUNNER_TEMP}/ml-smoke/${{ matrix.name }}/summary.json"
-
-      - name: Upload ${{ matrix.name }} smoke outputs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ml-smoke-${{ matrix.name }}
-          path: ${{ runner.temp }}/ml-smoke/${{ matrix.name }}
-          if-no-files-found: error
