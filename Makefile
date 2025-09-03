@@ -18,7 +18,16 @@ smoke:
 	$(PYTHON) scripts/smoke_service.py $(app) --port $(port)
 
 test:
-	$(PYTHON) scripts/test_service.py $(app)
+	@tests_dir="src/$(app)/tests"; \
+	if [ -d "$$tests_dir" ]; then \
+		echo "Running $(PYTHON) -m pytest -q $$tests_dir"; \
+		$(PYTHON) -m pytest -q "$$tests_dir"; \
+	else \
+		available=$$(find src -maxdepth 2 -type d -name tests | sort | sed 's#^src/##; s#/tests$$##' | tr '\n' ',' | sed 's/,$$//; s/,/, /g'); \
+		if [ -z "$$available" ]; then available="(none)"; fi; \
+		echo "No test suite found for service '$(app)'. Available test targets: $$available" >&2; \
+		exit 1; \
+	fi
 
 lint:
 	$(RUFF) check .
