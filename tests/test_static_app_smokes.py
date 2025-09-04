@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from functools import lru_cache
+import json
 from pathlib import Path
 import os
 import socket
@@ -10,16 +12,290 @@ import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-STATIC_SERVICES = (
-    "bert",
-    "counterpoint",
-    "debate",
-    "facemesh",
-    "manipulation",
-    "memorypalace",
-    "realitycheck",
-    "realitymix",
-    "vibedj",
+SERVICE_MANIFEST = json.loads(
+    (ROOT / "scripts" / "service_manifest.json").read_text(encoding="utf-8")
+)
+STATIC_SERVICES = tuple(
+    sorted(
+        name
+        for name, metadata in SERVICE_MANIFEST.items()
+        if metadata["type"] == "static browser app"
+    )
+)
+STATIC_SMOKE_CASES = (
+    pytest.param(
+        "index html",
+        (
+            "--path",
+            "/",
+            "--expect-content-type",
+            "text/html",
+            "--expect-body-fragment",
+            "<html",
+        ),
+        "/",
+        id="index-html",
+    ),
+    pytest.param(
+        "health",
+        (
+            "--path",
+            "/health",
+            "--expect-content-type",
+            "application/json",
+        ),
+        "/health",
+        id="health",
+    ),
+    pytest.param(
+        "shared browser tokens",
+        (
+            "--path",
+            "/shared/browser-tokens.css",
+            "--expect-content-type",
+            "text/css",
+            "--expect-body-fragment",
+            "color-accent",
+        ),
+        "/shared/browser-tokens.css",
+        id="browser-tokens",
+    ),
+    pytest.param(
+        "shared browser starter",
+        (
+            "--path",
+            "/shared/browser-starter.css",
+            "--expect-content-type",
+            "text/css",
+            "--expect-body-fragment",
+            "app-starter-shell",
+        ),
+        "/shared/browser-starter.css",
+        id="browser-starter",
+    ),
+)
+HOST_ENV_SERVICES = ("bert", "realitycheck")
+STATIC_PAGE_CASES = (
+    pytest.param(
+        "bert",
+        (
+            "Load toxic sample",
+            "Load non-toxic sample",
+            "Try an example:",
+        ),
+        id="bert-samples",
+    ),
+    pytest.param(
+        "bert",
+        (
+            'id="truncation-warning"',
+            "Tokenizer truncation warning:",
+        ),
+        id="bert-truncation-warning",
+    ),
+    pytest.param(
+        "bert",
+        (
+            'id="score-note"',
+            "Interpretation: the percentage is the model's confidence",
+        ),
+        id="bert-score-note",
+    ),
+    pytest.param(
+        "counterpoint",
+        (
+            'id="word-count"',
+            'id="soft-limit-note"',
+            "Soft limit: around 140 words keeps the counter-side sharper.",
+        ),
+        id="counterpoint-word-count-guidance",
+    ),
+    pytest.param(
+        "counterpoint",
+        (
+            'id="copy-button"',
+            "Copy Notes",
+        ),
+        id="counterpoint-copy-notes",
+    ),
+    pytest.param(
+        "counterpoint",
+        (
+            'id="output-mode-select"',
+            "Strongest steelman only",
+            "Full prep breakdown",
+        ),
+        id="counterpoint-output-mode",
+    ),
+    pytest.param(
+        "debate",
+        (
+            'id="char-count-a"',
+            'id="char-count-b"',
+            "Soft limit: around 900 chars keeps the sparring turns sharper.",
+        ),
+        id="debate-character-counters",
+    ),
+    pytest.param(
+        "debate",
+        (
+            'id="export-button"',
+            "Export Markdown",
+            "# Debate Sparring Notes",
+        ),
+        id="debate-markdown-export",
+    ),
+    pytest.param(
+        "debate",
+        (
+            'id="fallback-pill"',
+            "Fallback mode active",
+            "Debate is using fallback mode for this run.",
+        ),
+        id="debate-fallback-banner",
+    ),
+    pytest.param(
+        "manipulation",
+        (
+            "signal-tooltip",
+            "Looks for countdowns, last-chance deadlines",
+            "Catches shame, obligation, and loyalty-test language",
+        ),
+        id="manipulation-signal-tooltips",
+    ),
+    pytest.param(
+        "manipulation",
+        (
+            'id="view-mode-select"',
+            'id="simple-summary-card"',
+            "Detailed signals",
+            "Simple summary",
+        ),
+        id="manipulation-summary-toggle",
+    ),
+    pytest.param(
+        "memorypalace",
+        (
+            'id="save-palace-button"',
+            'id="load-palace-button"',
+            'id="saved-palace-status"',
+            "Save Palace",
+            "Load Saved",
+            "playground.memorypalace.saved-palace.v1",
+        ),
+        id="memorypalace-local-save-load",
+    ),
+    pytest.param(
+        "realitycheck",
+        (
+            "The source took too long to respond. Retry, use a faster page, or paste the text directly.",
+            "That URL did not return a readable page.",
+            "That ${label} URL looks blocked by the source site.",
+            "Use a direct ${label} URL or upload the ${label} instead.",
+        ),
+        id="realitycheck-url-fetch-errors",
+    ),
+    pytest.param(
+        "realitycheck",
+        (
+            'id="url-source-metadata"',
+            'id="source-title-value"',
+            'id="source-final-url-value"',
+            'id="source-content-type-value"',
+            "Fetched Source",
+            "Final URL",
+        ),
+        id="realitycheck-source-metadata",
+    ),
+    pytest.param(
+        "realitycheck",
+        (
+            'id="image-size-guidance"',
+            'id="video-size-guidance"',
+            "Upload tip: images under 12 MB decode faster in the browser.",
+            "Upload tip: videos under 80 MB work best here. Larger clips take longer to load and sample.",
+        ),
+        id="realitycheck-upload-size-guidance",
+    ),
+    pytest.param(
+        "realitymix",
+        (
+            'data-style-sample="sunset-weave"',
+            'data-style-sample="blueprint-bloom"',
+            'data-style-sample="poster-pulse"',
+            "Sunset Weave",
+            "Blueprint Bloom",
+            "Poster Pulse",
+            "Loading sample style image…",
+        ),
+        id="realitymix-style-samples",
+    ),
+    pytest.param(
+        "realitymix",
+        (
+            'id="output-fps-text"',
+            'id="inference-text"',
+            "Output FPS:",
+            "Inference:",
+            "measuredOutputFps",
+            "averageStylizeMs",
+        ),
+        id="realitymix-performance-readout",
+    ),
+    pytest.param(
+        "realitymix",
+        (
+            'id="camera-troubleshooting-card"',
+            'id="camera-troubleshooting-summary"',
+            'id="camera-troubleshooting-list"',
+            "Camera Troubleshooting",
+            "Camera permission was denied or blocked for this page.",
+            "Camera access needs a secure context before the browser will prompt for webcam permission.",
+        ),
+        id="realitymix-camera-troubleshooting",
+    ),
+    pytest.param(
+        "realitymix",
+        (
+            'id="mirror-toggle-button"',
+            'aria-pressed="true"',
+            "Mirror: On",
+            "Mirror: Off",
+            "mirrorEnabled",
+        ),
+        id="realitymix-mirror-toggle",
+    ),
+    pytest.param(
+        "vibedj",
+        (
+            'id="global-stop-button"',
+            "Stop All Audio",
+            "syncGlobalStopButton",
+            'setStatus("All playback stopped.")',
+        ),
+        id="vibedj-global-stop",
+    ),
+    pytest.param(
+        "vibedj",
+        (
+            'id="export-md-button"',
+            'id="export-json-button"',
+            "Export Markdown",
+            "Export JSON",
+            "buildRecommendationMarkdown",
+            "buildRecommendationJson",
+        ),
+        id="vibedj-exports",
+    ),
+    pytest.param(
+        "vibedj",
+        (
+            'id="audio-unlock-hint"',
+            "Audio starts only after your first click.",
+            "syncAudioUnlockHint",
+        ),
+        id="vibedj-audio-unlock-hint",
+    ),
 )
 
 
@@ -29,10 +305,14 @@ def pick_free_port() -> int:
         return int(sock.getsockname()[1])
 
 
-@pytest.mark.parametrize("service", STATIC_SERVICES)
-def test_static_app_serves_index_html(service: str) -> None:
-    port = pick_free_port()
-    result = subprocess.run(
+def run_local_smoke(
+    service: str,
+    *,
+    port: int,
+    extra_args: tuple[str, ...] = (),
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
         [
             sys.executable,
             "scripts/smoke_service.py",
@@ -43,142 +323,7 @@ def test_static_app_serves_index_html(service: str) -> None:
             "20",
             "--interval",
             "0.5",
-            "--path",
-            "/",
-            "--expect-content-type",
-            "text/html",
-            "--expect-body-fragment",
-            "<html",
-        ],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    assert result.returncode == 0, (
-        f"Static smoke failed for {service}\n"
-        f"stdout:\n{result.stdout}\n"
-        f"stderr:\n{result.stderr}"
-    )
-    assert f"Smoke check passed for '{service}'" in result.stdout
-    assert f"http://127.0.0.1:{port}/" in result.stdout
-
-
-@pytest.mark.parametrize("service", STATIC_SERVICES)
-def test_static_app_serves_health(service: str) -> None:
-    port = pick_free_port()
-    result = subprocess.run(
-        [
-            sys.executable,
-            "scripts/smoke_service.py",
-            service,
-            "--port",
-            str(port),
-            "--timeout",
-            "20",
-            "--interval",
-            "0.5",
-        ],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    assert result.returncode == 0, (
-        f"Static health smoke failed for {service}\n"
-        f"stdout:\n{result.stdout}\n"
-        f"stderr:\n{result.stderr}"
-    )
-    assert f"Smoke check passed for '{service}'" in result.stdout
-    assert f"http://127.0.0.1:{port}/health" in result.stdout
-
-
-@pytest.mark.parametrize("service", STATIC_SERVICES)
-def test_static_app_serves_shared_browser_tokens(service: str) -> None:
-    port = pick_free_port()
-    result = subprocess.run(
-        [
-            sys.executable,
-            "scripts/smoke_service.py",
-            service,
-            "--port",
-            str(port),
-            "--timeout",
-            "20",
-            "--interval",
-            "0.5",
-            "--path",
-            "/shared/browser-tokens.css",
-            "--expect-content-type",
-            "text/css",
-            "--expect-body-fragment",
-            "color-accent",
-        ],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    assert result.returncode == 0, (
-        f"Shared token smoke failed for {service}\n"
-        f"stdout:\n{result.stdout}\n"
-        f"stderr:\n{result.stderr}"
-    )
-    assert f"Smoke check passed for '{service}'" in result.stdout
-    assert f"http://127.0.0.1:{port}/shared/browser-tokens.css" in result.stdout
-
-
-@pytest.mark.parametrize("service", STATIC_SERVICES)
-def test_static_app_serves_shared_browser_starter(service: str) -> None:
-    port = pick_free_port()
-    result = subprocess.run(
-        [
-            sys.executable,
-            "scripts/smoke_service.py",
-            service,
-            "--port",
-            str(port),
-            "--timeout",
-            "20",
-            "--interval",
-            "0.5",
-            "--path",
-            "/shared/browser-starter.css",
-            "--expect-content-type",
-            "text/css",
-            "--expect-body-fragment",
-            "app-starter-shell",
-        ],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-    )
-
-    assert result.returncode == 0, (
-        f"Shared starter smoke failed for {service}\n"
-        f"stdout:\n{result.stdout}\n"
-        f"stderr:\n{result.stderr}"
-    )
-    assert f"Smoke check passed for '{service}'" in result.stdout
-    assert f"http://127.0.0.1:{port}/shared/browser-starter.css" in result.stdout
-
-
-@pytest.mark.parametrize("service", ("bert", "realitycheck"))
-def test_static_app_supports_host_env_var(service: str) -> None:
-    port = pick_free_port()
-    env = os.environ.copy()
-    env["HOST"] = "127.0.0.1"
-    result = subprocess.run(
-        [
-            sys.executable,
-            "scripts/smoke_service.py",
-            service,
-            "--port",
-            str(port),
-            "--timeout",
-            "20",
-            "--interval",
-            "0.5",
+            *extra_args,
         ],
         cwd=ROOT,
         capture_output=True,
@@ -186,217 +331,64 @@ def test_static_app_supports_host_env_var(service: str) -> None:
         env=env,
     )
 
+
+def assert_smoke_passed(
+    result: subprocess.CompletedProcess[str],
+    *,
+    service: str,
+    label: str,
+    expected_url: str,
+) -> None:
     assert result.returncode == 0, (
-        f"HOST smoke failed for {service}\n"
+        f"{label} failed for {service}\n"
         f"stdout:\n{result.stdout}\n"
         f"stderr:\n{result.stderr}"
     )
     assert f"Smoke check passed for '{service}'" in result.stdout
-    assert f"http://127.0.0.1:{port}/" in result.stdout
+    assert expected_url in result.stdout
 
 
-def test_bert_page_includes_example_samples() -> None:
-    text = (ROOT / "src" / "bert" / "index.html").read_text(encoding="utf-8")
-
-    assert "Load toxic sample" in text
-    assert "Load non-toxic sample" in text
-    assert "Try an example:" in text
+@lru_cache(maxsize=None)
+def service_page_text(service: str) -> str:
+    return (ROOT / "src" / service / "index.html").read_text(encoding="utf-8")
 
 
-def test_bert_page_includes_truncation_warning() -> None:
-    text = (ROOT / "src" / "bert" / "index.html").read_text(encoding="utf-8")
+@pytest.mark.parametrize("service", STATIC_SERVICES)
+@pytest.mark.parametrize(("label", "extra_args", "expected_path"), STATIC_SMOKE_CASES)
+def test_static_app_smoke_contracts(
+    service: str,
+    label: str,
+    extra_args: tuple[str, ...],
+    expected_path: str,
+) -> None:
+    port = pick_free_port()
+    result = run_local_smoke(service, port=port, extra_args=extra_args)
 
-    assert 'id="truncation-warning"' in text
-    assert "Tokenizer truncation warning:" in text
-
-
-def test_bert_page_includes_score_interpretation_note() -> None:
-    text = (ROOT / "src" / "bert" / "index.html").read_text(encoding="utf-8")
-
-    assert 'id="score-note"' in text
-    assert "Interpretation: the percentage is the model's confidence" in text
-
-
-def test_counterpoint_page_includes_word_count_guidance() -> None:
-    text = (ROOT / "src" / "counterpoint" / "index.html").read_text(encoding="utf-8")
-
-    assert 'id="word-count"' in text
-    assert 'id="soft-limit-note"' in text
-    assert "Soft limit: around 140 words keeps the counter-side sharper." in text
-
-
-def test_counterpoint_page_includes_copy_notes_button() -> None:
-    text = (ROOT / "src" / "counterpoint" / "index.html").read_text(encoding="utf-8")
-
-    assert 'id="copy-button"' in text
-    assert "Copy Notes" in text
-
-
-def test_counterpoint_page_includes_output_mode_toggle() -> None:
-    text = (ROOT / "src" / "counterpoint" / "index.html").read_text(encoding="utf-8")
-
-    assert 'id="output-mode-select"' in text
-    assert "Strongest steelman only" in text
-    assert "Full prep breakdown" in text
-
-
-def test_debate_page_includes_per_document_character_counters() -> None:
-    text = (ROOT / "src" / "debate" / "index.html").read_text(encoding="utf-8")
-
-    assert 'id="char-count-a"' in text
-    assert 'id="char-count-b"' in text
-    assert "Soft limit: around 900 chars keeps the sparring turns sharper." in text
-
-
-def test_debate_page_includes_markdown_export_button() -> None:
-    text = (ROOT / "src" / "debate" / "index.html").read_text(encoding="utf-8")
-
-    assert 'id="export-button"' in text
-    assert "Export Markdown" in text
-    assert "# Debate Sparring Notes" in text
-
-
-def test_debate_page_includes_heuristic_fallback_banner() -> None:
-    text = (ROOT / "src" / "debate" / "index.html").read_text(encoding="utf-8")
-
-    assert 'id="fallback-pill"' in text
-    assert "Fallback mode active" in text
-    assert "Debate is using fallback mode for this run." in text
-
-
-def test_manipulation_page_includes_signal_tooltips() -> None:
-    text = (ROOT / "src" / "manipulation" / "index.html").read_text(encoding="utf-8")
-
-    assert "signal-tooltip" in text
-    assert "Looks for countdowns, last-chance deadlines" in text
-    assert "Catches shame, obligation, and loyalty-test language" in text
-
-
-def test_manipulation_page_includes_simple_summary_view_toggle() -> None:
-    text = (ROOT / "src" / "manipulation" / "index.html").read_text(encoding="utf-8")
-
-    assert 'id="view-mode-select"' in text
-    assert 'id="simple-summary-card"' in text
-    assert "Detailed signals" in text
-    assert "Simple summary" in text
-
-
-def test_memorypalace_page_includes_local_save_load_controls() -> None:
-    text = (ROOT / "src" / "memorypalace" / "index.html").read_text(encoding="utf-8")
-
-    assert 'id="save-palace-button"' in text
-    assert 'id="load-palace-button"' in text
-    assert 'id="saved-palace-status"' in text
-    assert "Save Palace" in text
-    assert "Load Saved" in text
-    assert "playground.memorypalace.saved-palace.v1" in text
-
-
-def test_realitycheck_page_includes_specific_url_fetch_error_copy() -> None:
-    text = (ROOT / "src" / "realitycheck" / "index.html").read_text(encoding="utf-8")
-
-    assert (
-        "The source took too long to respond. Retry, use a faster page, or paste the text directly."
-        in text
-    )
-    assert "That URL did not return a readable page." in text
-    assert "That ${label} URL looks blocked by the source site." in text
-    assert "Use a direct ${label} URL or upload the ${label} instead." in text
-
-
-def test_realitycheck_page_includes_source_metadata_panel() -> None:
-    text = (ROOT / "src" / "realitycheck" / "index.html").read_text(encoding="utf-8")
-
-    assert 'id="url-source-metadata"' in text
-    assert 'id="source-title-value"' in text
-    assert 'id="source-final-url-value"' in text
-    assert 'id="source-content-type-value"' in text
-    assert "Fetched Source" in text
-    assert "Final URL" in text
-
-
-def test_realitycheck_page_includes_upload_size_guidance() -> None:
-    text = (ROOT / "src" / "realitycheck" / "index.html").read_text(encoding="utf-8")
-
-    assert 'id="image-size-guidance"' in text
-    assert 'id="video-size-guidance"' in text
-    assert "Upload tip: images under 12 MB decode faster in the browser." in text
-    assert (
-        "Upload tip: videos under 80 MB work best here. Larger clips take longer to load and sample."
-        in text
+    assert_smoke_passed(
+        result,
+        service=service,
+        label=label,
+        expected_url=f"http://127.0.0.1:{port}{expected_path}",
     )
 
 
-def test_realitymix_page_includes_sample_style_buttons() -> None:
-    text = (ROOT / "src" / "realitymix" / "index.html").read_text(encoding="utf-8")
+@pytest.mark.parametrize("service", HOST_ENV_SERVICES)
+def test_static_app_supports_host_env_var(service: str) -> None:
+    port = pick_free_port()
+    env = os.environ.copy()
+    env["HOST"] = "127.0.0.1"
+    result = run_local_smoke(service, port=port, env=env)
 
-    assert 'data-style-sample="sunset-weave"' in text
-    assert 'data-style-sample="blueprint-bloom"' in text
-    assert 'data-style-sample="poster-pulse"' in text
-    assert "Sunset Weave" in text
-    assert "Blueprint Bloom" in text
-    assert "Poster Pulse" in text
-    assert "Loading sample style image…" in text
-
-
-def test_realitymix_page_includes_live_performance_readout() -> None:
-    text = (ROOT / "src" / "realitymix" / "index.html").read_text(encoding="utf-8")
-
-    assert 'id="output-fps-text"' in text
-    assert 'id="inference-text"' in text
-    assert "Output FPS:" in text
-    assert "Inference:" in text
-    assert "measuredOutputFps" in text
-    assert "averageStylizeMs" in text
-
-
-def test_realitymix_page_includes_camera_troubleshooting_panel() -> None:
-    text = (ROOT / "src" / "realitymix" / "index.html").read_text(encoding="utf-8")
-
-    assert 'id="camera-troubleshooting-card"' in text
-    assert 'id="camera-troubleshooting-summary"' in text
-    assert 'id="camera-troubleshooting-list"' in text
-    assert "Camera Troubleshooting" in text
-    assert "Camera permission was denied or blocked for this page." in text
-    assert (
-        "Camera access needs a secure context before the browser will prompt for webcam permission."
-        in text
+    assert_smoke_passed(
+        result,
+        service=service,
+        label="HOST smoke",
+        expected_url=f"http://127.0.0.1:{port}/health",
     )
 
 
-def test_realitymix_page_includes_mirror_toggle() -> None:
-    text = (ROOT / "src" / "realitymix" / "index.html").read_text(encoding="utf-8")
-
-    assert 'id="mirror-toggle-button"' in text
-    assert 'aria-pressed="true"' in text
-    assert "Mirror: On" in text
-    assert "Mirror: Off" in text
-    assert "mirrorEnabled" in text
-
-
-def test_vibedj_page_includes_global_stop_audio_control() -> None:
-    text = (ROOT / "src" / "vibedj" / "index.html").read_text(encoding="utf-8")
-
-    assert 'id="global-stop-button"' in text
-    assert "Stop All Audio" in text
-    assert "syncGlobalStopButton" in text
-    assert 'setStatus("All playback stopped.")' in text
-
-
-def test_vibedj_page_includes_recommendation_export_buttons() -> None:
-    text = (ROOT / "src" / "vibedj" / "index.html").read_text(encoding="utf-8")
-
-    assert 'id="export-md-button"' in text
-    assert 'id="export-json-button"' in text
-    assert "Export Markdown" in text
-    assert "Export JSON" in text
-    assert "buildRecommendationMarkdown" in text
-    assert "buildRecommendationJson" in text
-
-
-def test_vibedj_page_includes_audio_unlock_hint() -> None:
-    text = (ROOT / "src" / "vibedj" / "index.html").read_text(encoding="utf-8")
-
-    assert 'id="audio-unlock-hint"' in text
-    assert "Audio starts only after your first click." in text
-    assert "syncAudioUnlockHint" in text
+@pytest.mark.parametrize(("service", "fragments"), STATIC_PAGE_CASES)
+def test_static_page_contracts(service: str, fragments: tuple[str, ...]) -> None:
+    text = service_page_text(service)
+    for fragment in fragments:
+        assert fragment in text
