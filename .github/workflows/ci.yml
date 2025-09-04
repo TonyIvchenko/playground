@@ -69,7 +69,6 @@ jobs:
               - '*.md'
               - 'shared/**/*.md'
               - 'src/**/README.md'
-              - 'scripts/check_docker_smoke_docs.py'
             repo:
               - '.github/**/*.yml'
               - '.github/**/*.yaml'
@@ -156,10 +155,6 @@ jobs:
       - name: Run docs validation
         shell: bash
         run: python scripts/validate_repo.py --check docs
-
-      - name: Check documented Docker smoke commands
-        shell: bash
-        run: python scripts/check_docker_smoke_docs.py
 
   repo-sanity:
     needs: changes

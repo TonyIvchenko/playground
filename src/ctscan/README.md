@@ -76,8 +76,8 @@ runbooks in this README.
 ## Docker
 
 ```bash
-docker build --pull -t ctscan -f src/ctscan/Dockerfile .
-docker run --rm --name ctscan -p 8080:8080 -e PORT=8080 ctscan
+make docker-build ctscan
+make docker-run-http ctscan 8080
 curl --fail --silent --show-error http://127.0.0.1:8080/health
 ```
 

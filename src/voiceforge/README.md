@@ -60,8 +60,8 @@ python scripts/prune_checkpoints.py --keep 2
 ## Docker
 
 ```bash
-docker build --pull -t voiceforge -f src/voiceforge/Dockerfile .
-docker run --rm --name voiceforge -p 8080:8080 -e PORT=8080 voiceforge
+make docker-build voiceforge
+make docker-run-http voiceforge 8080
 curl --fail --silent --show-error http://127.0.0.1:8080/health
 ```
 

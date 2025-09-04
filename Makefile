@@ -3,7 +3,7 @@ port := $(or $(word 3,$(MAKECMDGOALS)),8080)
 PYTHON := conda run -n playground python
 RUFF := $(PYTHON) -m ruff
 
-.PHONY: setup update run smoke test lint format
+.PHONY: setup update run smoke test lint format docker-build docker-run-http
 
 setup: environment.yml
 	conda env create -f environment.yml
@@ -16,6 +16,14 @@ run:
 
 smoke:
 	$(PYTHON) scripts/smoke_service.py $(app) --port $(port)
+
+docker-build:
+	@test -f "src/$(app)/Dockerfile" || { echo "No Dockerfile found for service '$(app)'." >&2; exit 1; }
+	docker build --pull -t $(app) -f src/$(app)/Dockerfile .
+
+docker-run-http:
+	@test -f "src/$(app)/Dockerfile" || { echo "No Dockerfile found for service '$(app)'." >&2; exit 1; }
+	docker run --rm --name $(app) -p $(port):8080 -e PORT=8080 $(app)
 
 test:
 	@tests_dir="src/$(app)/tests"; \
@@ -32,7 +40,6 @@ test:
 lint:
 	$(RUFF) check .
 	$(PYTHON) scripts/validate_repo.py
-	$(PYTHON) scripts/check_docker_smoke_docs.py
 	$(PYTHON) scripts/check_browser_apps.py
 	$(PYTHON) scripts/check_services.py --check static
 

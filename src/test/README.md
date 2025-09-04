@@ -46,7 +46,7 @@ Key environment variables:
 ## Docker
 
 ```bash
-docker build --pull -t test -f src/test/Dockerfile .
+make docker-build test
 
 # macOS / Windows Docker Desktop
 docker run --rm --name test \

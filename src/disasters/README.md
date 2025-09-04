@@ -53,12 +53,10 @@ Allowed values:
 ## Docker
 
 ```bash
-docker build --pull -t disasters -f src/disasters/Dockerfile .
-docker run --rm --name disasters -p 8080:8080 -e PORT=8080 disasters
+make docker-build disasters
+make docker-run-http disasters 8080
 curl --fail --silent --show-error http://127.0.0.1:8080/health
 ```
-
-The CI workflow uses the same `/health` smoke pattern for this service.
 
 ## Tests
 
