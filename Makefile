@@ -40,8 +40,7 @@ test:
 lint:
 	$(RUFF) check .
 	$(PYTHON) scripts/validate_repo.py
-	$(PYTHON) scripts/check_browser_apps.py
-	$(PYTHON) scripts/check_services.py --check static
+	$(PYTHON) scripts/check_services.py --check browser-apps --check static
 
 format:
 	$(RUFF) format .

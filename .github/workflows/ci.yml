@@ -89,10 +89,8 @@ jobs:
               - 'tests/test_validate_repo.py'
               - 'tests/test_smoke_service.py'
             static_apps:
-              - 'tests/test_check_browser_apps.py'
               - 'tests/test_static_app_smokes.py'
               - 'tests/test_service_startup_logs.py'
-              - 'scripts/check_browser_apps.py'
               - 'scripts/browser_app_contracts.json'
               - 'scripts/browser_static_server.py'
               - 'scripts/poll_http_health.py'
@@ -185,11 +183,7 @@ jobs:
 
       - name: Check static app browser contracts
         shell: bash
-        run: python scripts/check_browser_apps.py
-
-      - name: Check static service contracts
-        shell: bash
-        run: python scripts/check_services.py --check static
+        run: python scripts/check_services.py --check browser-apps --check static
 
   readme-local-run:
     needs: changes
