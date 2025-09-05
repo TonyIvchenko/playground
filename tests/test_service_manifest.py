@@ -33,10 +33,18 @@ def test_check_services_uses_shared_manifest() -> None:
     manifest = load_service_manifest()
 
     assert sorted(check_services.SERVICE_SPECS) == sorted(manifest)
+    assert manifest["bert"]["run"] == "make run bert 8080"
+    assert manifest["bert"]["health_endpoint"] == "/health"
+    assert manifest["bert"]["local_run"]["readme_command"] == "python main.py"
+    assert manifest["ctscan"]["run"] == "make run ctscan 8080"
+    assert manifest["ctscan"]["local_run"]["mode"] == "smoke"
+    assert manifest["test"]["run"] == "make run test"
+    assert manifest["test"]["health_endpoint"] is None
     assert (
         check_services.SERVICE_SPECS["disasters"]["local_run"]["env"]["GMAPS_API_KEY"]
         == "ci-local-run-key"
     )
+    assert check_services.SERVICE_SPECS["disasters"]["local_run"]["mode"] == "smoke"
 
 
 def test_smoke_service_rejects_non_http_worker_service() -> None:
