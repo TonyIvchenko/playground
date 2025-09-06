@@ -12,16 +12,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
     - name: Build image
-      uses: docker/build-push-action@v6
-      with:
-        context: .
-        file: ${{ inputs.dockerfile }}
-        tags: ${{ inputs.image }}
-        load: true
-        pull: true
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+      shell: bash
+      run: docker build --pull -t "${{ inputs.image }}" -f "${{ inputs.dockerfile }}" .

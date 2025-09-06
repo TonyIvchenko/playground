@@ -8,15 +8,6 @@ runs:
       uses: actions/setup-python@v5
       with:
         python-version: "3.11"
-        cache: "pip"
-        cache-dependency-path: |
-          environment.yml
-          pytest.ini
-          requirements.txt
-          src/test/requirements.txt
-          src/disasters/requirements.txt
-          src/ctscan/requirements.txt
-          src/voiceforge/requirements.txt
 
     - name: Install dependencies
       shell: bash
