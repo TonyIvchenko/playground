@@ -6,14 +6,15 @@ from pathlib import Path
 import json
 import mimetypes
 import os
-
-from scripts.service_startup import print_http_service_startup
-
+import sys
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SHARED_DIR = REPO_ROOT / "shared"
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8080
+
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 
 def read_static_bind_address() -> tuple[str, int]:
@@ -92,8 +93,30 @@ def build_static_handler(
     return Handler
 
 
+def serve_browser_app(app_file: str | Path) -> None:
+    app_root = Path(app_file).resolve().parent
+    serve_static_app(app_root.name, app_root)
+
+
 def serve_static_app(service_name: str, root: Path) -> None:
+    from scripts.service_startup import print_http_service_startup
+
     host, port = read_static_bind_address()
     server = ThreadingHTTPServer((host, port), build_static_handler(root, service_name))
     print_http_service_startup(service_name, host, port)
     server.serve_forever()
+
+
+def main() -> None:
+    app_file = globals().get("APP_FILE")
+    if not app_file and len(os.sys.argv) == 2:
+        app_file = os.sys.argv[1]
+    if not app_file:
+        raise SystemExit(
+            "browser_static_server.py expects an app file path via APP_FILE or argv."
+        )
+    serve_browser_app(str(app_file))
+
+
+if __name__ == "__main__":
+    main()
