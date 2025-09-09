@@ -24,6 +24,12 @@
       --cool: #3d68ff;
       --mint: #39b88f;
       --app-starter-page-max: 1280px;
+      --app-starter-control-radius: 18px;
+      --app-starter-control-focus-border: rgba(61, 104, 255, 0.45);
+      --app-starter-control-focus-shadow: 0 0 0 4px rgba(61, 104, 255, 0.1);
+      --app-starter-textarea-min-height: 320px;
+      --app-starter-textarea-padding: 16px 18px;
+      --app-starter-textarea-line-height: 1.58;
     }
 
     * {
@@ -105,29 +111,6 @@
       font-size: 15px;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-    }
-
-    textarea,
-    button {
-      font: inherit;
-      color: inherit;
-    }
-
-    textarea {
-      width: 100%;
-      min-height: 320px;
-      padding: 16px 18px;
-      border-radius: 18px;
-      border: 1px solid var(--line);
-      background: #fff;
-      resize: vertical;
-      line-height: 1.58;
-    }
-
-    textarea:focus {
-      outline: none;
-      border-color: rgba(61, 104, 255, 0.45);
-      box-shadow: 0 0 0 4px rgba(61, 104, 255, 0.1);
     }
 
     .actions,
@@ -344,7 +327,7 @@
             <button class="app-button ghost" data-sample="pressure" type="button">Pressure memo</button>
             <button class="app-button ghost" data-sample="dream" type="button">Dream monologue</button>
           </div>
-          <textarea id="source-text" placeholder="Paste writing here..."></textarea>
+          <textarea id="source-text" class="app-starter-control app-starter-textarea" placeholder="Paste writing here..."></textarea>
           <div class="actions">
             <button id="analyze-button" class="app-button" type="button" disabled>Spin The Set</button>
             <button id="clear-button" class="app-button secondary" type="button">Clear</button>

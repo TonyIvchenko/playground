@@ -18,6 +18,10 @@
       --app-starter-surface-shadow: 0 14px 36px rgba(34, 52, 76, 0.10);
       --app-starter-surface-blur: 10px;
       --app-starter-panel-padding: 24px;
+      --app-starter-control-border: 1px solid #d8e0ea;
+      --app-starter-control-radius: 14px;
+      --app-starter-textarea-min-height: 220px;
+      --app-starter-textarea-padding: 14px 16px;
     }
 
     * {
@@ -42,26 +46,11 @@
       color: #5c6c7d;
     }
 
-    textarea {
-      width: 100%;
-      min-height: 220px;
-      padding: 14px 16px;
-      border: 1px solid #d8e0ea;
-      border-radius: 14px;
-      resize: vertical;
-      font: inherit;
-      color: inherit;
-      background: #fff;
+    .app-starter-textarea {
       transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
     }
 
-    textarea:focus {
-      outline: none;
-      border-color: #7aa8ff;
-      box-shadow: 0 0 0 4px rgba(76, 132, 255, 0.12);
-    }
-
-    textarea:disabled {
+    .app-starter-textarea:disabled {
       background: #f4f6fa;
       color: #5c6c7d;
       cursor: wait;
@@ -177,7 +166,7 @@
     </section>
 
     <section class="panel app-starter-surface app-starter-panel">
-      <textarea id="text-input" placeholder="Loading browser text model..." disabled></textarea>
+      <textarea id="text-input" class="app-starter-control app-starter-textarea" placeholder="Loading browser text model..." disabled></textarea>
       <div class="sample-strip" aria-label="Example inputs">
         <span class="sample-label">Try an example:</span>
         <div class="sample-actions">

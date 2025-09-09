@@ -25,6 +25,10 @@
       --app-starter-surface-blur: 10px;
       --app-starter-hero-padding: 24px;
       --app-starter-hero-gap: 8px;
+      --app-starter-control-radius: 16px;
+      --app-starter-textarea-min-height: 300px;
+      --app-starter-textarea-padding: 14px 16px;
+      --app-starter-textarea-line-height: 1.55;
     }
 
     * { box-sizing: border-box; }
@@ -67,48 +71,6 @@
       gap: 16px;
       grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
       align-items: start;
-    }
-
-    label {
-      display: grid;
-      gap: 6px;
-      font-size: 12px;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-
-    select,
-    textarea,
-    button {
-      font: inherit;
-      color: inherit;
-    }
-
-    select,
-    textarea {
-      width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      background: #fff;
-    }
-
-    select {
-      padding: 12px 14px;
-    }
-
-    textarea {
-      min-height: 300px;
-      padding: 14px 16px;
-      resize: vertical;
-      line-height: 1.55;
-    }
-
-    textarea:focus,
-    select:focus {
-      outline: none;
-      border-color: #7aa8ff;
-      box-shadow: 0 0 0 4px rgba(76, 132, 255, 0.12);
     }
 
     .app-button {
@@ -167,12 +129,6 @@
       gap: 10px;
       align-items: center;
       flex-wrap: wrap;
-    }
-
-    .upload-row input[type="file"] {
-      max-width: 100%;
-      font: inherit;
-      color: var(--muted);
     }
 
     .doc-meta {
@@ -300,9 +256,9 @@
 
     <section class="panel app-panel app-starter-surface app-starter-panel">
       <div class="controls app-stack-md">
-        <label>
+        <label class="app-starter-label">
           Argument Type
-          <select id="case-type">
+          <select id="case-type" class="app-starter-control">
             <option value="workplace">Workplace conflict</option>
             <option value="relationship">Relationship conflict</option>
             <option value="family">Family conflict</option>
@@ -310,9 +266,9 @@
           </select>
         </label>
 
-        <label>
+        <label class="app-starter-label">
           Rounds
-          <select id="rounds-select">
+          <select id="rounds-select" class="app-starter-control">
             <option value="4">Short</option>
             <option value="6" selected>Balanced</option>
             <option value="8">Long</option>
@@ -329,9 +285,9 @@
           <h2>Point Of View A</h2>
           <p class="hint">This is your side or the side you want to stress-test.</p>
           <div class="upload-row">
-            <input id="file-a" type="file" accept=".txt,.md,.csv,.json,.html,.htm">
+            <input id="file-a" class="app-starter-file-inline" type="file" accept=".txt,.md,.csv,.json,.html,.htm">
           </div>
-          <textarea id="doc-a" placeholder="Loading browser generation model..." disabled></textarea>
+          <textarea id="doc-a" class="app-starter-control app-starter-textarea" placeholder="Loading browser generation model..." disabled></textarea>
           <div class="doc-meta" aria-label="Point of view A guidance">
             <div class="char-count" id="char-count-a">0 chars</div>
             <div class="doc-note" id="doc-note-a">Soft limit: around 900 chars keeps the sparring turns sharper. Longer docs still run, but the model may flatten details.</div>
@@ -342,9 +298,9 @@
           <h2>Point Of View B</h2>
           <p class="hint">This is the strongest counter-position you expect to face.</p>
           <div class="upload-row">
-            <input id="file-b" type="file" accept=".txt,.md,.csv,.json,.html,.htm">
+            <input id="file-b" class="app-starter-file-inline" type="file" accept=".txt,.md,.csv,.json,.html,.htm">
           </div>
-          <textarea id="doc-b" placeholder="Loading browser generation model..." disabled></textarea>
+          <textarea id="doc-b" class="app-starter-control app-starter-textarea" placeholder="Loading browser generation model..." disabled></textarea>
           <div class="doc-meta" aria-label="Point of view B guidance">
             <div class="char-count" id="char-count-b">0 chars</div>
             <div class="doc-note" id="doc-note-b">Soft limit: around 900 chars keeps the sparring turns sharper. Longer docs still run, but the model may flatten details.</div>

@@ -19,6 +19,12 @@
       --bg-b: #fff0dc;
       --bg-c: #edf5ff;
       --app-starter-page-max: 1360px;
+      --app-starter-control-radius: 18px;
+      --app-starter-control-focus-border: rgba(67, 118, 255, 0.44);
+      --app-starter-control-focus-shadow: 0 0 0 4px rgba(67, 118, 255, 0.1);
+      --app-starter-textarea-min-height: 260px;
+      --app-starter-textarea-padding: 16px 18px;
+      --app-starter-textarea-line-height: 1.56;
     }
 
     * {
@@ -89,29 +95,6 @@
       font-size: 15px;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-    }
-
-    textarea,
-    button {
-      font: inherit;
-      color: inherit;
-    }
-
-    textarea {
-      width: 100%;
-      min-height: 260px;
-      border-radius: 18px;
-      border: 1px solid var(--line);
-      padding: 16px 18px;
-      resize: vertical;
-      line-height: 1.56;
-      background: #fff;
-    }
-
-    textarea:focus {
-      outline: none;
-      border-color: rgba(67, 118, 255, 0.44);
-      box-shadow: 0 0 0 4px rgba(67, 118, 255, 0.1);
     }
 
     .actions,
@@ -300,7 +283,7 @@
             <button class="app-button ghost" data-sample="history" type="button">History</button>
             <button class="app-button ghost" data-sample="pitch" type="button">Pitch deck</button>
           </div>
-          <textarea id="notes-input" placeholder="Paste notes here..."></textarea>
+          <textarea id="notes-input" class="app-starter-control app-starter-textarea" placeholder="Paste notes here..."></textarea>
           <div class="actions">
             <button id="build-button" class="app-button" type="button">Build Palace</button>
             <button id="reset-view-button" class="app-button secondary" type="button">Reset View</button>

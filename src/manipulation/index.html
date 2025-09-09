@@ -29,6 +29,10 @@
       --app-starter-surface-blur: 10px;
       --app-starter-hero-padding: 24px;
       --app-starter-hero-gap: 8px;
+      --app-starter-control-radius: 14px;
+      --app-starter-textarea-min-height: 280px;
+      --app-starter-textarea-padding: 14px 16px;
+      --app-starter-textarea-line-height: 1.5;
     }
 
     * {
@@ -60,48 +64,6 @@
       gap: 12px;
       grid-template-columns: 200px minmax(0, 1fr) auto auto;
       align-items: end;
-    }
-
-    label {
-      display: grid;
-      gap: 6px;
-      color: var(--muted);
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-    }
-
-    select,
-    textarea,
-    button {
-      font: inherit;
-      color: inherit;
-    }
-
-    select,
-    textarea {
-      width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      background: #fff;
-    }
-
-    select {
-      padding: 12px 14px;
-    }
-
-    textarea {
-      min-height: 280px;
-      padding: 14px 16px;
-      resize: vertical;
-      line-height: 1.5;
-    }
-
-    textarea:focus,
-    select:focus {
-      outline: none;
-      border-color: #7aa8ff;
-      box-shadow: 0 0 0 4px rgba(76, 132, 255, 0.12);
     }
 
     .app-button {
@@ -191,7 +153,7 @@
       gap: 6px;
     }
 
-    .view-controls label {
+    .view-controls .app-starter-label {
       font-size: 11px;
     }
 
@@ -336,18 +298,18 @@
 
     <section class="panel app-panel app-starter-surface app-starter-panel">
       <div class="controls app-stack-md">
-        <label>
+        <label class="app-starter-label">
           Source Type
-          <select id="source-type">
+          <select id="source-type" class="app-starter-control">
             <option value="newsletter">Newsletter</option>
             <option value="community">Community Post</option>
             <option value="group_chat">Group Chat</option>
           </select>
         </label>
 
-        <label>
+        <label class="app-starter-label">
           Text
-          <textarea id="text-input" placeholder="Loading browser analysis models..." disabled></textarea>
+          <textarea id="text-input" class="app-starter-control app-starter-textarea" placeholder="Loading browser analysis models..." disabled></textarea>
         </label>
 
         <button id="analyze-button" class="app-button" type="button" disabled>Analyze</button>
@@ -363,9 +325,9 @@
           <div class="score-value" id="score-value">--</div>
           <p class="summary" id="summary-text">Paste text to begin.</p>
           <div class="view-controls">
-            <label>
+            <label class="app-starter-label">
               Result View
-              <select id="view-mode-select">
+              <select id="view-mode-select" class="app-starter-control">
                 <option value="detailed" selected>Detailed signals</option>
                 <option value="simple">Simple summary</option>
               </select>

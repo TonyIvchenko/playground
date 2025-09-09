@@ -13,16 +13,20 @@ Load both shared stylesheets from browser apps with:
 <link rel="stylesheet" href="/shared/browser-starter.css">
 ```
 
-The starter stylesheet defines the small shared shell and surface helpers for:
+The starter stylesheet defines the shared shell and form helpers for:
 
 - `app-starter-shell`
 - `app-starter-surface`
 - `app-starter-hero`
 - `app-starter-panel`
+- `app-starter-label`
+- `app-starter-control`
+- `app-starter-textarea`
+- `app-starter-file-inline`
 
-Use those classes for the top-level page shell, hero block, and large panel
-surfaces before introducing one-off page-level `main`, `.hero`, or `.panel`
-scaffolding in each app.
+Use those classes for the top-level page shell, hero block, large panel
+surfaces, and the repeated label or textarea or select chrome before
+introducing one-off page-level scaffolding in each app.
 
 The shared stylesheet defines the base token groups for:
 

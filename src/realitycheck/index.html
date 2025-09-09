@@ -31,6 +31,11 @@
       --app-starter-surface-shadow: 0 14px 36px rgba(34, 52, 76, 0.10);
       --app-starter-surface-blur: 10px;
       --app-starter-panel-padding: 22px;
+      --app-starter-control-border: 1px solid var(--border);
+      --app-starter-control-radius: 14px;
+      --app-starter-control-padding: 14px 16px;
+      --app-starter-textarea-min-height: 260px;
+      --app-starter-textarea-padding: 14px 16px;
     }
 
     * {
@@ -120,30 +125,6 @@
       letter-spacing: 0.08em;
     }
 
-    textarea,
-    input[type="url"],
-    input[type="text"] {
-      width: 100%;
-      padding: 14px 16px;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      background: #fff;
-      color: inherit;
-      font: inherit;
-    }
-
-    textarea {
-      min-height: 260px;
-      resize: vertical;
-    }
-
-    textarea:focus,
-    input:focus {
-      outline: none;
-      border-color: #7aa8ff;
-      box-shadow: 0 0 0 4px rgba(76, 132, 255, 0.12);
-    }
-
     .actions {
       display: flex;
       flex-wrap: wrap;
@@ -157,7 +138,6 @@
       border-radius: 12px;
       background: #18202a;
       color: #fff;
-      font: inherit;
       cursor: pointer;
     }
 
@@ -354,7 +334,7 @@
         <section class="panel view active app-panel app-starter-surface app-starter-panel" id="text-view">
           <div class="row app-stack-md">
             <div class="stack">
-              <textarea id="text-input" placeholder="Loading browser text model..." disabled></textarea>
+              <textarea id="text-input" class="app-starter-control app-starter-textarea" placeholder="Loading browser text model..." disabled></textarea>
               <div class="actions">
                 <button id="analyze-text-button" class="app-button" type="button" disabled>Analyze Text</button>
                 <button id="clear-text-button" class="app-button secondary" type="button">Clear</button>
@@ -377,7 +357,7 @@
                 <input id="image-input" type="file" accept="image/*">
                 <div class="help app-help" id="image-size-guidance">Upload tip: images under 12 MB decode faster in the browser.</div>
                 <div class="divider">or</div>
-                <input id="image-url-input" type="url" placeholder="https://example.com/image.jpg">
+                <input id="image-url-input" class="app-starter-control" type="url" placeholder="https://example.com/image.jpg">
                 <div class="actions">
                   <button id="load-image-url-button" class="app-button secondary" type="button">Load Image URL</button>
                 </div>
@@ -405,7 +385,7 @@
                 <input id="video-input" type="file" accept="video/*">
                 <div class="help app-help" id="video-size-guidance">Upload tip: videos under 80 MB work best here. Larger clips take longer to load and sample.</div>
                 <div class="divider">or</div>
-                <input id="video-url-input" type="url" placeholder="https://example.com/video.mp4">
+                <input id="video-url-input" class="app-starter-control" type="url" placeholder="https://example.com/video.mp4">
                 <div class="actions">
                   <button id="load-video-url-button" class="app-button secondary" type="button">Load Video URL</button>
                 </div>
@@ -431,7 +411,7 @@
         <section class="panel view app-panel app-starter-surface app-starter-panel" id="url-view">
           <div class="row app-stack-md">
             <div class="stack">
-              <input id="url-input" type="url" placeholder="https://example.com/article">
+              <input id="url-input" class="app-starter-control" type="url" placeholder="https://example.com/article">
               <div class="actions">
                 <button id="analyze-url-button" class="app-button" type="button">Fetch and Analyze URL</button>
               </div>

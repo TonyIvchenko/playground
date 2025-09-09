@@ -19,6 +19,24 @@
   --app-starter-hero-gap: 10px;
   --app-starter-panel-padding: 20px;
   --app-starter-panel-gap: 16px;
+
+  --app-starter-field-gap: 6px;
+  --app-starter-field-label-color: var(--muted, var(--color-ink-muted));
+  --app-starter-field-label-size: 12px;
+  --app-starter-field-label-spacing: 0.1em;
+
+  --app-starter-control-border: 1px solid var(--line, var(--color-border));
+  --app-starter-control-radius: 16px;
+  --app-starter-control-bg: #fff;
+  --app-starter-control-padding: 12px 14px;
+  --app-starter-control-focus-border: #7aa8ff;
+  --app-starter-control-focus-shadow: 0 0 0 4px rgba(76, 132, 255, 0.12);
+
+  --app-starter-textarea-min-height: 260px;
+  --app-starter-textarea-padding: 14px 16px;
+  --app-starter-textarea-line-height: 1.55;
+
+  --app-starter-file-inline-color: var(--app-starter-field-label-color);
 }
 
 .app-starter-shell {
@@ -47,6 +65,42 @@
   padding: var(--app-starter-panel-padding);
   display: grid;
   gap: var(--app-starter-panel-gap);
+}
+
+.app-starter-label {
+  display: grid;
+  gap: var(--app-starter-field-gap);
+  color: var(--app-starter-field-label-color);
+  font-size: var(--app-starter-field-label-size);
+  letter-spacing: var(--app-starter-field-label-spacing);
+  text-transform: uppercase;
+}
+
+.app-starter-control {
+  width: 100%;
+  border: var(--app-starter-control-border);
+  border-radius: var(--app-starter-control-radius);
+  padding: var(--app-starter-control-padding);
+  background: var(--app-starter-control-bg);
+  color: inherit;
+}
+
+.app-starter-control:focus {
+  outline: none;
+  border-color: var(--app-starter-control-focus-border);
+  box-shadow: var(--app-starter-control-focus-shadow);
+}
+
+.app-starter-textarea {
+  min-height: var(--app-starter-textarea-min-height);
+  padding: var(--app-starter-textarea-padding);
+  resize: vertical;
+  line-height: var(--app-starter-textarea-line-height);
+}
+
+.app-starter-file-inline {
+  max-width: 100%;
+  color: var(--app-starter-file-inline-color);
 }
 
 @media (max-width: 64rem) {

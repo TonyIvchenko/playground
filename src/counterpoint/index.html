@@ -24,6 +24,12 @@
       --blue: #1d4ed8;
       --green: #0f766e;
       --app-starter-page-max: 1360px;
+      --app-starter-control-radius: 18px;
+      --app-starter-control-focus-border: rgba(67, 118, 255, 0.44);
+      --app-starter-control-focus-shadow: 0 0 0 4px rgba(67, 118, 255, 0.1);
+      --app-starter-textarea-min-height: 420px;
+      --app-starter-textarea-padding: 16px 18px;
+      --app-starter-textarea-line-height: 1.58;
     }
 
     * { box-sizing: border-box; }
@@ -89,48 +95,6 @@
       display: grid;
       gap: 16px;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    label {
-      display: grid;
-      gap: 6px;
-      font-size: 12px;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-
-    select,
-    textarea,
-    .app-button {
-      font: inherit;
-      color: inherit;
-    }
-
-    select,
-    textarea {
-      width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      background: #fff;
-    }
-
-    select {
-      padding: 12px 14px;
-    }
-
-    textarea {
-      min-height: 420px;
-      padding: 16px 18px;
-      resize: vertical;
-      line-height: 1.58;
-    }
-
-    select:focus,
-    textarea:focus {
-      outline: none;
-      border-color: rgba(67, 118, 255, 0.44);
-      box-shadow: 0 0 0 4px rgba(67, 118, 255, 0.1);
     }
 
     .app-button {
@@ -212,12 +176,6 @@
       color: var(--danger);
     }
 
-    .upload-row input[type="file"] {
-      max-width: 100%;
-      font: inherit;
-      color: var(--muted);
-    }
-
     .pill {
       display: inline-flex;
       width: fit-content;
@@ -289,9 +247,9 @@
 
     <section class="panel app-panel app-starter-surface app-starter-panel">
       <div class="controls app-stack-md">
-        <label>
+        <label class="app-starter-label">
           Arena
-          <select id="arena-select">
+          <select id="arena-select" class="app-starter-control">
             <option value="workplace">Workplace</option>
             <option value="relationship">Relationship</option>
             <option value="family">Family</option>
@@ -300,9 +258,9 @@
           </select>
         </label>
 
-        <label>
+        <label class="app-starter-label">
           Opponent Style
-          <select id="style-select">
+          <select id="style-select" class="app-starter-control">
             <option value="calm">Calm and precise</option>
             <option value="skeptical">Skeptical and sharp</option>
             <option value="aggressive">Aggressive and confrontational</option>
@@ -310,18 +268,18 @@
           </select>
         </label>
 
-        <label>
+        <label class="app-starter-label">
           Pressure Level
-          <select id="pressure-select">
+          <select id="pressure-select" class="app-starter-control">
             <option value="balanced">Balanced</option>
             <option value="hard" selected>Hard</option>
             <option value="merciless">Merciless</option>
           </select>
         </label>
 
-        <label>
+        <label class="app-starter-label">
           Output Mode
-          <select id="output-mode-select">
+          <select id="output-mode-select" class="app-starter-control">
             <option value="full" selected>Full prep breakdown</option>
             <option value="steelman">Strongest steelman only</option>
           </select>
@@ -343,9 +301,9 @@
             <button class="app-button secondary sample-button" type="button" data-sample="negotiation">Salary</button>
           </div>
           <div class="upload-row">
-            <input id="file-input" type="file" accept=".txt,.md,.csv,.json,.html,.htm">
+            <input id="file-input" class="app-starter-file-inline" type="file" accept=".txt,.md,.csv,.json,.html,.htm">
           </div>
-          <textarea id="position-input" placeholder="Loading browser generation model..." disabled></textarea>
+          <textarea id="position-input" class="app-starter-control app-starter-textarea" placeholder="Loading browser generation model..." disabled></textarea>
           <div class="input-meta" aria-label="Prompt guidance">
             <div class="word-count" id="word-count">0 words</div>
             <div class="soft-limit-note" id="soft-limit-note">Soft limit: around 140 words keeps the counter-side sharper. Longer prompts still run, but the strongest claims can get flattened.</div>

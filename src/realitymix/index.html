@@ -25,6 +25,11 @@
       --app-starter-hero-padding: 26px 28px;
       --app-starter-hero-gap: 8px;
       --app-starter-panel-gap: 18px;
+      --app-starter-field-gap: 7px;
+      --app-starter-field-label-spacing: 0.12em;
+      --app-starter-control-border: 1px solid var(--line);
+      --app-starter-control-radius: 14px;
+      --app-starter-control-bg: rgba(255, 255, 255, 0.94);
     }
 
     * {
@@ -56,34 +61,12 @@
       align-items: end;
     }
 
-    label {
-      display: grid;
-      gap: 7px;
-      font-size: 12px;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-
-    select,
-    input[type="file"],
     input[type="range"],
-    .app-button {
+    .toolbar > .app-button {
       width: 100%;
-      font: inherit;
     }
 
-    select,
-    input[type="file"],
-    .app-button {
-      border: 1px solid var(--line);
-      border-radius: 14px;
-      padding: 12px 14px;
-      background: rgba(255, 255, 255, 0.94);
-      color: var(--ink);
-    }
-
-    input[type="file"] {
+    .app-starter-file-control {
       padding: 10px 12px;
     }
 
@@ -258,9 +241,9 @@
 
     <section class="panel app-panel app-starter-surface app-starter-panel">
       <div class="toolbar app-stack-md">
-        <label>
+        <label class="app-starter-label">
           Style image
-          <input id="style-input" type="file" accept="image/*">
+          <input id="style-input" class="app-starter-control app-starter-file-control" type="file" accept="image/*">
           <div class="sample-row">
             <button class="app-button secondary" data-style-sample="sunset-weave" type="button">Sunset Weave</button>
             <button class="app-button secondary" data-style-sample="blueprint-bloom" type="button">Blueprint Bloom</button>
@@ -268,23 +251,23 @@
           </div>
         </label>
 
-        <label>
+        <label class="app-starter-label">
           Style strength
           <input id="strength-range" type="range" min="0" max="100" value="82">
         </label>
 
-        <label>
+        <label class="app-starter-label">
           Internal size
-          <select id="resolution-select">
+          <select id="resolution-select" class="app-starter-control">
             <option value="128">Fastest</option>
             <option value="192" selected>Balanced</option>
             <option value="256">Sharper</option>
           </select>
         </label>
 
-        <label>
+        <label class="app-starter-label">
           Update rate
-          <select id="fps-select">
+          <select id="fps-select" class="app-starter-control">
             <option value="1">1 fps</option>
             <option value="2" selected>2 fps</option>
             <option value="4">4 fps</option>
