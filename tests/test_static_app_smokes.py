@@ -73,8 +73,31 @@ STATIC_SMOKE_CASES = (
         "/shared/browser-starter.css",
         id="browser-starter",
     ),
+    pytest.param(
+        "shared browser status",
+        (
+            "--path",
+            "/shared/browser-status.js",
+            "--expect-content-type",
+            "text/javascript",
+            "--expect-body-fragment",
+            "createStateTextSetter",
+        ),
+        "/shared/browser-status.js",
+        id="browser-status",
+    ),
 )
 HOST_ENV_SERVICES = ("bert", "realitycheck")
+STATUS_HELPER_SERVICES = (
+    "bert",
+    "counterpoint",
+    "debate",
+    "facemesh",
+    "manipulation",
+    "realitycheck",
+    "realitymix",
+    "vibedj",
+)
 STATIC_PAGE_CASES = (
     pytest.param(
         "bert",
@@ -392,3 +415,8 @@ def test_static_page_contracts(service: str, fragments: tuple[str, ...]) -> None
     text = service_page_text(service)
     for fragment in fragments:
         assert fragment in text
+
+
+@pytest.mark.parametrize("service", STATUS_HELPER_SERVICES)
+def test_model_driven_pages_load_shared_status_helper(service: str) -> None:
+    assert "/shared/browser-status.js" in service_page_text(service)

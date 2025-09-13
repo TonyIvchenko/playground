@@ -7,6 +7,7 @@
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/shared/browser-tokens.css">
   <link rel="stylesheet" href="/shared/browser-starter.css">
+  <script src="/shared/browser-status.js"></script>
   <style>
     :root {
       color-scheme: light;
@@ -438,6 +439,7 @@
     env.allowLocalModels = false;
     env.allowRemoteModels = true;
 
+    const { createStateTextSetter } = window.PlaygroundBrowserStatus;
     const MODEL_ID = "Xenova/distilbert-base-uncased-finetuned-sst-2-english";
     const SAMPLE_TEXTS = {
       afterglow: "I keep thinking about the hour after everybody leaves, when the room still holds the shape of the conversation. The cups are half full, the records are still warm, and the whole apartment feels like it knows a secret it will never say out loud. I want the page to feel like that exact moment: a little gold, a little tired, intimate without getting sleepy.",
@@ -796,27 +798,14 @@
       label: "Idle"
     };
 
-    function setStatus(message, { isError = false, isLoading = false } = {}) {
-      statusText.textContent = message;
-      statusText.classList.toggle("is-error", isError);
-      statusText.classList.toggle("is-loading", isLoading);
-    }
+    const setStatus = createStateTextSetter(statusText);
 
     function prefersReducedMotion() {
       return reducedMotionQuery.matches;
     }
 
-    function setModelPill(message, { isError = false, isLoading = false } = {}) {
-      modelPill.textContent = message;
-      modelPill.classList.toggle("is-error", isError);
-      modelPill.classList.toggle("is-loading", isLoading);
-    }
-
-    function setSoundtrackStatus(message, { isError = false, isLoading = false } = {}) {
-      soundtrackStatus.textContent = message;
-      soundtrackStatus.classList.toggle("is-error", isError);
-      soundtrackStatus.classList.toggle("is-loading", isLoading);
-    }
+    const setModelPill = createStateTextSetter(modelPill);
+    const setSoundtrackStatus = createStateTextSetter(soundtrackStatus);
 
     function setFallbackPill(active) {
       fallbackPill.hidden = !active;

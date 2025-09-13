@@ -7,6 +7,7 @@
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/shared/browser-tokens.css">
   <link rel="stylesheet" href="/shared/browser-starter.css">
+  <script src="/shared/browser-status.js"></script>
   <style>
     :root {
       color-scheme: light;
@@ -408,6 +409,7 @@
     const roundsSelect = document.getElementById("rounds-select");
     const fileA = document.getElementById("file-a");
     const fileB = document.getElementById("file-b");
+    const { createStateTextSetter } = window.PlaygroundBrowserStatus;
     const docA = document.getElementById("doc-a");
     const docB = document.getElementById("doc-b");
     const charCountA = document.getElementById("char-count-a");
@@ -433,17 +435,8 @@
     let lastDebateNotes = null;
     const SOFT_CHAR_LIMIT = 900;
 
-    function setStatus(message, { isError = false, isLoading = false } = {}) {
-      statusText.textContent = message;
-      statusText.classList.toggle("is-error", isError);
-      statusText.classList.toggle("is-loading", isLoading);
-    }
-
-    function setModelPill(message, { isError = false, isLoading = false } = {}) {
-      modelPill.textContent = message;
-      modelPill.classList.toggle("is-error", isError);
-      modelPill.classList.toggle("is-loading", isLoading);
-    }
+    const setStatus = createStateTextSetter(statusText);
+    const setModelPill = createStateTextSetter(modelPill);
 
     function setFallbackPill(active) {
       fallbackPill.hidden = !active;

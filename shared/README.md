@@ -13,6 +13,12 @@ Load both shared stylesheets from browser apps with:
 <link rel="stylesheet" href="/shared/browser-starter.css">
 ```
 
+When a browser app only needs the standard shared status updater, it can also load:
+
+```html
+<script src="/shared/browser-status.js"></script>
+```
+
 The starter stylesheet defines the shared shell and form helpers for:
 
 - `app-starter-shell`
@@ -27,6 +33,14 @@ The starter stylesheet defines the shared shell and form helpers for:
 Use those classes for the top-level page shell, hero block, large panel
 surfaces, and the repeated label or textarea or select chrome before
 introducing one-off page-level scaffolding in each app.
+
+The shared browser status helper defines:
+
+- `window.PlaygroundBrowserStatus.setStateText(...)`
+- `window.PlaygroundBrowserStatus.createStateTextSetter(...)`
+
+Use that helper when a page only needs to update text plus the shared
+`is-error` and `is-loading` classes.
 
 The shared stylesheet defines the base token groups for:
 

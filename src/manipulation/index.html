@@ -7,6 +7,7 @@
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/shared/browser-tokens.css">
   <link rel="stylesheet" href="/shared/browser-starter.css">
+  <script src="/shared/browser-status.js"></script>
   <style>
     :root {
       color-scheme: light;
@@ -486,6 +487,7 @@
       },
     ];
 
+    const { createStateTextSetter } = window.PlaygroundBrowserStatus;
     const textInput = document.getElementById("text-input");
     const sourceType = document.getElementById("source-type");
     const analyzeButton = document.getElementById("analyze-button");
@@ -509,17 +511,9 @@
     let sentimentClassifier = null;
     let lastAnalysis = null;
 
-    function setStatus(message, { isError = false, isLoading = false } = {}) {
-      statusText.textContent = message;
-      statusText.classList.toggle("is-error", isError);
-      statusText.classList.toggle("is-loading", isLoading);
-    }
-
-    function setModelStatus(element, message, { isError = false, isLoading = false } = {}) {
-      element.textContent = message;
-      element.classList.toggle("is-error", isError);
-      element.classList.toggle("is-loading", isLoading);
-    }
+    const setStatus = createStateTextSetter(statusText);
+    const setToxicityStatus = createStateTextSetter(toxicityStatus);
+    const setSentimentStatus = createStateTextSetter(sentimentStatus);
 
     function setFallbackPill(active) {
       fallbackPill.hidden = !active;
@@ -803,20 +797,20 @@
       const unavailableModels = [];
       try {
         toxicityClassifier = await pipeline("text-classification", "Xenova/toxic-bert");
-        setModelStatus(toxicityStatus, "Browser toxicity model ready.");
+        setToxicityStatus("Browser toxicity model ready.");
       } catch (error) {
         console.error(error);
         unavailableModels.push("the toxicity model");
-        setModelStatus(toxicityStatus, `Couldn't load the browser toxicity model (${String(error.message || error)}).`, { isError: true });
+        setToxicityStatus(`Couldn't load the browser toxicity model (${String(error.message || error)}).`, { isError: true });
       }
 
       try {
         sentimentClassifier = await pipeline("text-classification", "Xenova/distilbert-base-uncased-finetuned-sst-2-english");
-        setModelStatus(sentimentStatus, "Browser sentiment model ready.");
+        setSentimentStatus("Browser sentiment model ready.");
       } catch (error) {
         console.error(error);
         unavailableModels.push("the sentiment model");
-        setModelStatus(sentimentStatus, `Couldn't load the browser sentiment model (${String(error.message || error)}).`, { isError: true });
+        setSentimentStatus(`Couldn't load the browser sentiment model (${String(error.message || error)}).`, { isError: true });
       }
 
       textInput.disabled = false;

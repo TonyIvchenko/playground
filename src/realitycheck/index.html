@@ -7,6 +7,7 @@
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/shared/browser-tokens.css">
   <link rel="stylesheet" href="/shared/browser-starter.css">
+  <script src="/shared/browser-status.js"></script>
   <style>
     :root {
       color-scheme: light;
@@ -493,6 +494,7 @@
     env.allowLocalModels = false;
     env.allowRemoteModels = true;
 
+    const { setStateText: setHelpMessage } = window.PlaygroundBrowserStatus;
     const IMAGE_MODEL_ID = "LPX55/detection-model-1-ONNX";
     const TEXT_MODEL_ID = "nicoamoretti/roberta-openai-detector-onnx";
     const HAS_WEBGPU = typeof navigator !== "undefined" && "gpu" in navigator;
@@ -769,12 +771,6 @@
       scoreElement.textContent = "--";
       summaryElement.textContent = summary;
       reasonsElement.innerHTML = "";
-    }
-
-    function setHelpMessage(element, message, { isError = false, isLoading = false } = {}) {
-      element.textContent = message;
-      element.classList.toggle("is-error", isError);
-      element.classList.toggle("is-loading", isLoading);
     }
 
     function setMediaFallbackPills(active) {

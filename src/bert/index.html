@@ -7,6 +7,7 @@
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/shared/browser-tokens.css">
   <link rel="stylesheet" href="/shared/browser-starter.css">
+  <script src="/shared/browser-status.js"></script>
   <style>
     :root {
       color-scheme: light;
@@ -227,6 +228,7 @@
     env.allowLocalModels = false;
     env.allowRemoteModels = true;
 
+    const { createStateTextSetter } = window.PlaygroundBrowserStatus;
     const input = document.getElementById("text-input");
     const status = document.getElementById("status");
     const result = document.getElementById("result");
@@ -239,11 +241,7 @@
     let debounceTimer = null;
     let tokenizerLimit = null;
 
-    function setStatus(message, { isError = false, isLoading = false } = {}) {
-      status.textContent = message;
-      status.classList.toggle("is-error", isError);
-      status.classList.toggle("is-loading", isLoading);
-    }
+    const setStatus = createStateTextSetter(status);
 
     function setTruncationWarning(message = "") {
       truncationWarning.hidden = !message;

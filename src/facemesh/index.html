@@ -7,6 +7,7 @@
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/shared/browser-tokens.css">
   <link rel="stylesheet" href="/shared/browser-starter.css">
+  <script src="/shared/browser-status.js"></script>
   <style>
     :root {
       color-scheme: light;
@@ -235,6 +236,7 @@
     </footer>
   </main>
   <script>
+    const { createStateTextSetter } = window.PlaygroundBrowserStatus;
     const videoElement = document.querySelector('.input_video');
     const canvasElement = document.querySelector('.output_canvas');
     const canvasCtx = canvasElement.getContext('2d');
@@ -304,17 +306,8 @@
     const faceOvalIndexSet = buildIndexSetFromConnections(typeof FACEMESH_FACE_OVAL !== 'undefined' ? FACEMESH_FACE_OVAL : []);
     const anchorIndexSet = new Set(anchorIndices);
 
-    function setStatus(message, { isError = false, isLoading = false } = {}) {
-      statusElement.textContent = message;
-      statusElement.classList.toggle('is-error', isError);
-      statusElement.classList.toggle('is-loading', isLoading);
-    }
-
-    function setReferenceStatus(message, { isError = false, isLoading = false } = {}) {
-      referenceStatusElement.textContent = message;
-      referenceStatusElement.classList.toggle('is-error', isError);
-      referenceStatusElement.classList.toggle('is-loading', isLoading);
-    }
+    const setStatus = createStateTextSetter(statusElement);
+    const setReferenceStatus = createStateTextSetter(referenceStatusElement);
 
     function resizeCanvas() {
       const width = videoElement.videoWidth || 960;

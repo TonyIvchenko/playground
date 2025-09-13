@@ -7,6 +7,7 @@
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/shared/browser-tokens.css">
   <link rel="stylesheet" href="/shared/browser-starter.css">
+  <script src="/shared/browser-status.js"></script>
   <style>
     :root {
       color-scheme: light;
@@ -428,6 +429,7 @@
       negotiation: `I deserve a higher salary because I took on responsibilities well beyond my original role, I have been covering critical work without additional headcount, and replacing me would cost more than adjusting my compensation now. The company says budgets are tight, but they keep expanding scope and expecting the same people to absorb it.`
     };
 
+    const { createStateTextSetter } = window.PlaygroundBrowserStatus;
     const arenaSelect = document.getElementById("arena-select");
     const styleSelect = document.getElementById("style-select");
     const pressureSelect = document.getElementById("pressure-select");
@@ -458,17 +460,8 @@
     let lastPack = null;
     const SOFT_WORD_LIMIT = 140;
 
-    function setStatus(message, { isError = false, isLoading = false } = {}) {
-      statusEl.textContent = message;
-      statusEl.classList.toggle("is-error", isError);
-      statusEl.classList.toggle("is-loading", isLoading);
-    }
-
-    function setModelPill(message, { isError = false, isLoading = false } = {}) {
-      modelPill.textContent = message;
-      modelPill.classList.toggle("is-error", isError);
-      modelPill.classList.toggle("is-loading", isLoading);
-    }
+    const setStatus = createStateTextSetter(statusEl);
+    const setModelPill = createStateTextSetter(modelPill);
 
     function setFallbackPill(active) {
       fallbackPill.hidden = !active;

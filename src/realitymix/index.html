@@ -7,6 +7,7 @@
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/shared/browser-tokens.css">
   <link rel="stylesheet" href="/shared/browser-starter.css">
+  <script src="/shared/browser-status.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@magenta/image@0.2.1"></script>
   <style>
     :root {
@@ -369,6 +370,7 @@
   </main>
 
   <script>
+    const { createStateTextSetter } = window.PlaygroundBrowserStatus;
     const startButton = document.getElementById("start-button");
     const styleInput = document.getElementById("style-input");
     const strengthRange = document.getElementById("strength-range");
@@ -485,11 +487,7 @@
       },
     };
 
-    function updateStatus(message, { isError = false, isLoading = false } = {}) {
-      statusText.textContent = message;
-      statusText.classList.toggle("is-error", isError);
-      statusText.classList.toggle("is-loading", isLoading);
-    }
+    const updateStatus = createStateTextSetter(statusText);
 
     function prefersReducedMotion() {
       return reducedMotionQuery.matches;
