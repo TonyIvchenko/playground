@@ -440,7 +440,7 @@
     env.allowLocalModels = false;
     env.allowRemoteModels = true;
 
-    const { bindDatasetButtons } = window.PlaygroundBrowserActions;
+    const { bindDatasetButtons, downloadTextFile } = window.PlaygroundBrowserActions;
     const { createStateTextSetter } = window.PlaygroundBrowserStatus;
     const MODEL_ID = "Xenova/distilbert-base-uncased-finetuned-sst-2-english";
     const SAMPLE_TEXTS = {
@@ -1448,18 +1448,6 @@
       return `${slugify(currentAnalysis.name)}-recommendations.${extension}`;
     }
 
-    function downloadExport(filename, content, mimeType) {
-      const blob = new Blob([content], { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = filename;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(url);
-    }
-
     function buildRecommendationMarkdown(analysis) {
       return [
         `# ${analysis.name} Recommendations`,
@@ -1638,7 +1626,7 @@
         return;
       }
       try {
-        downloadExport(
+        downloadTextFile(
           recommendationFilename("md"),
           buildRecommendationMarkdown(currentAnalysis),
           "text/markdown;charset=utf-8"
@@ -1655,7 +1643,7 @@
         return;
       }
       try {
-        downloadExport(
+        downloadTextFile(
           recommendationFilename("json"),
           buildRecommendationJson(currentAnalysis),
           "application/json;charset=utf-8"

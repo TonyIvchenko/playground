@@ -16,6 +16,22 @@
     });
   }
 
+  function downloadTextFile(
+    filename,
+    content,
+    mimeType = "text/plain;charset=utf-8"
+  ) {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
   async function readTextFile(file) {
     if (!file) {
       return "";
@@ -26,6 +42,7 @@
   window.PlaygroundBrowserActions = Object.freeze({
     bindDatasetButtons,
     bindFirstFileInput,
+    downloadTextFile,
     readTextFile,
   });
 })();

@@ -410,7 +410,7 @@
     const roundsSelect = document.getElementById("rounds-select");
     const fileA = document.getElementById("file-a");
     const fileB = document.getElementById("file-b");
-    const { bindFirstFileInput, readTextFile } = window.PlaygroundBrowserActions;
+    const { bindFirstFileInput, downloadTextFile, readTextFile } = window.PlaygroundBrowserActions;
     const { createStateTextSetter } = window.PlaygroundBrowserStatus;
     const docA = document.getElementById("doc-a");
     const docB = document.getElementById("doc-b");
@@ -610,18 +610,6 @@
       );
 
       return lines.join("\n").trim();
-    }
-
-    function downloadMarkdown(filename, content) {
-      const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 0);
     }
 
     async function ensureGenerator() {
@@ -955,7 +943,11 @@
       }
       try {
         const filename = `${slugify(lastDebateNotes.caseTypeLabel)}-debate-notes.md`;
-        downloadMarkdown(filename, buildMarkdownNotes(lastDebateNotes));
+        downloadTextFile(
+          filename,
+          buildMarkdownNotes(lastDebateNotes),
+          "text/markdown;charset=utf-8"
+        );
         setStatus("Debate Markdown exported.");
       } catch (error) {
         console.error(error);
