@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Debate</title>
   <link rel="icon" href="data:,">
+  <script src="/shared/browser-actions.js"></script>
   <link rel="stylesheet" href="/shared/browser-tokens.css">
   <link rel="stylesheet" href="/shared/browser-starter.css">
   <script src="/shared/browser-status.js"></script>
@@ -409,6 +410,7 @@
     const roundsSelect = document.getElementById("rounds-select");
     const fileA = document.getElementById("file-a");
     const fileB = document.getElementById("file-b");
+    const { bindFirstFileInput, readTextFile } = window.PlaygroundBrowserActions;
     const { createStateTextSetter } = window.PlaygroundBrowserStatus;
     const docA = document.getElementById("doc-a");
     const docB = document.getElementById("doc-b");
@@ -715,15 +717,6 @@
       return new Promise((resolve) => setTimeout(resolve, ms));
     }
 
-    async function loadFileIntoTextarea(file, target, label) {
-      if (!file) {
-        return;
-      }
-      const text = await file.text();
-      target.value = text.trim();
-      claimStatus.textContent = `${label} loaded from ${file.name}.`;
-    }
-
     function heuristicTurn(role, context, turnIndex) {
       const ownClaims = role === "side-a" ? context.sideAClaims : context.sideBClaims;
       const opposingClaims = role === "side-a" ? context.sideBClaims : context.sideAClaims;
@@ -913,9 +906,12 @@
       setStatus("Cleared. Paste both sides to begin.");
     });
 
-    fileA.addEventListener("change", async (event) => {
+    bindFirstFileInput(fileA, async (file) => {
       try {
-        await loadFileIntoTextarea(event.target.files?.[0], docA, "Point of view A");
+        docA.value = await readTextFile(file);
+        claimStatus.textContent = file
+          ? `Point of view A loaded from ${file.name}.`
+          : "Add both sides to begin.";
         updateDocumentGuidance(docA.value, charCountA, docNoteA);
       } catch (error) {
         console.error(error);
@@ -923,9 +919,12 @@
       }
     });
 
-    fileB.addEventListener("change", async (event) => {
+    bindFirstFileInput(fileB, async (file) => {
       try {
-        await loadFileIntoTextarea(event.target.files?.[0], docB, "Point of view B");
+        docB.value = await readTextFile(file);
+        claimStatus.textContent = file
+          ? `Point of view B loaded from ${file.name}.`
+          : "Add both sides to begin.";
         updateDocumentGuidance(docB.value, charCountB, docNoteB);
       } catch (error) {
         console.error(error);

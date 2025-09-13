@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BERT Toxicity Analyzer</title>
   <link rel="icon" href="data:,">
+  <script src="/shared/browser-actions.js"></script>
   <link rel="stylesheet" href="/shared/browser-tokens.css">
   <link rel="stylesheet" href="/shared/browser-starter.css">
   <script src="/shared/browser-status.js"></script>
@@ -228,6 +229,7 @@
     env.allowLocalModels = false;
     env.allowRemoteModels = true;
 
+    const { bindDatasetButtons } = window.PlaygroundBrowserActions;
     const { createStateTextSetter } = window.PlaygroundBrowserStatus;
     const input = document.getElementById("text-input");
     const status = document.getElementById("status");
@@ -425,10 +427,8 @@
     }
 
     input.addEventListener("input", queueAnalysis);
-    sampleButtons.forEach((button) => {
-      button.addEventListener("click", () => {
-        loadSample(button.dataset.sampleText || "");
-      });
+    bindDatasetButtons(sampleButtons, "sampleText", (sampleText) => {
+      loadSample(sampleText || "");
     });
   </script>
 </body>

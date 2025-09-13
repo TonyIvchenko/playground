@@ -19,6 +19,13 @@ When a browser app only needs the standard shared status updater, it can also lo
 <script src="/shared/browser-status.js"></script>
 ```
 
+When a browser app only needs the standard file-input or sample-button wiring, it
+can also load:
+
+```html
+<script src="/shared/browser-actions.js"></script>
+```
+
 The starter stylesheet defines the shared shell and form helpers for:
 
 - `app-starter-shell`
@@ -41,6 +48,15 @@ The shared browser status helper defines:
 
 Use that helper when a page only needs to update text plus the shared
 `is-error` and `is-loading` classes.
+
+The shared browser actions helper defines:
+
+- `window.PlaygroundBrowserActions.bindDatasetButtons(...)`
+- `window.PlaygroundBrowserActions.bindFirstFileInput(...)`
+- `window.PlaygroundBrowserActions.readTextFile(...)`
+
+Use that helper when a page only needs the standard “pick a sample from
+`data-*`” or “read the first selected file” flow.
 
 The shared stylesheet defines the base token groups for:
 

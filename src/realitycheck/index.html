@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>RealityCheck</title>
   <link rel="icon" href="data:,">
+  <script src="/shared/browser-actions.js"></script>
   <link rel="stylesheet" href="/shared/browser-tokens.css">
   <link rel="stylesheet" href="/shared/browser-starter.css">
   <script src="/shared/browser-status.js"></script>
@@ -494,6 +495,7 @@
     env.allowLocalModels = false;
     env.allowRemoteModels = true;
 
+    const { bindFirstFileInput } = window.PlaygroundBrowserActions;
     const { setStateText: setHelpMessage } = window.PlaygroundBrowserStatus;
     const IMAGE_MODEL_ID = "LPX55/detection-model-1-ONNX";
     const TEXT_MODEL_ID = "nicoamoretti/roberta-openai-detector-onnx";
@@ -1207,8 +1209,7 @@
       clearCard("video", "Video ready", label);
     }
 
-    imageInput.addEventListener("change", async () => {
-      const file = imageInput.files?.[0];
+    bindFirstFileInput(imageInput, async (file) => {
       currentImageSource = null;
       analyzeImageButton.disabled = true;
       updateUploadGuidance("image", file);
@@ -1225,7 +1226,7 @@
         await loadImageSource(currentImageObjectUrl, file.name, { revokeExistingObjectUrl: false });
       } catch (error) {
         console.error(error);
-      setHelpMessage(imageStatus, "Couldn't load the image.", { isError: true });
+        setHelpMessage(imageStatus, "Couldn't load the image.", { isError: true });
         clearCard("image", "Load error", formatErrorMessage(error), "error");
       }
     });
@@ -1252,8 +1253,7 @@
       }
     });
 
-    videoInput.addEventListener("change", async () => {
-      const file = videoInput.files?.[0];
+    bindFirstFileInput(videoInput, async (file) => {
       currentVideoSource = null;
       analyzeVideoButton.disabled = true;
       updateUploadGuidance("video", file);

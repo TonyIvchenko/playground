@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Counterpoint</title>
   <link rel="icon" href="data:,">
+  <script src="/shared/browser-actions.js"></script>
   <link rel="stylesheet" href="/shared/browser-tokens.css">
   <link rel="stylesheet" href="/shared/browser-starter.css">
   <script src="/shared/browser-status.js"></script>
@@ -429,6 +430,7 @@
       negotiation: `I deserve a higher salary because I took on responsibilities well beyond my original role, I have been covering critical work without additional headcount, and replacing me would cost more than adjusting my compensation now. The company says budgets are tight, but they keep expanding scope and expecting the same people to absorb it.`
     };
 
+    const { bindDatasetButtons, bindFirstFileInput, readTextFile } = window.PlaygroundBrowserActions;
     const { createStateTextSetter } = window.PlaygroundBrowserStatus;
     const arenaSelect = document.getElementById("arena-select");
     const styleSelect = document.getElementById("style-select");
@@ -838,26 +840,22 @@
       );
     }
 
-    fileInput.addEventListener("change", async (event) => {
-      const [file] = event.target.files || [];
+    bindFirstFileInput(fileInput, async (file) => {
       if (!file) {
         return;
       }
-      positionInput.value = await file.text();
+      positionInput.value = await readTextFile(file);
       updateWordGuidance(positionInput.value);
       clearOutputs();
       setStatus(`Loaded ${file.name}.`);
     });
 
-    for (const button of document.querySelectorAll(".sample-button")) {
-      button.addEventListener("click", () => {
-        const key = button.dataset.sample;
-        positionInput.value = SAMPLE_TEXT[key] || "";
-        updateWordGuidance(positionInput.value);
-        clearOutputs();
-        setStatus("Sample loaded. Build the counter-side when ready.");
-      });
-    }
+    bindDatasetButtons(document.querySelectorAll(".sample-button"), "sample", (key) => {
+      positionInput.value = SAMPLE_TEXT[key] || "";
+      updateWordGuidance(positionInput.value);
+      clearOutputs();
+      setStatus("Sample loaded. Build the counter-side when ready.");
+    });
 
     runButton.addEventListener("click", runGhostwriter);
     copyButton.addEventListener("click", async () => {

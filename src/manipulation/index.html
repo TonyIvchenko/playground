@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Manipulation Detector</title>
   <link rel="icon" href="data:,">
+  <script src="/shared/browser-actions.js"></script>
   <link rel="stylesheet" href="/shared/browser-tokens.css">
   <link rel="stylesheet" href="/shared/browser-starter.css">
   <script src="/shared/browser-status.js"></script>
@@ -487,6 +488,7 @@
       },
     ];
 
+    const { bindDatasetButtons } = window.PlaygroundBrowserActions;
     const { createStateTextSetter } = window.PlaygroundBrowserStatus;
     const textInput = document.getElementById("text-input");
     const sourceType = document.getElementById("source-type");
@@ -930,14 +932,11 @@
       applyViewMode();
     });
 
-    document.querySelectorAll("[data-sample]").forEach((button) => {
-      button.addEventListener("click", async () => {
-        const key = button.dataset.sample;
-        textInput.value = SAMPLES[key];
-        sourceType.value = key === "group_chat" ? "group_chat" : key;
-        setStatus(`Loaded ${button.textContent.toLowerCase()} sample.`);
-        await analyzeText();
-      });
+    bindDatasetButtons(document.querySelectorAll("[data-sample]"), "sample", async (key, button) => {
+      textInput.value = SAMPLES[key];
+      sourceType.value = key === "group_chat" ? "group_chat" : key;
+      setStatus(`Loaded ${button.textContent.toLowerCase()} sample.`);
+      await analyzeText();
     });
 
     resetView();

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>RealityMix</title>
   <link rel="icon" href="data:,">
+  <script src="/shared/browser-actions.js"></script>
   <link rel="stylesheet" href="/shared/browser-tokens.css">
   <link rel="stylesheet" href="/shared/browser-starter.css">
   <script src="/shared/browser-status.js"></script>
@@ -370,6 +371,7 @@
   </main>
 
   <script>
+    const { bindDatasetButtons, bindFirstFileInput } = window.PlaygroundBrowserActions;
     const { createStateTextSetter } = window.PlaygroundBrowserStatus;
     const startButton = document.getElementById("start-button");
     const styleInput = document.getElementById("style-input");
@@ -930,8 +932,7 @@
       }
     }
 
-    styleInput.addEventListener("change", async () => {
-      const file = styleInput.files?.[0];
+    bindFirstFileInput(styleInput, async (file) => {
       if (!file) {
         return;
       }
@@ -944,22 +945,19 @@
       }
     });
 
-    document.querySelectorAll("[data-style-sample]").forEach((button) => {
-      button.addEventListener("click", async () => {
-        const sampleKey = button.dataset.styleSample;
-        if (!sampleKey) {
-          return;
-        }
-        updateStatus("Loading sample style image…");
-        try {
-          styleInput.value = "";
-          const sample = createStyleSampleUrl(sampleKey);
-          await loadStyleSource(sample.url, `${sample.label} sample`, { revokeExistingObjectUrl: true });
-        } catch (error) {
-          console.error(error);
-          updateStatus(`Couldn't load the sample style image. ${String(error.message || error)}`, { isError: true });
-        }
-      });
+    bindDatasetButtons(document.querySelectorAll("[data-style-sample]"), "styleSample", async (sampleKey) => {
+      if (!sampleKey) {
+        return;
+      }
+      updateStatus("Loading sample style image…");
+      try {
+        styleInput.value = "";
+        const sample = createStyleSampleUrl(sampleKey);
+        await loadStyleSource(sample.url, `${sample.label} sample`, { revokeExistingObjectUrl: true });
+      } catch (error) {
+        console.error(error);
+        updateStatus(`Couldn't load the sample style image. ${String(error.message || error)}`, { isError: true });
+      }
     });
 
     strengthRange.addEventListener("input", () => {

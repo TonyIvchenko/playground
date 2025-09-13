@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MemoryPalace</title>
   <link rel="icon" href="data:,">
+  <script src="/shared/browser-actions.js"></script>
   <link rel="stylesheet" href="/shared/browser-tokens.css">
   <link rel="stylesheet" href="/shared/browser-starter.css">
   <style>
@@ -386,6 +387,7 @@
   <script type="module">
     import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js";
 
+    const { bindDatasetButtons } = window.PlaygroundBrowserActions;
     const SAMPLE_NOTES = {
       biology: `Cell membrane: phospholipid bilayer, selective permeability, embedded proteins for transport and signaling.
 
@@ -1162,12 +1164,10 @@ Go to market: start with finance and operations leaders, then expand into produc
     savePalaceButton.addEventListener("click", saveCurrentPalace);
     loadPalaceButton.addEventListener("click", loadSavedPalace);
 
-    document.querySelectorAll("[data-sample]").forEach((button) => {
-      button.addEventListener("click", () => {
-        notesInput.value = SAMPLE_NOTES[button.dataset.sample] || "";
-        statusPill.textContent = "Sample loaded";
-        statusText.textContent = "Sample notes loaded. Build the palace when you are ready.";
-      });
+    bindDatasetButtons(document.querySelectorAll("[data-sample]"), "sample", (key) => {
+      notesInput.value = SAMPLE_NOTES[key] || "";
+      statusPill.textContent = "Sample loaded";
+      statusText.textContent = "Sample notes loaded. Build the palace when you are ready.";
     });
 
     notesInput.value = SAMPLE_NOTES.biology;

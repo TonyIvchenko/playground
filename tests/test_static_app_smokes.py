@@ -86,6 +86,19 @@ STATIC_SMOKE_CASES = (
         "/shared/browser-status.js",
         id="browser-status",
     ),
+    pytest.param(
+        "shared browser actions",
+        (
+            "--path",
+            "/shared/browser-actions.js",
+            "--expect-content-type",
+            "text/javascript",
+            "--expect-body-fragment",
+            "bindDatasetButtons",
+        ),
+        "/shared/browser-actions.js",
+        id="browser-actions",
+    ),
 )
 HOST_ENV_SERVICES = ("bert", "realitycheck")
 STATUS_HELPER_SERVICES = (
@@ -94,6 +107,16 @@ STATUS_HELPER_SERVICES = (
     "debate",
     "facemesh",
     "manipulation",
+    "realitycheck",
+    "realitymix",
+    "vibedj",
+)
+ACTION_HELPER_SERVICES = (
+    "bert",
+    "counterpoint",
+    "debate",
+    "manipulation",
+    "memorypalace",
     "realitycheck",
     "realitymix",
     "vibedj",
@@ -420,3 +443,8 @@ def test_static_page_contracts(service: str, fragments: tuple[str, ...]) -> None
 @pytest.mark.parametrize("service", STATUS_HELPER_SERVICES)
 def test_model_driven_pages_load_shared_status_helper(service: str) -> None:
     assert "/shared/browser-status.js" in service_page_text(service)
+
+
+@pytest.mark.parametrize("service", ACTION_HELPER_SERVICES)
+def test_pages_load_shared_browser_actions_helper(service: str) -> None:
+    assert "/shared/browser-actions.js" in service_page_text(service)
