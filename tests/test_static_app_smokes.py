@@ -99,6 +99,19 @@ STATIC_SMOKE_CASES = (
         "/shared/browser-actions.js",
         id="browser-actions",
     ),
+    pytest.param(
+        "shared browser guidance",
+        (
+            "--path",
+            "/shared/browser-actions.js",
+            "--expect-content-type",
+            "text/javascript",
+            "--expect-body-fragment",
+            "createSoftLimitGuidanceUpdater",
+        ),
+        "/shared/browser-actions.js",
+        id="browser-guidance",
+    ),
 )
 HOST_ENV_SERVICES = ("bert", "realitycheck")
 STATUS_HELPER_SERVICES = (

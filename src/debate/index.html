@@ -410,7 +410,12 @@
     const roundsSelect = document.getElementById("rounds-select");
     const fileA = document.getElementById("file-a");
     const fileB = document.getElementById("file-b");
-    const { bindFirstFileInput, downloadTextFile, readTextFile } = window.PlaygroundBrowserActions;
+    const {
+      bindFirstFileInput,
+      createSoftLimitGuidanceUpdater,
+      downloadTextFile,
+      readTextFile
+    } = window.PlaygroundBrowserActions;
     const { createStateTextSetter } = window.PlaygroundBrowserStatus;
     const docA = document.getElementById("doc-a");
     const docB = document.getElementById("doc-b");
@@ -498,16 +503,27 @@
       claimPoints.appendChild(wrapper);
     }
 
-    function updateDocumentGuidance(text, countEl, noteEl) {
-      const charCount = text.trim().length;
-      const overLimit = charCount > SOFT_CHAR_LIMIT;
-      countEl.textContent = `${charCount} ${charCount === 1 ? "char" : "chars"}`;
-      countEl.classList.toggle("is-over", overLimit);
-      noteEl.textContent = overLimit
-        ? `Soft limit: around ${SOFT_CHAR_LIMIT} chars keeps the sparring turns sharper. This side will still run, but the model may flatten or skip weaker details.`
-        : `Soft limit: around ${SOFT_CHAR_LIMIT} chars keeps the sparring turns sharper. Longer docs still run, but the model may flatten details.`;
-      noteEl.classList.toggle("is-over", overLimit);
+    function createDocumentGuidanceUpdater(countElement, noteElement) {
+      return createSoftLimitGuidanceUpdater({
+        countElement,
+        noteElement,
+        limit: SOFT_CHAR_LIMIT,
+        measure(text) {
+          return text.trim().length;
+        },
+        singularUnit: "char",
+        pluralUnit: "chars",
+        underLimitMessage(limit) {
+          return `Soft limit: around ${limit} chars keeps the sparring turns sharper. Longer docs still run, but the model may flatten details.`;
+        },
+        overLimitMessage(limit) {
+          return `Soft limit: around ${limit} chars keeps the sparring turns sharper. This side will still run, but the model may flatten or skip weaker details.`;
+        }
+      });
     }
+
+    const updateDocumentGuidanceA = createDocumentGuidanceUpdater(charCountA, docNoteA);
+    const updateDocumentGuidanceB = createDocumentGuidanceUpdater(charCountB, docNoteB);
 
     function clearTranscript() {
       transcript.innerHTML = "";
@@ -885,8 +901,8 @@
       docB.value = "";
       fileA.value = "";
       fileB.value = "";
-      updateDocumentGuidance("", charCountA, docNoteA);
-      updateDocumentGuidance("", charCountB, docNoteB);
+      updateDocumentGuidanceA("");
+      updateDocumentGuidanceB("");
       claimPoints.innerHTML = "";
       clearTranscript();
       resetExportState();
@@ -900,7 +916,7 @@
         claimStatus.textContent = file
           ? `Point of view A loaded from ${file.name}.`
           : "Add both sides to begin.";
-        updateDocumentGuidance(docA.value, charCountA, docNoteA);
+        updateDocumentGuidanceA(docA.value);
       } catch (error) {
         console.error(error);
         setStatus(`Couldn't read Point of view A. ${String(error.message || error)}`, { isError: true });
@@ -913,7 +929,7 @@
         claimStatus.textContent = file
           ? `Point of view B loaded from ${file.name}.`
           : "Add both sides to begin.";
-        updateDocumentGuidance(docB.value, charCountB, docNoteB);
+        updateDocumentGuidanceB(docB.value);
       } catch (error) {
         console.error(error);
         setStatus(`Couldn't read Point of view B. ${String(error.message || error)}`, { isError: true });
@@ -922,13 +938,13 @@
 
     docA.value = SAMPLE_A;
     docB.value = SAMPLE_B;
-    updateDocumentGuidance(docA.value, charCountA, docNoteA);
-    updateDocumentGuidance(docB.value, charCountB, docNoteB);
+    updateDocumentGuidanceA(docA.value);
+    updateDocumentGuidanceB(docB.value);
     docA.addEventListener("input", () => {
-      updateDocumentGuidance(docA.value, charCountA, docNoteA);
+      updateDocumentGuidanceA(docA.value);
     });
     docB.addEventListener("input", () => {
-      updateDocumentGuidance(docB.value, charCountB, docNoteB);
+      updateDocumentGuidanceB(docB.value);
     });
     ensureGenerator().catch(() => {
       docA.disabled = false;

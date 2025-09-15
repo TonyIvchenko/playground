@@ -430,7 +430,12 @@
       negotiation: `I deserve a higher salary because I took on responsibilities well beyond my original role, I have been covering critical work without additional headcount, and replacing me would cost more than adjusting my compensation now. The company says budgets are tight, but they keep expanding scope and expecting the same people to absorb it.`
     };
 
-    const { bindDatasetButtons, bindFirstFileInput, readTextFile } = window.PlaygroundBrowserActions;
+    const {
+      bindDatasetButtons,
+      bindFirstFileInput,
+      createSoftLimitGuidanceUpdater,
+      readTextFile
+    } = window.PlaygroundBrowserActions;
     const { createStateTextSetter } = window.PlaygroundBrowserStatus;
     const arenaSelect = document.getElementById("arena-select");
     const styleSelect = document.getElementById("style-select");
@@ -473,20 +478,22 @@
       return text.replace(/\s+/g, " ").trim();
     }
 
-    function countWords(text) {
-      return (text.match(/[a-z0-9']+/gi) || []).length;
-    }
-
-    function updateWordGuidance(text) {
-      const wordCount = countWords(text);
-      const overLimit = wordCount > SOFT_WORD_LIMIT;
-      wordCountEl.textContent = `${wordCount} ${wordCount === 1 ? "word" : "words"}`;
-      wordCountEl.classList.toggle("is-over", overLimit);
-      softLimitNoteEl.textContent = overLimit
-        ? `Soft limit: around ${SOFT_WORD_LIMIT} words keeps the counter-side sharper. This draft will still run, but the strongest claims may get compressed.`
-        : `Soft limit: around ${SOFT_WORD_LIMIT} words keeps the counter-side sharper. Longer prompts still run, but the strongest claims can get flattened.`;
-      softLimitNoteEl.classList.toggle("is-over", overLimit);
-    }
+    const updateWordGuidance = createSoftLimitGuidanceUpdater({
+      countElement: wordCountEl,
+      noteElement: softLimitNoteEl,
+      limit: SOFT_WORD_LIMIT,
+      measure(text) {
+        return (text.match(/[a-z0-9']+/gi) || []).length;
+      },
+      singularUnit: "word",
+      pluralUnit: "words",
+      underLimitMessage(limit) {
+        return `Soft limit: around ${limit} words keeps the counter-side sharper. Longer prompts still run, but the strongest claims can get flattened.`;
+      },
+      overLimitMessage(limit) {
+        return `Soft limit: around ${limit} words keeps the counter-side sharper. This draft will still run, but the strongest claims may get compressed.`;
+      }
+    });
 
     function splitSentences(text) {
       return text

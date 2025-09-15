@@ -32,6 +32,28 @@
     setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
+  function createSoftLimitGuidanceUpdater({
+    countElement,
+    noteElement,
+    limit,
+    measure,
+    singularUnit,
+    pluralUnit,
+    underLimitMessage,
+    overLimitMessage,
+  }) {
+    return (text) => {
+      const count = measure(text);
+      const overLimit = count > limit;
+      countElement.textContent = `${count} ${count === 1 ? singularUnit : pluralUnit}`;
+      countElement.classList.toggle("is-over", overLimit);
+      noteElement.textContent = overLimit
+        ? overLimitMessage(limit, count)
+        : underLimitMessage(limit, count);
+      noteElement.classList.toggle("is-over", overLimit);
+    };
+  }
+
   async function readTextFile(file) {
     if (!file) {
       return "";
@@ -42,6 +64,7 @@
   window.PlaygroundBrowserActions = Object.freeze({
     bindDatasetButtons,
     bindFirstFileInput,
+    createSoftLimitGuidanceUpdater,
     downloadTextFile,
     readTextFile,
   });
