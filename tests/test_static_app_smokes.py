@@ -81,7 +81,7 @@ STATIC_SMOKE_CASES = (
             "--expect-content-type",
             "text/javascript",
             "--expect-body-fragment",
-            "createStateTextSetter",
+            "setStatusState",
         ),
         "/shared/browser-status.js",
         id="browser-status",

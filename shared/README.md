@@ -43,11 +43,13 @@ introducing one-off page-level scaffolding in each app.
 
 The shared browser status helper defines:
 
+- `window.PlaygroundBrowserStatus.setStatusState(...)`
 - `window.PlaygroundBrowserStatus.setStateText(...)`
 - `window.PlaygroundBrowserStatus.createStateTextSetter(...)`
 
 Use that helper when a page only needs to update text plus the shared
-`is-error` and `is-loading` classes.
+`is-error`, `is-loading`, or `is-fallback` classes, plus optional
+show/hide behavior for compact status pills.
 
 The shared browser actions helper defines:
 

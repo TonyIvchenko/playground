@@ -416,7 +416,7 @@
       downloadTextFile,
       readTextFile
     } = window.PlaygroundBrowserActions;
-    const { createStateTextSetter } = window.PlaygroundBrowserStatus;
+    const { createStateTextSetter, setStatusState } = window.PlaygroundBrowserStatus;
     const docA = document.getElementById("doc-a");
     const docB = document.getElementById("doc-b");
     const charCountA = document.getElementById("char-count-a");
@@ -444,10 +444,6 @@
 
     const setStatus = createStateTextSetter(statusText);
     const setModelPill = createStateTextSetter(modelPill);
-
-    function setFallbackPill(active) {
-      fallbackPill.hidden = !active;
-    }
 
     function sentences(text) {
       return text.split(/(?<=[.!?])\s+/).map((item) => item.trim()).filter(Boolean);
@@ -634,7 +630,7 @@
       }
       if (!generatorLoad) {
         fallbackMode = false;
-        setFallbackPill(false);
+        setStatusState(fallbackPill, "hidden");
         setModelPill("Loading browser generation model", { isLoading: true });
         setStatus("Loading browser generation model…", { isLoading: true });
         generatorLoad = pipeline("text2text-generation", GENERATION_MODEL_ID, {
@@ -643,7 +639,7 @@
         }).then((instance) => {
           generator = instance;
           fallbackMode = false;
-          setFallbackPill(false);
+          setStatusState(fallbackPill, "hidden");
           setModelPill("Browser generation model ready");
           setStatus("Browser generation model ready. Paste both sides and run the sparring session.");
           runButton.disabled = false;
@@ -656,7 +652,7 @@
           console.error(error);
           generator = null;
           fallbackMode = true;
-          setFallbackPill(true);
+          setStatusState(fallbackPill, "fallback");
           setModelPill("Browser generation model unavailable", { isError: true });
           setStatus("Couldn't load the browser generation model. Debate is using fallback mode for this run.", { isError: true });
           claimStatus.textContent = "Browser model unavailable. Debate is using heuristic sparring notes for this run.";

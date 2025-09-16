@@ -1,14 +1,27 @@
 "use strict";
 
 (function initBrowserStatusHelpers() {
+  function setStatusState(element, state = "default", message) {
+    if (message !== undefined) {
+      element.textContent = message;
+    }
+
+    element.hidden = state === "hidden";
+    element.classList.toggle("is-error", state === "error");
+    element.classList.toggle("is-loading", state === "loading");
+    element.classList.toggle("is-fallback", state === "fallback");
+  }
+
   function setStateText(
     element,
     message,
     { isError = false, isLoading = false } = {},
   ) {
-    element.textContent = message;
-    element.classList.toggle("is-error", isError);
-    element.classList.toggle("is-loading", isLoading);
+    setStatusState(
+      element,
+      isError ? "error" : isLoading ? "loading" : "default",
+      message,
+    );
   }
 
   function createStateTextSetter(element) {
@@ -18,6 +31,7 @@
   }
 
   window.PlaygroundBrowserStatus = Object.freeze({
+    setStatusState,
     setStateText,
     createStateTextSetter,
   });

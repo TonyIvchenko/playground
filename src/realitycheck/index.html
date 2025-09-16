@@ -496,7 +496,7 @@
     env.allowRemoteModels = true;
 
     const { bindFirstFileInput } = window.PlaygroundBrowserActions;
-    const { setStateText: setHelpMessage } = window.PlaygroundBrowserStatus;
+    const { setStateText: setHelpMessage, setStatusState } = window.PlaygroundBrowserStatus;
     const IMAGE_MODEL_ID = "LPX55/detection-model-1-ONNX";
     const TEXT_MODEL_ID = "nicoamoretti/roberta-openai-detector-onnx";
     const HAS_WEBGPU = typeof navigator !== "undefined" && "gpu" in navigator;
@@ -776,8 +776,8 @@
     }
 
     function setMediaFallbackPills(active) {
-      imageFallbackPill.hidden = !active;
-      videoFallbackPill.hidden = !active;
+      setStatusState(imageFallbackPill, active ? "fallback" : "hidden");
+      setStatusState(videoFallbackPill, active ? "fallback" : "hidden");
     }
 
     function summarizeTextHeuristics(text) {

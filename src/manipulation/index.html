@@ -489,7 +489,7 @@
     ];
 
     const { bindDatasetButtons } = window.PlaygroundBrowserActions;
-    const { createStateTextSetter } = window.PlaygroundBrowserStatus;
+    const { createStateTextSetter, setStatusState } = window.PlaygroundBrowserStatus;
     const textInput = document.getElementById("text-input");
     const sourceType = document.getElementById("source-type");
     const analyzeButton = document.getElementById("analyze-button");
@@ -516,10 +516,6 @@
     const setStatus = createStateTextSetter(statusText);
     const setToxicityStatus = createStateTextSetter(toxicityStatus);
     const setSentimentStatus = createStateTextSetter(sentimentStatus);
-
-    function setFallbackPill(active) {
-      fallbackPill.hidden = !active;
-    }
 
     function clamp(value, min, max) {
       return Math.max(min, Math.min(max, value));
@@ -795,7 +791,7 @@
 
     async function loadModels() {
       setStatus("Loading browser analysis models…", { isLoading: true });
-      setFallbackPill(false);
+      setStatusState(fallbackPill, "hidden");
       const unavailableModels = [];
       try {
         toxicityClassifier = await pipeline("text-classification", "Xenova/toxic-bert");
@@ -819,10 +815,10 @@
       textInput.placeholder = "Paste a newsletter, post, or group chat excerpt here...";
       analyzeButton.disabled = false;
       if (unavailableModels.length) {
-        setFallbackPill(true);
+        setStatusState(fallbackPill, "fallback");
         setStatus(`Couldn't load ${unavailableModels.join(" and ")}. Heuristic analysis is still available.`, { isError: true });
       } else {
-        setFallbackPill(false);
+        setStatusState(fallbackPill, "hidden");
         setStatus("Browser analysis models ready. Paste text and analyze.");
       }
     }

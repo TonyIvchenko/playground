@@ -441,7 +441,7 @@
     env.allowRemoteModels = true;
 
     const { bindDatasetButtons, downloadTextFile } = window.PlaygroundBrowserActions;
-    const { createStateTextSetter } = window.PlaygroundBrowserStatus;
+    const { createStateTextSetter, setStatusState } = window.PlaygroundBrowserStatus;
     const MODEL_ID = "Xenova/distilbert-base-uncased-finetuned-sst-2-english";
     const SAMPLE_TEXTS = {
       afterglow: "I keep thinking about the hour after everybody leaves, when the room still holds the shape of the conversation. The cups are half full, the records are still warm, and the whole apartment feels like it knows a secret it will never say out loud. I want the page to feel like that exact moment: a little gold, a little tired, intimate without getting sleepy.",
@@ -808,10 +808,6 @@
 
     const setModelPill = createStateTextSetter(modelPill);
     const setSoundtrackStatus = createStateTextSetter(soundtrackStatus);
-
-    function setFallbackPill(active) {
-      fallbackPill.hidden = !active;
-    }
 
     function syncGlobalStopButton() {
       globalStopButton.disabled = !audioState;
@@ -1294,7 +1290,7 @@
       }
       if (!sentimentLoad) {
         fallbackMode = false;
-        setFallbackPill(false);
+        setStatusState(fallbackPill, "hidden");
         setModelPill("Loading browser sentiment model", { isLoading: true });
         setStatus("Loading browser sentiment model…", { isLoading: true });
         sentimentLoad = pipeline("text-classification", MODEL_ID, {
@@ -1310,7 +1306,7 @@
           console.error(error);
           fallbackMode = true;
           setModelPill("Browser sentiment model unavailable", { isError: true });
-          setFallbackPill(true);
+          setStatusState(fallbackPill, "fallback");
           setStatus(`Couldn't load the browser sentiment model. VibeDJ is using heuristics only: ${String(error.message || error)}`, { isError: true });
           analyzeButton.disabled = false;
           return null;

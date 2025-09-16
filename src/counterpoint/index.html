@@ -436,7 +436,7 @@
       createSoftLimitGuidanceUpdater,
       readTextFile
     } = window.PlaygroundBrowserActions;
-    const { createStateTextSetter } = window.PlaygroundBrowserStatus;
+    const { createStateTextSetter, setStatusState } = window.PlaygroundBrowserStatus;
     const arenaSelect = document.getElementById("arena-select");
     const styleSelect = document.getElementById("style-select");
     const pressureSelect = document.getElementById("pressure-select");
@@ -469,10 +469,6 @@
 
     const setStatus = createStateTextSetter(statusEl);
     const setModelPill = createStateTextSetter(modelPill);
-
-    function setFallbackPill(active) {
-      fallbackPill.hidden = !active;
-    }
 
     function normalizeWhitespace(text) {
       return text.replace(/\s+/g, " ").trim();
@@ -682,7 +678,7 @@
 
     async function ensureModel() {
       fallbackMode = false;
-      setFallbackPill(false);
+      setStatusState(fallbackPill, "hidden");
       setStatus("Loading browser generation model…", { isLoading: true });
       setModelPill("Loading browser generation model", { isLoading: true });
       try {
@@ -706,7 +702,7 @@
         positionInput.disabled = false;
         runButton.disabled = false;
         setModelPill("Browser generation model unavailable", { isError: true });
-        setFallbackPill(true);
+        setStatusState(fallbackPill, "fallback");
         setStatus("Couldn't load the browser generation model. Counterpoint is using fallback mode for this run.", { isError: true });
       }
     }
@@ -818,7 +814,7 @@
       } catch (error) {
         console.error(error);
         fallbackMode = true;
-        setFallbackPill(true);
+        setStatusState(fallbackPill, "fallback");
         renderPack({
           ...heuristicCounterpack(text),
           sourceText: text,
