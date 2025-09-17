@@ -112,6 +112,19 @@ STATIC_SMOKE_CASES = (
         "/shared/browser-actions.js",
         id="browser-guidance",
     ),
+    pytest.param(
+        "shared browser math",
+        (
+            "--path",
+            "/shared/browser-math.js",
+            "--expect-content-type",
+            "text/javascript",
+            "--expect-body-fragment",
+            "function clamp",
+        ),
+        "/shared/browser-math.js",
+        id="browser-math",
+    ),
 )
 HOST_ENV_SERVICES = ("bert", "realitycheck")
 STATUS_HELPER_SERVICES = (
@@ -134,6 +147,7 @@ ACTION_HELPER_SERVICES = (
     "realitymix",
     "vibedj",
 )
+MATH_HELPER_SERVICES = ("manipulation", "realitycheck", "vibedj")
 STATIC_PAGE_CASES = (
     pytest.param(
         "bert",
@@ -461,3 +475,8 @@ def test_model_driven_pages_load_shared_status_helper(service: str) -> None:
 @pytest.mark.parametrize("service", ACTION_HELPER_SERVICES)
 def test_pages_load_shared_browser_actions_helper(service: str) -> None:
     assert "/shared/browser-actions.js" in service_page_text(service)
+
+
+@pytest.mark.parametrize("service", MATH_HELPER_SERVICES)
+def test_pages_load_shared_browser_math_helper(service: str) -> None:
+    assert "/shared/browser-math.js" in service_page_text(service)

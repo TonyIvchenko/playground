@@ -6,6 +6,7 @@
   <title>Manipulation Detector</title>
   <link rel="icon" href="data:,">
   <script src="/shared/browser-actions.js"></script>
+  <script src="/shared/browser-math.js"></script>
   <link rel="stylesheet" href="/shared/browser-tokens.css">
   <link rel="stylesheet" href="/shared/browser-starter.css">
   <script src="/shared/browser-status.js"></script>
@@ -489,6 +490,7 @@
     ];
 
     const { bindDatasetButtons } = window.PlaygroundBrowserActions;
+    const { clamp } = window.PlaygroundBrowserMath;
     const { createStateTextSetter, setStatusState } = window.PlaygroundBrowserStatus;
     const textInput = document.getElementById("text-input");
     const sourceType = document.getElementById("source-type");
@@ -516,10 +518,6 @@
     const setStatus = createStateTextSetter(statusText);
     const setToxicityStatus = createStateTextSetter(toxicityStatus);
     const setSentimentStatus = createStateTextSetter(sentimentStatus);
-
-    function clamp(value, min, max) {
-      return Math.max(min, Math.min(max, value));
-    }
 
     function normalizePredictions(predictions) {
       if (Array.isArray(predictions)) {

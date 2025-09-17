@@ -6,6 +6,7 @@
   <title>VibeDJ</title>
   <link rel="icon" href="data:,">
   <script src="/shared/browser-actions.js"></script>
+  <script src="/shared/browser-math.js"></script>
   <link rel="stylesheet" href="/shared/browser-tokens.css">
   <link rel="stylesheet" href="/shared/browser-starter.css">
   <script src="/shared/browser-status.js"></script>
@@ -434,6 +435,7 @@
     env.allowRemoteModels = true;
 
     const { bindDatasetButtons, copyTextToClipboard, downloadTextFile } = window.PlaygroundBrowserActions;
+    const { clamp } = window.PlaygroundBrowserMath;
     const { createStateTextSetter, setStatusState } = window.PlaygroundBrowserStatus;
     const MODEL_ID = "Xenova/distilbert-base-uncased-finetuned-sst-2-english";
     const SAMPLE_TEXTS = {
@@ -808,10 +810,6 @@
 
     function syncAudioUnlockHint() {
       audioUnlockHint.hidden = !currentMix || audioPrimed;
-    }
-
-    function clamp(value, min, max) {
-      return Math.max(min, Math.min(max, value));
     }
 
     function countMatches(regex, text) {

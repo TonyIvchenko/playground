@@ -26,6 +26,12 @@ can also load:
 <script src="/shared/browser-actions.js"></script>
 ```
 
+When a browser app only needs basic math helpers, it can also load:
+
+```html
+<script src="/shared/browser-math.js"></script>
+```
+
 The starter stylesheet defines the shared shell and form helpers for:
 
 - `app-starter-shell`
@@ -68,6 +74,10 @@ Use that helper when a page only needs the standard “pick a sample from
 the standard text-file download/export path, or when it only needs a
 shared counter plus soft-limit hint updater, or when it only needs a
 shared clipboard copy path with fallback.
+
+The shared browser math helper defines:
+
+- `window.PlaygroundBrowserMath.clamp(...)`
 
 The shared stylesheet defines the base token groups for:
 
