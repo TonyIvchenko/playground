@@ -103,6 +103,17 @@
   color: var(--app-starter-file-inline-color);
 }
 
+.sample-row,
+.upload-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.upload-row {
+  align-items: center;
+}
+
 @media (max-width: 64rem) {
   .app-starter-shell {
     padding: var(--app-starter-page-padding-md);
