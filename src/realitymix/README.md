@@ -23,3 +23,4 @@ Then open `http://127.0.0.1:8080` and allow camera access.
 - lower internal resolution is faster
 - higher update rate is smoother but heavier
 - camera access is required
+- built-in style samples are intentionally inline SVG data URLs in `index.html` to keep this app self-contained with fewer moving files
