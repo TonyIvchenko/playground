@@ -38,6 +38,7 @@ The starter stylesheet defines the shared shell and form helpers for:
 - `app-starter-file-inline`
 - `sample-row`
 - `upload-row`
+- `actions`
 
 Use those classes for the top-level page shell, hero block, large panel
 surfaces, and the repeated label or textarea or select chrome before

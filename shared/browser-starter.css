@@ -110,6 +110,12 @@
   gap: 10px;
 }
 
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .upload-row {
   align-items: center;
 }
