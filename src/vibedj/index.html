@@ -439,7 +439,7 @@
     env.allowLocalModels = false;
     env.allowRemoteModels = true;
 
-    const { bindDatasetButtons, downloadTextFile } = window.PlaygroundBrowserActions;
+    const { bindDatasetButtons, copyTextToClipboard, downloadTextFile } = window.PlaygroundBrowserActions;
     const { createStateTextSetter, setStatusState } = window.PlaygroundBrowserStatus;
     const MODEL_ID = "Xenova/distilbert-base-uncased-finetuned-sst-2-english";
     const SAMPLE_TEXTS = {
@@ -1608,7 +1608,10 @@
         return;
       }
       try {
-        await navigator.clipboard.writeText(lastBrief);
+        const copied = await copyTextToClipboard(lastBrief);
+        if (!copied) {
+          throw new Error("Copy command unavailable");
+        }
         setStatus("Creative brief copied.");
       } catch (error) {
         console.error(error);

@@ -57,6 +57,7 @@ The shared browser actions helper defines:
 
 - `window.PlaygroundBrowserActions.bindDatasetButtons(...)`
 - `window.PlaygroundBrowserActions.bindFirstFileInput(...)`
+- `window.PlaygroundBrowserActions.copyTextToClipboard(...)`
 - `window.PlaygroundBrowserActions.createSoftLimitGuidanceUpdater(...)`
 - `window.PlaygroundBrowserActions.downloadTextFile(...)`
 - `window.PlaygroundBrowserActions.readTextFile(...)`
@@ -64,7 +65,8 @@ The shared browser actions helper defines:
 Use that helper when a page only needs the standard “pick a sample from
 `data-*`” or “read the first selected file” flow, or when it only needs
 the standard text-file download/export path, or when it only needs a
-shared counter plus soft-limit hint updater.
+shared counter plus soft-limit hint updater, or when it only needs a
+shared clipboard copy path with fallback.
 
 The shared stylesheet defines the base token groups for:
 

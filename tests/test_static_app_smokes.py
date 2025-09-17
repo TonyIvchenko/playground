@@ -94,7 +94,7 @@ STATIC_SMOKE_CASES = (
             "--expect-content-type",
             "text/javascript",
             "--expect-body-fragment",
-            "downloadTextFile",
+            "copyTextToClipboard",
         ),
         "/shared/browser-actions.js",
         id="browser-actions",

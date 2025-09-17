@@ -425,6 +425,7 @@
     const {
       bindDatasetButtons,
       bindFirstFileInput,
+      copyTextToClipboard,
       createSoftLimitGuidanceUpdater,
       readTextFile
     } = window.PlaygroundBrowserActions;
@@ -612,30 +613,6 @@
         );
       }
       return sections.join("\n").trim();
-    }
-
-    async function copyText(text) {
-      if (navigator.clipboard?.writeText && window.isSecureContext) {
-        await navigator.clipboard.writeText(text);
-        return true;
-      }
-
-      const textarea = document.createElement("textarea");
-      textarea.value = text;
-      textarea.setAttribute("readonly", "");
-      textarea.style.position = "fixed";
-      textarea.style.opacity = "0";
-      textarea.style.pointerEvents = "none";
-      document.body.appendChild(textarea);
-      textarea.focus();
-      textarea.select();
-      textarea.setSelectionRange(0, textarea.value.length);
-
-      try {
-        return document.execCommand("copy");
-      } finally {
-        textarea.remove();
-      }
     }
 
     function heuristicCounterpack(text) {
@@ -861,7 +838,7 @@
 
       copyButton.disabled = true;
       try {
-        const copied = await copyText(buildExportText(lastPack));
+        const copied = await copyTextToClipboard(buildExportText(lastPack));
         if (!copied) {
           throw new Error("Copy command unavailable");
         }
