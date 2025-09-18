@@ -147,7 +147,13 @@ ACTION_HELPER_SERVICES = (
     "realitymix",
     "vibedj",
 )
-MATH_HELPER_SERVICES = ("manipulation", "realitycheck", "vibedj")
+MATH_HELPER_SERVICES = (
+    "manipulation",
+    "memorypalace",
+    "realitycheck",
+    "realitymix",
+    "vibedj",
+)
 STATIC_PAGE_CASES = (
     pytest.param(
         "bert",
