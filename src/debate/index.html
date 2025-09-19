@@ -407,7 +407,8 @@
       bindFirstFileInput,
       createSoftLimitGuidanceUpdater,
       downloadTextFile,
-      readTextFile
+      readTextFile,
+      slugifyText
     } = window.PlaygroundBrowserActions;
     const { createStateTextSetter, setStatusState } = window.PlaygroundBrowserStatus;
     const docA = document.getElementById("doc-a");
@@ -559,10 +560,6 @@
 
     function takeWords(text, count = 18) {
       return text.split(/\s+/).filter(Boolean).slice(0, count).join(" ");
-    }
-
-    function slugify(value) {
-      return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "debate";
     }
 
     function resetExportState() {
@@ -947,7 +944,9 @@
         return;
       }
       try {
-        const filename = `${slugify(lastDebateNotes.caseTypeLabel)}-debate-notes.md`;
+        const filename = `${slugifyText(lastDebateNotes.caseTypeLabel, {
+          fallback: "debate",
+        })}-debate-notes.md`;
         downloadTextFile(
           filename,
           buildMarkdownNotes(lastDebateNotes),

@@ -68,12 +68,15 @@ The shared browser actions helper defines:
 - `window.PlaygroundBrowserActions.createSoftLimitGuidanceUpdater(...)`
 - `window.PlaygroundBrowserActions.downloadTextFile(...)`
 - `window.PlaygroundBrowserActions.readTextFile(...)`
+- `window.PlaygroundBrowserActions.slugifyText(...)`
 
 Use that helper when a page only needs the standard “pick a sample from
 `data-*`” or “read the first selected file” flow, or when it only needs
 the standard text-file download/export path, or when it only needs a
 shared counter plus soft-limit hint updater, or when it only needs a
 shared clipboard copy path with fallback.
+shared clipboard copy path with fallback, or when it only needs shared
+filename slug normalization with optional fallback and max length.
 
 The shared browser math helper defines:
 

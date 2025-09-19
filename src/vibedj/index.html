@@ -434,7 +434,12 @@
     env.allowLocalModels = false;
     env.allowRemoteModels = true;
 
-    const { bindDatasetButtons, copyTextToClipboard, downloadTextFile } = window.PlaygroundBrowserActions;
+    const {
+      bindDatasetButtons,
+      copyTextToClipboard,
+      downloadTextFile,
+      slugifyText,
+    } = window.PlaygroundBrowserActions;
     const { clamp } = window.PlaygroundBrowserMath;
     const { createStateTextSetter, setStatusState } = window.PlaygroundBrowserStatus;
     const MODEL_ID = "Xenova/distilbert-base-uncased-finetuned-sst-2-english";
@@ -1420,19 +1425,14 @@
       ].join("\n");
     }
 
-    function slugify(text) {
-      return text
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "")
-        .slice(0, 64) || "vibedj-set";
-    }
-
     function recommendationFilename(extension) {
       if (!currentAnalysis) {
         return `vibedj-recommendations.${extension}`;
       }
-      return `${slugify(currentAnalysis.name)}-recommendations.${extension}`;
+      return `${slugifyText(currentAnalysis.name, {
+        fallback: "vibedj-set",
+        maxLength: 64,
+      })}-recommendations.${extension}`;
     }
 
     function buildRecommendationMarkdown(analysis) {

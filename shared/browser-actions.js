@@ -85,6 +85,18 @@
     return (await file.text()).trim();
   }
 
+  function slugifyText(
+    value,
+    { fallback = "slug", maxLength = 0 } = {}
+  ) {
+    const normalized = String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    const limited = maxLength > 0 ? normalized.slice(0, maxLength) : normalized;
+    return limited || fallback;
+  }
+
   window.PlaygroundBrowserActions = Object.freeze({
     bindDatasetButtons,
     bindFirstFileInput,
@@ -92,5 +104,6 @@
     createSoftLimitGuidanceUpdater,
     downloadTextFile,
     readTextFile,
+    slugifyText,
   });
 })();

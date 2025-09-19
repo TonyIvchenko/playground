@@ -113,6 +113,19 @@ STATIC_SMOKE_CASES = (
         id="browser-guidance",
     ),
     pytest.param(
+        "shared browser slugify",
+        (
+            "--path",
+            "/shared/browser-actions.js",
+            "--expect-content-type",
+            "text/javascript",
+            "--expect-body-fragment",
+            "slugifyText",
+        ),
+        "/shared/browser-actions.js",
+        id="browser-slugify",
+    ),
+    pytest.param(
         "shared browser math",
         (
             "--path",
