@@ -242,9 +242,9 @@
           Style image
           <input id="style-input" class="app-starter-control app-starter-file-control" type="file" accept="image/*">
           <div class="sample-row">
-            <button class="app-button secondary" data-style-sample="sunset-weave" type="button">Sunset Weave</button>
-            <button class="app-button secondary" data-style-sample="blueprint-bloom" type="button">Blueprint Bloom</button>
-            <button class="app-button secondary" data-style-sample="poster-pulse" type="button">Poster Pulse</button>
+            <button class="app-button secondary" data-sample="sunset-weave" type="button">Sunset Weave</button>
+            <button class="app-button secondary" data-sample="blueprint-bloom" type="button">Blueprint Bloom</button>
+            <button class="app-button secondary" data-sample="poster-pulse" type="button">Poster Pulse</button>
           </div>
         </label>
 
@@ -937,7 +937,7 @@
       }
     });
 
-    bindDatasetButtons(document.querySelectorAll("[data-style-sample]"), "styleSample", async (sampleKey) => {
+    bindDatasetButtons(document.querySelectorAll("[data-sample]"), "sample", async (sampleKey) => {
       if (!sampleKey) {
         return;
       }

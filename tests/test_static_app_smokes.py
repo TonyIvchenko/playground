@@ -299,9 +299,9 @@ STATIC_PAGE_CASES = (
     pytest.param(
         "realitymix",
         (
-            'data-style-sample="sunset-weave"',
-            'data-style-sample="blueprint-bloom"',
-            'data-style-sample="poster-pulse"',
+            'data-sample="sunset-weave"',
+            'data-sample="blueprint-bloom"',
+            'data-sample="poster-pulse"',
             "Sunset Weave",
             "Blueprint Bloom",
             "Poster Pulse",
