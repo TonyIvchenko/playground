@@ -236,7 +236,7 @@
     const result = document.getElementById("result");
     const scoreNote = document.getElementById("score-note");
     const truncationWarning = document.getElementById("truncation-warning");
-    const sampleButtons = Array.from(document.querySelectorAll("[data-sample-text]"));
+    const sampleButtons = document.querySelectorAll("[data-sample-text]");
 
     let classifier = null;
     let requestId = 0;
