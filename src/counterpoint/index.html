@@ -130,6 +130,10 @@
       background: var(--panel-strong);
     }
 
+    .card-full {
+      grid-column: 1 / -1;
+    }
+
     .input-card h2,
     .card h2 {
       margin: 0;
@@ -353,7 +357,7 @@
             <div id="dont-say" class="list"></div>
           </section>
 
-          <section class="card" style="grid-column: 1 / -1;" data-detail-card>
+          <section class="card card-full" data-detail-card>
             <div>
               <h2>Prep Notes</h2>
               <p class="hint">What to tighten before the real conversation starts.</p>
