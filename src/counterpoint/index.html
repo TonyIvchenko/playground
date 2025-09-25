@@ -565,6 +565,14 @@
       return select.options[select.selectedIndex]?.textContent?.trim() || "";
     }
 
+    function selectedContextLabels() {
+      return {
+        arenaLabel: selectedLabel(arenaSelect),
+        styleLabel: selectedLabel(styleSelect),
+        pressureLabel: selectedLabel(pressureSelect),
+      };
+    }
+
     function selectedOutputMode() {
       return outputModeSelect.value;
     }
@@ -779,9 +787,7 @@
         renderPack({
           ...pack,
           sourceText: text,
-          arenaLabel: selectedLabel(arenaSelect),
-          styleLabel: selectedLabel(styleSelect),
-          pressureLabel: selectedLabel(pressureSelect)
+          ...selectedContextLabels(),
         });
         setStatus("Counter-side ready.");
       } catch (error) {
@@ -791,9 +797,7 @@
         renderPack({
           ...heuristicCounterpack(text),
           sourceText: text,
-          arenaLabel: selectedLabel(arenaSelect),
-          styleLabel: selectedLabel(styleSelect),
-          pressureLabel: selectedLabel(pressureSelect)
+          ...selectedContextLabels(),
         });
         setStatus("Counter-side ready.");
       } finally {
