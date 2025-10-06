@@ -789,7 +789,6 @@
           sourceText: text,
           ...selectedContextLabels(),
         });
-        setStatus("Counter-side ready.");
       } catch (error) {
         console.error(error);
         fallbackMode = true;
@@ -799,8 +798,8 @@
           sourceText: text,
           ...selectedContextLabels(),
         });
-        setStatus("Counter-side ready.");
       } finally {
+        setStatus("Counter-side ready.");
         runButton.disabled = false;
         copyButton.disabled = !lastPack;
         clearButton.disabled = false;
