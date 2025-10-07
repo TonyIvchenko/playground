@@ -463,6 +463,7 @@
     let fallbackMode = false;
     let lastPack = null;
     const SOFT_WORD_LIMIT = 140;
+    const EMPTY_OUTPUT_MESSAGE = "Build the counter-side to begin.";
 
     const setStatus = createStateTextSetter(statusEl);
     const setModelPill = createStateTextSetter(modelPill);
@@ -760,8 +761,8 @@
     function clearOutputs() {
       lastPack = null;
       applyOutputMode();
-      counterThesisEl.textContent = "Build the counter-side to begin.";
-      openingAttackEl.textContent = "Build the counter-side to begin.";
+      counterThesisEl.textContent = EMPTY_OUTPUT_MESSAGE;
+      openingAttackEl.textContent = EMPTY_OUTPUT_MESSAGE;
       for (const target of [attackLinesEl, trapQuestionsEl, weakSpotsEl, dontSayEl, prepNotesEl]) {
         target.innerHTML = "";
       }
