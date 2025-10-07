@@ -811,11 +811,12 @@
       fileInput.value = "";
       clearOutputs();
       updateWordGuidance("");
+      const canRun = modelReady || fallbackMode;
       setStatus(
-        modelReady || fallbackMode
+        canRun
           ? "Paste a position and build the counter-side."
           : "Loading browser generation model…",
-        modelReady || fallbackMode ? {} : { isLoading: true }
+        canRun ? {} : { isLoading: true }
       );
     }
 
