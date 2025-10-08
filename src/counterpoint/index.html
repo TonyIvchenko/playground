@@ -473,6 +473,8 @@
     const UNAVAILABLE_MODEL_PILL_MESSAGE = "Browser generation model unavailable";
     const FALLBACK_MODEL_ERROR_MESSAGE =
       "Couldn't load the browser generation model. Counterpoint is using fallback mode for this run.";
+    const SAMPLE_READY_STATUS_MESSAGE = "Sample loaded. Build the counter-side when ready.";
+    const BUILD_FIRST_ERROR_MESSAGE = "Build the counter-side first.";
 
     const setStatus = createStateTextSetter(statusEl);
     const setModelPill = createStateTextSetter(modelPill);
@@ -844,13 +846,13 @@
       positionInput.value = SAMPLE_TEXT[key] || "";
       updateWordGuidance(positionInput.value);
       clearOutputs();
-      setStatus("Sample loaded. Build the counter-side when ready.");
+      setStatus(SAMPLE_READY_STATUS_MESSAGE);
     });
 
     runButton.addEventListener("click", runGhostwriter);
     copyButton.addEventListener("click", async () => {
       if (!lastPack) {
-        setStatus("Build the counter-side first.", { isError: true });
+        setStatus(BUILD_FIRST_ERROR_MESSAGE, { isError: true });
         return;
       }
 
