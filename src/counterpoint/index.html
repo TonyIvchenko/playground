@@ -464,6 +464,8 @@
     let lastPack = null;
     const SOFT_WORD_LIMIT = 140;
     const EMPTY_OUTPUT_MESSAGE = "Build the counter-side to begin.";
+    const READY_STATUS_MESSAGE = "Paste a position and build the counter-side.";
+    const LOADING_STATUS_MESSAGE = "Loading browser generation model…";
 
     const setStatus = createStateTextSetter(statusEl);
     const setModelPill = createStateTextSetter(modelPill);
@@ -661,7 +663,7 @@
     async function ensureModel() {
       fallbackMode = false;
       setStatusState(fallbackPill, "hidden");
-      setStatus("Loading browser generation model…", { isLoading: true });
+      setStatus(LOADING_STATUS_MESSAGE, { isLoading: true });
       setModelPill("Loading browser generation model", { isLoading: true });
       try {
         ghostwriter = await pipeline("text2text-generation", "Xenova/flan-t5-small", {
@@ -675,7 +677,7 @@
         positionInput.disabled = false;
         runButton.disabled = false;
         setModelPill("Browser generation model ready");
-        setStatus("Paste a position and build the counter-side.");
+        setStatus(READY_STATUS_MESSAGE);
       } catch (error) {
         console.error(error);
         modelReady = false;
@@ -815,8 +817,8 @@
       const canRun = modelReady || fallbackMode;
       setStatus(
         canRun
-          ? "Paste a position and build the counter-side."
-          : "Loading browser generation model…",
+          ? READY_STATUS_MESSAGE
+          : LOADING_STATUS_MESSAGE,
         canRun ? {} : { isLoading: true }
       );
     }
