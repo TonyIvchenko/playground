@@ -475,6 +475,8 @@
       "Couldn't load the browser generation model. Counterpoint is using fallback mode for this run.";
     const SAMPLE_READY_STATUS_MESSAGE = "Sample loaded. Build the counter-side when ready.";
     const BUILD_FIRST_ERROR_MESSAGE = "Build the counter-side first.";
+    const COPY_SUCCESS_STATUS_MESSAGE = "Counter-side notes copied.";
+    const COPY_ERROR_STATUS_MESSAGE = "Couldn't copy the counter-side notes.";
 
     const setStatus = createStateTextSetter(statusEl);
     const setModelPill = createStateTextSetter(modelPill);
@@ -862,10 +864,10 @@
         if (!copied) {
           throw new Error("Copy command unavailable");
         }
-        setStatus("Counter-side notes copied.");
+        setStatus(COPY_SUCCESS_STATUS_MESSAGE);
       } catch (error) {
         console.error(error);
-        setStatus("Couldn't copy the counter-side notes.", { isError: true });
+        setStatus(COPY_ERROR_STATUS_MESSAGE, { isError: true });
       } finally {
         copyButton.disabled = !lastPack;
       }
