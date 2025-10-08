@@ -471,6 +471,8 @@
     const DOWNLOADING_MODEL_PILL_MESSAGE = "Downloading browser generation model";
     const READY_MODEL_PILL_MESSAGE = "Browser generation model ready";
     const UNAVAILABLE_MODEL_PILL_MESSAGE = "Browser generation model unavailable";
+    const FALLBACK_MODEL_ERROR_MESSAGE =
+      "Couldn't load the browser generation model. Counterpoint is using fallback mode for this run.";
 
     const setStatus = createStateTextSetter(statusEl);
     const setModelPill = createStateTextSetter(modelPill);
@@ -692,7 +694,7 @@
         runButton.disabled = false;
         setModelPill(UNAVAILABLE_MODEL_PILL_MESSAGE, { isError: true });
         setStatusState(fallbackPill, "fallback");
-        setStatus("Couldn't load the browser generation model. Counterpoint is using fallback mode for this run.", { isError: true });
+        setStatus(FALLBACK_MODEL_ERROR_MESSAGE, { isError: true });
       }
     }
 
