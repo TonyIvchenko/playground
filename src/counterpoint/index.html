@@ -466,6 +466,11 @@
     const EMPTY_OUTPUT_MESSAGE = "Build the counter-side to begin.";
     const READY_STATUS_MESSAGE = "Paste a position and build the counter-side.";
     const LOADING_STATUS_MESSAGE = "Loading browser generation model…";
+    const LOADING_MODEL_PILL_MESSAGE = "Loading browser generation model";
+    const DOWNLOADING_STATUS_MESSAGE = "Downloading browser generation model…";
+    const DOWNLOADING_MODEL_PILL_MESSAGE = "Downloading browser generation model";
+    const READY_MODEL_PILL_MESSAGE = "Browser generation model ready";
+    const UNAVAILABLE_MODEL_PILL_MESSAGE = "Browser generation model unavailable";
 
     const setStatus = createStateTextSetter(statusEl);
     const setModelPill = createStateTextSetter(modelPill);
@@ -664,19 +669,19 @@
       fallbackMode = false;
       setStatusState(fallbackPill, "hidden");
       setStatus(LOADING_STATUS_MESSAGE, { isLoading: true });
-      setModelPill("Loading browser generation model", { isLoading: true });
+      setModelPill(LOADING_MODEL_PILL_MESSAGE, { isLoading: true });
       try {
         ghostwriter = await pipeline("text2text-generation", "Xenova/flan-t5-small", {
           quantized: true,
           progress_callback: () => {
-            setStatus("Downloading browser generation model…", { isLoading: true });
-            setModelPill("Downloading browser generation model", { isLoading: true });
+            setStatus(DOWNLOADING_STATUS_MESSAGE, { isLoading: true });
+            setModelPill(DOWNLOADING_MODEL_PILL_MESSAGE, { isLoading: true });
           }
         });
         modelReady = true;
         positionInput.disabled = false;
         runButton.disabled = false;
-        setModelPill("Browser generation model ready");
+        setModelPill(READY_MODEL_PILL_MESSAGE);
         setStatus(READY_STATUS_MESSAGE);
       } catch (error) {
         console.error(error);
@@ -685,7 +690,7 @@
         ghostwriter = null;
         positionInput.disabled = false;
         runButton.disabled = false;
-        setModelPill("Browser generation model unavailable", { isError: true });
+        setModelPill(UNAVAILABLE_MODEL_PILL_MESSAGE, { isError: true });
         setStatusState(fallbackPill, "fallback");
         setStatus("Couldn't load the browser generation model. Counterpoint is using fallback mode for this run.", { isError: true });
       }
