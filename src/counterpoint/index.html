@@ -487,6 +487,10 @@
       return text.replace(/\s+/g, " ").trim();
     }
 
+    function loadedFileStatusMessage(fileName) {
+      return `Loaded ${fileName}.`;
+    }
+
     const updateWordGuidance = createSoftLimitGuidanceUpdater({
       countElement: wordCountEl,
       noteElement: softLimitNoteEl,
@@ -843,7 +847,7 @@
       positionInput.value = await readTextFile(file);
       updateWordGuidance(positionInput.value);
       clearOutputs();
-      setStatus(`Loaded ${file.name}.`);
+      setStatus(loadedFileStatusMessage(file.name));
     });
 
     bindDatasetButtons(document.querySelectorAll("[data-sample]"), "sample", (key) => {
