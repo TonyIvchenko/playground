@@ -477,6 +477,8 @@
     const BUILD_FIRST_ERROR_MESSAGE = "Build the counter-side first.";
     const COPY_SUCCESS_STATUS_MESSAGE = "Counter-side notes copied.";
     const COPY_ERROR_STATUS_MESSAGE = "Couldn't copy the counter-side notes.";
+    const PASTE_FIRST_ERROR_MESSAGE = "Paste your position first.";
+    const COUNTER_READY_STATUS_MESSAGE = "Counter-side ready.";
 
     const setStatus = createStateTextSetter(statusEl);
     const setModelPill = createStateTextSetter(modelPill);
@@ -785,7 +787,7 @@
     async function runGhostwriter() {
       const text = normalizeWhitespace(positionInput.value);
       if (!text) {
-        setStatus("Paste your position first.", { isError: true });
+        setStatus(PASTE_FIRST_ERROR_MESSAGE, { isError: true });
         return;
       }
 
@@ -813,7 +815,7 @@
           ...selectedContextLabels(),
         });
       } finally {
-        setStatus("Counter-side ready.");
+        setStatus(COUNTER_READY_STATUS_MESSAGE);
         runButton.disabled = false;
         copyButton.disabled = !lastPack;
         clearButton.disabled = false;
