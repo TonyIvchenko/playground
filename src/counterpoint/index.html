@@ -597,6 +597,10 @@
       return outputModeSelect.value;
     }
 
+    function withSelectedFallback(value, select) {
+      return value || selectedLabel(select);
+    }
+
     function applyOutputMode(mode = selectedOutputMode()) {
       const steelmanOnly = mode === "steelman";
       for (const card of detailCards) {
@@ -611,9 +615,9 @@
       const steelmanOnly = selectedOutputMode() === "steelman";
       const sections = [
         "Counterpoint Notes",
-        `Arena: ${pack.arenaLabel || selectedLabel(arenaSelect)}`,
-        `Opponent style: ${pack.styleLabel || selectedLabel(styleSelect)}`,
-        `Pressure level: ${pack.pressureLabel || selectedLabel(pressureSelect)}`,
+        `Arena: ${withSelectedFallback(pack.arenaLabel, arenaSelect)}`,
+        `Opponent style: ${withSelectedFallback(pack.styleLabel, styleSelect)}`,
+        `Pressure level: ${withSelectedFallback(pack.pressureLabel, pressureSelect)}`,
         `Output mode: ${steelmanOnly ? "Strongest steelman only" : "Full prep breakdown"}`,
         "",
         "Your Position",
