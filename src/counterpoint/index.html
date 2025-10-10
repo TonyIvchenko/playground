@@ -792,6 +792,12 @@
       copyButton.disabled = true;
     }
 
+    function setRunInProgressState(isRunning) {
+      runButton.disabled = isRunning;
+      copyButton.disabled = isRunning || !lastPack;
+      clearButton.disabled = isRunning;
+    }
+
     async function runGhostwriter() {
       const text = normalizeWhitespace(positionInput.value);
       if (!text) {
@@ -799,9 +805,7 @@
         return;
       }
 
-      runButton.disabled = true;
-      copyButton.disabled = true;
-      clearButton.disabled = true;
+      setRunInProgressState(true);
       setStatus("Building the counter-side…");
 
       try {
@@ -824,9 +828,7 @@
         });
       } finally {
         setStatus(COUNTER_READY_STATUS_MESSAGE);
-        runButton.disabled = false;
-        copyButton.disabled = !lastPack;
-        clearButton.disabled = false;
+        setRunInProgressState(false);
       }
     }
 
