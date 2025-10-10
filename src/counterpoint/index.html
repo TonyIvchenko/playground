@@ -478,6 +478,7 @@
     const COPY_SUCCESS_STATUS_MESSAGE = "Counter-side notes copied.";
     const COPY_ERROR_STATUS_MESSAGE = "Couldn't copy the counter-side notes.";
     const PASTE_FIRST_ERROR_MESSAGE = "Paste your position first.";
+    const BUILDING_STATUS_MESSAGE = "Building the counter-side…";
     const COUNTER_READY_STATUS_MESSAGE = "Counter-side ready.";
 
     const setStatus = createStateTextSetter(statusEl);
@@ -806,7 +807,7 @@
       }
 
       setRunInProgressState(true);
-      setStatus("Building the counter-side…");
+      setStatus(BUILDING_STATUS_MESSAGE);
 
       try {
         const pack = ghostwriter
