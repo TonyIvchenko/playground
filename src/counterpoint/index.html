@@ -849,20 +849,22 @@
       );
     }
 
+    function loadPositionText(text) {
+      positionInput.value = text;
+      updateWordGuidance(positionInput.value);
+      clearOutputs();
+    }
+
     bindFirstFileInput(fileInput, async (file) => {
       if (!file) {
         return;
       }
-      positionInput.value = await readTextFile(file);
-      updateWordGuidance(positionInput.value);
-      clearOutputs();
+      loadPositionText(await readTextFile(file));
       setStatus(loadedFileStatusMessage(file.name));
     });
 
     bindDatasetButtons(document.querySelectorAll("[data-sample]"), "sample", (key) => {
-      positionInput.value = SAMPLE_TEXT[key] || "";
-      updateWordGuidance(positionInput.value);
-      clearOutputs();
+      loadPositionText(SAMPLE_TEXT[key] || "");
       setStatus(SAMPLE_READY_STATUS_MESSAGE);
     });
 
