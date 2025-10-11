@@ -480,6 +480,8 @@
     const PASTE_FIRST_ERROR_MESSAGE = "Paste your position first.";
     const BUILDING_STATUS_MESSAGE = "Building the counter-side…";
     const COUNTER_READY_STATUS_MESSAGE = "Counter-side ready.";
+    const EMPTY_THESIS_MESSAGE = "No counter-thesis generated.";
+    const EMPTY_OPENING_MESSAGE = "No opening attack generated.";
 
     const setStatus = createStateTextSetter(statusEl);
     const setModelPill = createStateTextSetter(modelPill);
@@ -772,8 +774,8 @@
     function renderPack(pack) {
       lastPack = pack;
       applyOutputMode();
-      counterThesisEl.textContent = pack.thesis || "No counter-thesis generated.";
-      openingAttackEl.textContent = pack.opening || "No opening attack generated.";
+      counterThesisEl.textContent = pack.thesis || EMPTY_THESIS_MESSAGE;
+      openingAttackEl.textContent = pack.opening || EMPTY_OPENING_MESSAGE;
       renderList(attackLinesEl, pack.attackLines, "danger");
       renderList(trapQuestionsEl, pack.traps, "blue");
       renderList(weakSpotsEl, pack.weakSpots, "danger");
