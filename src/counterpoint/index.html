@@ -519,13 +519,14 @@
     }
 
     function scoreSentence(sentence) {
-      const words = sentence.toLowerCase().match(/[a-z']+/g) || [];
+      const normalized = sentence.toLowerCase();
+      const words = normalized.match(/[a-z']+/g) || [];
       const unique = new Set(words);
       let score = sentence.length + unique.size * 8;
-      if (/because|therefore|proves|means|deserve|should|must|always|never|clearly/.test(sentence.toLowerCase())) {
+      if (/because|therefore|proves|means|deserve|should|must|always|never|clearly/.test(normalized)) {
         score += 30;
       }
-      if (/i think|i feel|maybe|sort of|kind of/.test(sentence.toLowerCase())) {
+      if (/i think|i feel|maybe|sort of|kind of/.test(normalized)) {
         score -= 18;
       }
       return score;
