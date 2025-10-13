@@ -545,17 +545,21 @@
       return normalizeWhitespace(text).split(" ").slice(0, count).join(" ");
     }
 
+    function cleanBulletLine(line) {
+      return line.replace(/^[-*\d.)\s]+/, "").trim();
+    }
+
     function bulletize(text, minimum = 4) {
       const lines = text
         .split(/\n+/)
-        .map((line) => line.replace(/^[-*\d.)\s]+/, "").trim())
+        .map(cleanBulletLine)
         .filter(Boolean);
       if (lines.length >= minimum) {
         return lines;
       }
       return text
         .split(/(?<=[.!?])\s+/)
-        .map((line) => line.replace(/^[-*\d.)\s]+/, "").trim())
+        .map(cleanBulletLine)
         .filter(Boolean)
         .slice(0, Math.max(minimum, 6));
     }
