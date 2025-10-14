@@ -482,6 +482,10 @@
     const COUNTER_READY_STATUS_MESSAGE = "Counter-side ready.";
     const EMPTY_THESIS_MESSAGE = "No counter-thesis generated.";
     const EMPTY_OPENING_MESSAGE = "No opening attack generated.";
+    const STEELMAN_MODE_NOTE_MESSAGE =
+      "Strongest steelman only: show just the core opposition thesis and opening attack.";
+    const FULL_MODE_NOTE_MESSAGE =
+      "Full prep breakdown: include attack lines, trap questions, weak spots, do-not-say notes, and prep notes.";
 
     const setStatus = createStateTextSetter(statusEl);
     const setModelPill = createStateTextSetter(modelPill);
@@ -615,8 +619,8 @@
         card.hidden = steelmanOnly;
       }
       outputModeNoteEl.textContent = steelmanOnly
-        ? "Strongest steelman only: show just the core opposition thesis and opening attack."
-        : "Full prep breakdown: include attack lines, trap questions, weak spots, do-not-say notes, and prep notes.";
+        ? STEELMAN_MODE_NOTE_MESSAGE
+        : FULL_MODE_NOTE_MESSAGE;
     }
 
     function buildExportText(pack) {
