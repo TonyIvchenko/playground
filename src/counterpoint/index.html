@@ -482,6 +482,8 @@
     const COUNTER_READY_STATUS_MESSAGE = "Counter-side ready.";
     const EMPTY_THESIS_MESSAGE = "No counter-thesis generated.";
     const EMPTY_OPENING_MESSAGE = "No opening attack generated.";
+    const STEELMAN_MODE_LABEL = "Strongest steelman only";
+    const FULL_MODE_LABEL = "Full prep breakdown";
     const STEELMAN_MODE_NOTE_MESSAGE =
       "Strongest steelman only: show just the core opposition thesis and opening attack.";
     const FULL_MODE_NOTE_MESSAGE =
@@ -623,6 +625,10 @@
         : FULL_MODE_NOTE_MESSAGE;
     }
 
+    function outputModeLabel(mode) {
+      return mode === "steelman" ? STEELMAN_MODE_LABEL : FULL_MODE_LABEL;
+    }
+
     function buildExportText(pack) {
       const steelmanOnly = selectedOutputMode() === "steelman";
       const sections = [
@@ -630,7 +636,7 @@
         `Arena: ${withSelectedFallback(pack.arenaLabel, arenaSelect)}`,
         `Opponent style: ${withSelectedFallback(pack.styleLabel, styleSelect)}`,
         `Pressure level: ${withSelectedFallback(pack.pressureLabel, pressureSelect)}`,
-        `Output mode: ${steelmanOnly ? "Strongest steelman only" : "Full prep breakdown"}`,
+        `Output mode: ${outputModeLabel(selectedOutputMode())}`,
         "",
         "Your Position",
         pack.sourceText || "",
