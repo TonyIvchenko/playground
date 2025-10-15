@@ -589,10 +589,14 @@
         const strong = document.createElement("strong");
         strong.textContent = head ? head.trim() : "Note";
         const body = document.createElement("div");
-        body.textContent = rest.join(":").trim() || item.trim();
+        body.textContent = valueOrFallback(rest.join(":").trim(), item.trim());
         div.append(strong, body);
         target.appendChild(div);
       }
+    }
+
+    function valueOrFallback(value, fallback) {
+      return value || fallback;
     }
 
     function selectedLabel(select) {
@@ -612,7 +616,7 @@
     }
 
     function withSelectedFallback(value, select) {
-      return value || selectedLabel(select);
+      return valueOrFallback(value, selectedLabel(select));
     }
 
     function applyOutputMode(mode = selectedOutputMode()) {
