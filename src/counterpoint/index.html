@@ -630,13 +630,14 @@
     }
 
     function buildExportText(pack) {
-      const steelmanOnly = selectedOutputMode() === "steelman";
+      const mode = selectedOutputMode();
+      const steelmanOnly = mode === "steelman";
       const sections = [
         "Counterpoint Notes",
         `Arena: ${withSelectedFallback(pack.arenaLabel, arenaSelect)}`,
         `Opponent style: ${withSelectedFallback(pack.styleLabel, styleSelect)}`,
         `Pressure level: ${withSelectedFallback(pack.pressureLabel, pressureSelect)}`,
-        `Output mode: ${outputModeLabel(selectedOutputMode())}`,
+        `Output mode: ${outputModeLabel(mode)}`,
         "",
         "Your Position",
         pack.sourceText || "",
