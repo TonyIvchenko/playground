@@ -489,6 +489,7 @@
     const FULL_MODE_NOTE_MESSAGE =
       "Full prep breakdown: include attack lines, trap questions, weak spots, do-not-say notes, and prep notes.";
     const LOADING_STATUS_OPTIONS = { isLoading: true };
+    const ERROR_STATUS_OPTIONS = { isError: true };
 
     const setStatus = createStateTextSetter(statusEl);
     const setModelPill = createStateTextSetter(modelPill);
@@ -730,9 +731,9 @@
         ghostwriter = null;
         positionInput.disabled = false;
         runButton.disabled = false;
-        setModelPill(UNAVAILABLE_MODEL_PILL_MESSAGE, { isError: true });
+        setModelPill(UNAVAILABLE_MODEL_PILL_MESSAGE, ERROR_STATUS_OPTIONS);
         setStatusState(fallbackPill, "fallback");
-        setStatus(FALLBACK_MODEL_ERROR_MESSAGE, { isError: true });
+        setStatus(FALLBACK_MODEL_ERROR_MESSAGE, ERROR_STATUS_OPTIONS);
       }
     }
 
