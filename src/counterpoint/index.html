@@ -488,6 +488,7 @@
       "Strongest steelman only: show just the core opposition thesis and opening attack.";
     const FULL_MODE_NOTE_MESSAGE =
       "Full prep breakdown: include attack lines, trap questions, weak spots, do-not-say notes, and prep notes.";
+    const LOADING_STATUS_OPTIONS = { isLoading: true };
 
     const setStatus = createStateTextSetter(statusEl);
     const setModelPill = createStateTextSetter(modelPill);
@@ -707,14 +708,14 @@
     async function ensureModel() {
       fallbackMode = false;
       setStatusState(fallbackPill, "hidden");
-      setStatus(LOADING_STATUS_MESSAGE, { isLoading: true });
-      setModelPill(LOADING_MODEL_PILL_MESSAGE, { isLoading: true });
+      setStatus(LOADING_STATUS_MESSAGE, LOADING_STATUS_OPTIONS);
+      setModelPill(LOADING_MODEL_PILL_MESSAGE, LOADING_STATUS_OPTIONS);
       try {
         ghostwriter = await pipeline("text2text-generation", "Xenova/flan-t5-small", {
           quantized: true,
           progress_callback: () => {
-            setStatus(DOWNLOADING_STATUS_MESSAGE, { isLoading: true });
-            setModelPill(DOWNLOADING_MODEL_PILL_MESSAGE, { isLoading: true });
+            setStatus(DOWNLOADING_STATUS_MESSAGE, LOADING_STATUS_OPTIONS);
+            setModelPill(DOWNLOADING_MODEL_PILL_MESSAGE, LOADING_STATUS_OPTIONS);
           }
         });
         modelReady = true;
@@ -865,7 +866,7 @@
         canRun
           ? READY_STATUS_MESSAGE
           : LOADING_STATUS_MESSAGE,
-        canRun ? {} : { isLoading: true }
+        canRun ? {} : LOADING_STATUS_OPTIONS
       );
     }
 
