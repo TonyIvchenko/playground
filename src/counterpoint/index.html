@@ -816,7 +816,7 @@
       counterThesisEl.textContent = EMPTY_OUTPUT_MESSAGE;
       openingAttackEl.textContent = EMPTY_OUTPUT_MESSAGE;
       for (const target of [attackLinesEl, trapQuestionsEl, weakSpotsEl, dontSayEl, prepNotesEl]) {
-        target.innerHTML = "";
+        clearElement(target);
       }
       copyButton.disabled = true;
     }
