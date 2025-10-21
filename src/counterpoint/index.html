@@ -605,14 +605,6 @@
       return select.options[select.selectedIndex]?.textContent?.trim() || "";
     }
 
-    function selectedContextLabels() {
-      return {
-        arenaLabel: selectedLabel(arenaSelect),
-        styleLabel: selectedLabel(styleSelect),
-        pressureLabel: selectedLabel(pressureSelect),
-      };
-    }
-
     function selectedOutputMode() {
       return outputModeSelect.value;
     }
@@ -828,6 +820,11 @@
 
       setRunInProgressState(true);
       setStatus(BUILDING_STATUS_MESSAGE);
+      const contextLabels = {
+        arenaLabel: selectedLabel(arenaSelect),
+        styleLabel: selectedLabel(styleSelect),
+        pressureLabel: selectedLabel(pressureSelect),
+      };
 
       try {
         const pack = ghostwriter
@@ -836,7 +833,7 @@
         renderPack({
           ...pack,
           sourceText: text,
-          ...selectedContextLabels(),
+          ...contextLabels,
         });
       } catch (error) {
         console.error(error);
@@ -845,7 +842,7 @@
         renderPack({
           ...heuristicCounterpack(text),
           sourceText: text,
-          ...selectedContextLabels(),
+          ...contextLabels,
         });
       } finally {
         setStatus(COUNTER_READY_STATUS_MESSAGE);
