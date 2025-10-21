@@ -825,26 +825,23 @@
         styleLabel: selectedLabel(styleSelect),
         pressureLabel: selectedLabel(pressureSelect),
       };
+      let packToRender;
 
       try {
-        const pack = ghostwriter
+        packToRender = ghostwriter
           ? await buildCounterpack(text)
           : heuristicCounterpack(text);
-        renderPack({
-          ...pack,
-          sourceText: text,
-          ...contextLabels,
-        });
       } catch (error) {
         console.error(error);
         fallbackMode = true;
         setStatusState(fallbackPill, "fallback");
+        packToRender = heuristicCounterpack(text);
+      } finally {
         renderPack({
-          ...heuristicCounterpack(text),
+          ...packToRender,
           sourceText: text,
           ...contextLabels,
         });
-      } finally {
         setStatus(COUNTER_READY_STATUS_MESSAGE);
         setRunInProgressState(false);
       }
