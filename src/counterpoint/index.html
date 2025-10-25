@@ -605,11 +605,7 @@
       return select.options[select.selectedIndex]?.textContent?.trim() || "";
     }
 
-    function selectedOutputMode() {
-      return outputModeSelect.value;
-    }
-
-    function applyOutputMode(mode = selectedOutputMode()) {
+    function applyOutputMode(mode = outputModeSelect.value) {
       const steelmanOnly = mode === "steelman";
       for (const card of detailCards) {
         card.hidden = steelmanOnly;
@@ -624,7 +620,7 @@
     }
 
     function buildExportText(pack) {
-      const mode = selectedOutputMode();
+      const mode = outputModeSelect.value;
       const steelmanOnly = mode === "steelman";
       const sections = [
         "Counterpoint Notes",
