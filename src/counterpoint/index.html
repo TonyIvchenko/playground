@@ -791,7 +791,7 @@
       renderList(weakSpotsEl, pack.weakSpots, "danger");
       renderLabeledList(dontSayEl, pack.dontSay, "green");
       renderList(prepNotesEl, pack.prep, "green");
-      copyButton.disabled = false;
+      syncCopyButtonState();
     }
 
     function clearOutputs() {
@@ -802,7 +802,11 @@
       for (const target of [attackLinesEl, trapQuestionsEl, weakSpotsEl, dontSayEl, prepNotesEl]) {
         clearElement(target);
       }
-      copyButton.disabled = true;
+      syncCopyButtonState();
+    }
+
+    function syncCopyButtonState() {
+      copyButton.disabled = !lastPack;
     }
 
     function setRunInProgressState(isRunning) {
@@ -898,7 +902,7 @@
         console.error(error);
         setStatus(COPY_ERROR_STATUS_MESSAGE, ERROR_STATUS_OPTIONS);
       } finally {
-        copyButton.disabled = !lastPack;
+        syncCopyButtonState();
       }
     });
     clearButton.addEventListener("click", clearAll);
