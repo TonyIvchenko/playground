@@ -639,13 +639,13 @@
         `Output mode: ${outputModeLabel(mode)}`,
         "",
         "Your Position",
-        pack.sourceText || "",
+        valueOrFallback(pack.sourceText, ""),
         "",
         "Counter Thesis",
-        pack.thesis || "",
+        valueOrFallback(pack.thesis, ""),
         "",
         "Opening Attack",
-        pack.opening || "",
+        valueOrFallback(pack.opening, ""),
       ];
       if (!steelmanOnly) {
         sections.push(
