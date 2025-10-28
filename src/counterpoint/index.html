@@ -776,8 +776,8 @@
       const prep = bulletize(prepRaw, 5);
 
       return {
-        thesis: bulletize(thesisRaw, 4).join(" ") || fallback.thesis,
-        opening: openingRaw || fallback.opening,
+        thesis: valueOrFallback(bulletize(thesisRaw, 4).join(" "), fallback.thesis),
+        opening: valueOrFallback(openingRaw, fallback.opening),
         attackLines: attackLines.length ? attackLines : fallback.attackLines,
         traps: traps.length ? traps : fallback.traps,
         weakSpots: weakSpots.length ? weakSpots : fallback.weakSpots,
