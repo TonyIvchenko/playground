@@ -778,11 +778,11 @@
       return {
         thesis: valueOrFallback(bulletize(thesisRaw, 4).join(" "), fallback.thesis),
         opening: valueOrFallback(openingRaw, fallback.opening),
-        attackLines: attackLines.length ? attackLines : fallback.attackLines,
-        traps: traps.length ? traps : fallback.traps,
-        weakSpots: weakSpots.length ? weakSpots : fallback.weakSpots,
-        dontSay: dontSay.length ? dontSay : fallback.dontSay,
-        prep: prep.length ? prep : fallback.prep
+        attackLines: valueOrFallback(attackLines.length && attackLines, fallback.attackLines),
+        traps: valueOrFallback(traps.length && traps, fallback.traps),
+        weakSpots: valueOrFallback(weakSpots.length && weakSpots, fallback.weakSpots),
+        dontSay: valueOrFallback(dontSay.length && dontSay, fallback.dontSay),
+        prep: valueOrFallback(prep.length && prep, fallback.prep),
       };
     }
 
