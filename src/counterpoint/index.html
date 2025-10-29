@@ -624,6 +624,7 @@
       const steelmanOnly = mode === "steelman";
       const modeLabel = mode === "steelman" ? STEELMAN_MODE_LABEL : FULL_MODE_LABEL;
       const contextLabels = currentContextLabels();
+      const exportBullets = (items) => (items || []).map((item) => `- ${item}`);
       const sections = [
         "Counterpoint Notes",
         `Arena: ${valueOrFallback(pack.arenaLabel, contextLabels.arenaLabel)}`,
@@ -644,19 +645,19 @@
         sections.push(
           "",
           "Likely Attack Lines",
-          ...(pack.attackLines || []).map((item) => `- ${item}`),
+          ...exportBullets(pack.attackLines),
           "",
           "Trap Questions",
-          ...(pack.traps || []).map((item) => `- ${item}`),
+          ...exportBullets(pack.traps),
           "",
           "Weak Spots In Your Position",
-          ...(pack.weakSpots || []).map((item) => `- ${item}`),
+          ...exportBullets(pack.weakSpots),
           "",
           "Do Not Say",
-          ...(pack.dontSay || []).map((item) => `- ${item}`),
+          ...exportBullets(pack.dontSay),
           "",
           "Prep Notes",
-          ...(pack.prep || []).map((item) => `- ${item}`)
+          ...exportBullets(pack.prep)
         );
       }
       return sections.join("\n").trim();
