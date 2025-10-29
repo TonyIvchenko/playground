@@ -601,15 +601,11 @@
       return value || fallback;
     }
 
-    function selectedLabel(select) {
-      return select.options[select.selectedIndex]?.textContent?.trim() || "";
-    }
-
     function currentContextLabels() {
       return {
-        arenaLabel: selectedLabel(arenaSelect),
-        styleLabel: selectedLabel(styleSelect),
-        pressureLabel: selectedLabel(pressureSelect),
+        arenaLabel: arenaSelect.options[arenaSelect.selectedIndex]?.textContent?.trim() || "",
+        styleLabel: styleSelect.options[styleSelect.selectedIndex]?.textContent?.trim() || "",
+        pressureLabel: pressureSelect.options[pressureSelect.selectedIndex]?.textContent?.trim() || "",
       };
     }
 
