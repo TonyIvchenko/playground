@@ -619,20 +619,17 @@
         : FULL_MODE_NOTE_MESSAGE;
     }
 
-    function outputModeLabel(mode) {
-      return mode === "steelman" ? STEELMAN_MODE_LABEL : FULL_MODE_LABEL;
-    }
-
     function buildExportText(pack) {
       const mode = outputModeSelect.value;
       const steelmanOnly = mode === "steelman";
+      const modeLabel = mode === "steelman" ? STEELMAN_MODE_LABEL : FULL_MODE_LABEL;
       const contextLabels = currentContextLabels();
       const sections = [
         "Counterpoint Notes",
         `Arena: ${valueOrFallback(pack.arenaLabel, contextLabels.arenaLabel)}`,
         `Opponent style: ${valueOrFallback(pack.styleLabel, contextLabels.styleLabel)}`,
         `Pressure level: ${valueOrFallback(pack.pressureLabel, contextLabels.pressureLabel)}`,
-        `Output mode: ${outputModeLabel(mode)}`,
+        `Output mode: ${modeLabel}`,
         "",
         "Your Position",
         valueOrFallback(pack.sourceText, ""),
