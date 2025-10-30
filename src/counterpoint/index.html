@@ -624,7 +624,7 @@
       const steelmanOnly = mode === "steelman";
       const modeLabel = mode === "steelman" ? STEELMAN_MODE_LABEL : FULL_MODE_LABEL;
       const contextLabels = currentContextLabels();
-      const exportBullets = (items) => (items || []).map((item) => `- ${item}`);
+      const exportBullets = (items) => valueOrFallback(items, []).map((item) => `- ${item}`);
       const sections = [
         "Counterpoint Notes",
         `Arena: ${valueOrFallback(pack.arenaLabel, contextLabels.arenaLabel)}`,
