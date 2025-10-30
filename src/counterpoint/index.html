@@ -621,7 +621,6 @@
 
     function buildExportText(pack) {
       const mode = outputModeSelect.value;
-      const steelmanOnly = mode === "steelman";
       const modeLabel = mode === "steelman" ? STEELMAN_MODE_LABEL : FULL_MODE_LABEL;
       const contextLabels = currentContextLabels();
       const exportBullets = (items) => valueOrFallback(items, []).map((item) => `- ${item}`);
@@ -641,7 +640,7 @@
         "Opening Attack",
         valueOrFallback(pack.opening, ""),
       ];
-      if (!steelmanOnly) {
+      if (mode !== "steelman") {
         sections.push(
           "",
           "Likely Attack Lines",
