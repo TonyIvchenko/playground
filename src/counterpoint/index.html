@@ -783,8 +783,8 @@
     function renderPack(pack) {
       lastPack = pack;
       applyOutputMode();
-      counterThesisEl.textContent = pack.thesis || EMPTY_THESIS_MESSAGE;
-      openingAttackEl.textContent = pack.opening || EMPTY_OPENING_MESSAGE;
+      counterThesisEl.textContent = valueOrFallback(pack.thesis, EMPTY_THESIS_MESSAGE);
+      openingAttackEl.textContent = valueOrFallback(pack.opening, EMPTY_OPENING_MESSAGE);
       renderList(attackLinesEl, pack.attackLines, "danger");
       renderList(trapQuestionsEl, pack.traps, "blue");
       renderList(weakSpotsEl, pack.weakSpots, "danger");
