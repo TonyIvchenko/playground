@@ -621,7 +621,6 @@
 
     function buildExportText(pack) {
       const mode = outputModeSelect.value;
-      const modeLabel = mode === "steelman" ? STEELMAN_MODE_LABEL : FULL_MODE_LABEL;
       const contextLabels = currentContextLabels();
       const exportBullets = (items) => valueOrFallback(items, []).map((item) => `- ${item}`);
       const sections = [
@@ -629,7 +628,7 @@
         `Arena: ${valueOrFallback(pack.arenaLabel, contextLabels.arenaLabel)}`,
         `Opponent style: ${valueOrFallback(pack.styleLabel, contextLabels.styleLabel)}`,
         `Pressure level: ${valueOrFallback(pack.pressureLabel, contextLabels.pressureLabel)}`,
-        `Output mode: ${modeLabel}`,
+        `Output mode: ${mode === "steelman" ? STEELMAN_MODE_LABEL : FULL_MODE_LABEL}`,
         "",
         "Your Position",
         valueOrFallback(pack.sourceText, ""),
