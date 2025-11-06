@@ -620,8 +620,7 @@
     }
 
     function buildExportText(pack) {
-      const mode = outputModeSelect.value;
-      const steelmanMode = mode === "steelman";
+      const steelmanMode = outputModeSelect.value === "steelman";
       const contextLabels = currentContextLabels();
       const exportBullets = (items) => valueOrFallback(items, []).map((item) => `- ${item}`);
       const sections = [
