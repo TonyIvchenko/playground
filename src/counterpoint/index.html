@@ -621,6 +621,7 @@
 
     function buildExportText(pack) {
       const mode = outputModeSelect.value;
+      const steelmanMode = mode === "steelman";
       const contextLabels = currentContextLabels();
       const exportBullets = (items) => valueOrFallback(items, []).map((item) => `- ${item}`);
       const sections = [
@@ -628,7 +629,7 @@
         `Arena: ${valueOrFallback(pack.arenaLabel, contextLabels.arenaLabel)}`,
         `Opponent style: ${valueOrFallback(pack.styleLabel, contextLabels.styleLabel)}`,
         `Pressure level: ${valueOrFallback(pack.pressureLabel, contextLabels.pressureLabel)}`,
-        `Output mode: ${mode === "steelman" ? STEELMAN_MODE_LABEL : FULL_MODE_LABEL}`,
+        `Output mode: ${steelmanMode ? STEELMAN_MODE_LABEL : FULL_MODE_LABEL}`,
         "",
         "Your Position",
         valueOrFallback(pack.sourceText, ""),
@@ -639,7 +640,7 @@
         "Opening Attack",
         valueOrFallback(pack.opening, ""),
       ];
-      if (mode !== "steelman") {
+      if (!steelmanMode) {
         sections.push(
           "",
           "Likely Attack Lines",
