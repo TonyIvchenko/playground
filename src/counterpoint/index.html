@@ -809,10 +809,7 @@
     function setRunInProgressState(isRunning) {
       runButton.disabled = isRunning;
       clearButton.disabled = isRunning;
-      copyButton.disabled = isRunning;
-      if (!isRunning) {
-        syncCopyButtonState();
-      }
+      copyButton.disabled = isRunning || !lastPack;
     }
 
     async function runGhostwriter() {
