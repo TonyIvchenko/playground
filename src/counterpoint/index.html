@@ -456,6 +456,7 @@
     const weakSpotsEl = document.getElementById("weak-spots");
     const dontSayEl = document.getElementById("dont-say");
     const prepNotesEl = document.getElementById("prep-notes");
+    const outputListTargets = [attackLinesEl, trapQuestionsEl, weakSpotsEl, dontSayEl, prepNotesEl];
     const detailCards = [...document.querySelectorAll("[data-detail-card]")];
 
     let ghostwriter = null;
@@ -796,7 +797,7 @@
       applyOutputMode();
       counterThesisEl.textContent = EMPTY_OUTPUT_MESSAGE;
       openingAttackEl.textContent = EMPTY_OUTPUT_MESSAGE;
-      for (const target of [attackLinesEl, trapQuestionsEl, weakSpotsEl, dontSayEl, prepNotesEl]) {
+      for (const target of outputListTargets) {
         clearElement(target);
       }
       syncCopyButtonState();
