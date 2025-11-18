@@ -851,11 +851,12 @@
       clearOutputs();
       updateWordGuidance("");
       const canRun = modelReady || fallbackMode;
+      const statusOptions = canRun ? {} : LOADING_STATUS_OPTIONS;
       setStatus(
         canRun
           ? READY_STATUS_MESSAGE
           : LOADING_STATUS_MESSAGE,
-        canRun ? {} : LOADING_STATUS_OPTIONS
+        statusOptions
       );
     }
 
