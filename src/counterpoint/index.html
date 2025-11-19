@@ -851,13 +851,9 @@
       clearOutputs();
       updateWordGuidance("");
       const canRun = modelReady || fallbackMode;
+      const statusMessage = canRun ? READY_STATUS_MESSAGE : LOADING_STATUS_MESSAGE;
       const statusOptions = canRun ? {} : LOADING_STATUS_OPTIONS;
-      setStatus(
-        canRun
-          ? READY_STATUS_MESSAGE
-          : LOADING_STATUS_MESSAGE,
-        statusOptions
-      );
+      setStatus(statusMessage, statusOptions);
     }
 
     function loadPositionText(text) {
