@@ -789,7 +789,7 @@
       renderList(weakSpotsEl, pack.weakSpots, "danger");
       renderLabeledList(dontSayEl, pack.dontSay, "green");
       renderList(prepNotesEl, pack.prep, "green");
-      syncCopyButtonState();
+      copyButton.disabled = false;
     }
 
     function clearOutputs() {
@@ -800,11 +800,7 @@
       for (const target of outputListTargets) {
         clearElement(target);
       }
-      syncCopyButtonState();
-    }
-
-    function syncCopyButtonState() {
-      copyButton.disabled = !lastPack;
+      copyButton.disabled = true;
     }
 
     function setRunInProgressState(isRunning) {
@@ -893,7 +889,7 @@
         console.error(error);
         setStatus(COPY_ERROR_STATUS_MESSAGE, ERROR_STATUS_OPTIONS);
       } finally {
-        syncCopyButtonState();
+        copyButton.disabled = !lastPack;
       }
     });
     clearButton.addEventListener("click", clearAll);
