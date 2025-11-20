@@ -865,7 +865,7 @@
     });
 
     bindDatasetButtons(document.querySelectorAll("[data-sample]"), "sample", (key) => {
-      loadPositionText(SAMPLE_TEXT[key] || "");
+      loadPositionText(valueOrFallback(SAMPLE_TEXT[key], ""));
       setStatus(SAMPLE_READY_STATUS_MESSAGE);
     });
 
