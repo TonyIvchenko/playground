@@ -809,10 +809,6 @@
       copyButton.disabled = isRunning || !lastPack;
     }
 
-    function syncCopyButtonAvailability() {
-      copyButton.disabled = !lastPack;
-    }
-
     async function runGhostwriter() {
       const text = normalizeWhitespace(positionInput.value);
       if (!text) {
@@ -893,7 +889,7 @@
         console.error(error);
         setStatus(COPY_ERROR_STATUS_MESSAGE, ERROR_STATUS_OPTIONS);
       } finally {
-        syncCopyButtonAvailability();
+        copyButton.disabled = !lastPack;
       }
     });
     clearButton.addEventListener("click", clearAll);
