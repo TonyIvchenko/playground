@@ -569,12 +569,8 @@
         .slice(0, Math.max(minimum, 6));
     }
 
-    function clearElement(target) {
-      target.innerHTML = "";
-    }
-
     function renderList(target, items, tone = "blue") {
-      clearElement(target);
+      target.innerHTML = "";
       for (const item of items) {
         const div = document.createElement("div");
         div.className = `list-item ${tone}`;
@@ -584,7 +580,7 @@
     }
 
     function renderLabeledList(target, items, tone = "green") {
-      clearElement(target);
+      target.innerHTML = "";
       for (const item of items) {
         const [head, ...rest] = item.split(/:|-\>/);
         const div = document.createElement("div");
