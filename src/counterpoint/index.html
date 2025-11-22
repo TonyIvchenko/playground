@@ -606,8 +606,8 @@
       };
     }
 
-    function applyOutputMode(mode = outputModeSelect.value) {
-      const steelmanOnly = mode === "steelman";
+    function applyOutputMode() {
+      const steelmanOnly = outputModeSelect.value === "steelman";
       for (const card of detailCards) {
         card.hidden = steelmanOnly;
       }
@@ -887,9 +887,7 @@
       }
     });
     clearButton.addEventListener("click", clearAll);
-    outputModeSelect.addEventListener("change", () => {
-      applyOutputMode();
-    });
+    outputModeSelect.addEventListener("change", applyOutputMode);
     positionInput.addEventListener("input", () => {
       updateWordGuidance(positionInput.value);
     });
