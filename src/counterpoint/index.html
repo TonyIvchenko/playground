@@ -794,7 +794,7 @@
       counterThesisEl.textContent = EMPTY_OUTPUT_MESSAGE;
       openingAttackEl.textContent = EMPTY_OUTPUT_MESSAGE;
       for (const target of outputListTargets) {
-        clearElement(target);
+        target.innerHTML = "";
       }
       copyButton.disabled = true;
     }
