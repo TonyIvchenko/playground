@@ -598,11 +598,15 @@
       return value || fallback;
     }
 
+    function selectedLabel(select) {
+      return select.options[select.selectedIndex]?.textContent?.trim() || "";
+    }
+
     function currentContextLabels() {
       return {
-        arenaLabel: arenaSelect.options[arenaSelect.selectedIndex]?.textContent?.trim() || "",
-        styleLabel: styleSelect.options[styleSelect.selectedIndex]?.textContent?.trim() || "",
-        pressureLabel: pressureSelect.options[pressureSelect.selectedIndex]?.textContent?.trim() || "",
+        arenaLabel: selectedLabel(arenaSelect),
+        styleLabel: selectedLabel(styleSelect),
+        pressureLabel: selectedLabel(pressureSelect),
       };
     }
 
@@ -619,7 +623,6 @@
     function buildExportText(pack) {
       const steelmanMode = outputModeSelect.value === "steelman";
       const contextLabels = currentContextLabels();
-      const exportBullets = (items) => valueOrFallback(items, []).map((item) => `- ${item}`);
       const sections = [
         "Counterpoint Notes",
         `Arena: ${valueOrFallback(pack.arenaLabel, contextLabels.arenaLabel)}`,
@@ -640,19 +643,19 @@
         sections.push(
           "",
           "Likely Attack Lines",
-          ...exportBullets(pack.attackLines),
+          ...valueOrFallback(pack.attackLines, []).map((item) => `- ${item}`),
           "",
           "Trap Questions",
-          ...exportBullets(pack.traps),
+          ...valueOrFallback(pack.traps, []).map((item) => `- ${item}`),
           "",
           "Weak Spots In Your Position",
-          ...exportBullets(pack.weakSpots),
+          ...valueOrFallback(pack.weakSpots, []).map((item) => `- ${item}`),
           "",
           "Do Not Say",
-          ...exportBullets(pack.dontSay),
+          ...valueOrFallback(pack.dontSay, []).map((item) => `- ${item}`),
           "",
           "Prep Notes",
-          ...exportBullets(pack.prep)
+          ...valueOrFallback(pack.prep, []).map((item) => `- ${item}`)
         );
       }
       return sections.join("\n").trim();
@@ -842,8 +845,11 @@
       fileInput.value = "";
       clearOutputs();
       updateWordGuidance("");
-      const isReady = modelReady || fallbackMode;
-      setStatus(isReady ? READY_STATUS_MESSAGE : LOADING_STATUS_MESSAGE, isReady ? {} : LOADING_STATUS_OPTIONS);
+      if (modelReady || fallbackMode) {
+        setStatus(READY_STATUS_MESSAGE);
+        return;
+      }
+      setStatus(LOADING_STATUS_MESSAGE, LOADING_STATUS_OPTIONS);
     }
 
     function loadPositionText(text) {
