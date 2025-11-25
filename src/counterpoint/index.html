@@ -868,7 +868,7 @@
     });
 
     bindDatasetButtons(document.querySelectorAll("[data-sample]"), "sample", (key) => {
-      loadPositionText(valueOrFallback(SAMPLE_TEXT[key], ""));
+      loadPositionText(SAMPLE_TEXT[key] ?? "");
       setStatus(SAMPLE_READY_STATUS_MESSAGE);
     });
 
@@ -895,8 +895,8 @@
     });
     clearButton.addEventListener("click", clearAll);
     outputModeSelect.addEventListener("change", applyOutputMode);
-    positionInput.addEventListener("input", () => {
-      updateWordGuidance(positionInput.value);
+    positionInput.addEventListener("input", (event) => {
+      updateWordGuidance(event.target.value);
     });
 
     positionInput.value = SAMPLE_TEXT.remote;
