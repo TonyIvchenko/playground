@@ -623,7 +623,6 @@
     function buildExportText(pack) {
       const steelmanMode = outputModeSelect.value === "steelman";
       const contextLabels = currentContextLabels();
-      const exportBullets = (items) => valueOrFallback(items, []).map((item) => `- ${item}`);
       const sections = [
         "Counterpoint Notes",
         `Arena: ${valueOrFallback(pack.arenaLabel, contextLabels.arenaLabel)}`,
@@ -644,19 +643,19 @@
         sections.push(
           "",
           "Likely Attack Lines",
-          ...exportBullets(pack.attackLines),
+          ...valueOrFallback(pack.attackLines, []).map((item) => `- ${item}`),
           "",
           "Trap Questions",
-          ...exportBullets(pack.traps),
+          ...valueOrFallback(pack.traps, []).map((item) => `- ${item}`),
           "",
           "Weak Spots In Your Position",
-          ...exportBullets(pack.weakSpots),
+          ...valueOrFallback(pack.weakSpots, []).map((item) => `- ${item}`),
           "",
           "Do Not Say",
-          ...exportBullets(pack.dontSay),
+          ...valueOrFallback(pack.dontSay, []).map((item) => `- ${item}`),
           "",
           "Prep Notes",
-          ...exportBullets(pack.prep)
+          ...valueOrFallback(pack.prep, []).map((item) => `- ${item}`)
         );
       }
       return sections.join("\n").trim();
