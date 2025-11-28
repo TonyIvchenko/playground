@@ -770,11 +770,11 @@
       return {
         thesis: bulletize(thesisRaw, 4).join(" ") || fallback.thesis,
         opening: openingRaw || fallback.opening,
-        attackLines: (attackLines.length && attackLines) || fallback.attackLines,
-        traps: (traps.length && traps) || fallback.traps,
-        weakSpots: (weakSpots.length && weakSpots) || fallback.weakSpots,
-        dontSay: (dontSay.length && dontSay) || fallback.dontSay,
-        prep: (prep.length && prep) || fallback.prep,
+        attackLines: attackLines.length ? attackLines : fallback.attackLines,
+        traps: traps.length ? traps : fallback.traps,
+        weakSpots: weakSpots.length ? weakSpots : fallback.weakSpots,
+        dontSay: dontSay.length ? dontSay : fallback.dontSay,
+        prep: prep.length ? prep : fallback.prep,
       };
     }
 
