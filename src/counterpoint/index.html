@@ -817,7 +817,6 @@
 
       setRunInProgressState(true);
       setStatus(BUILDING_STATUS_MESSAGE);
-      const contextLabels = currentContextLabels();
       let packToRender;
 
       try {
@@ -833,7 +832,7 @@
         renderPack({
           ...packToRender,
           sourceText: text,
-          ...contextLabels,
+          ...currentContextLabels(),
         });
         setStatus(COUNTER_READY_STATUS_MESSAGE);
         setRunInProgressState(false);
