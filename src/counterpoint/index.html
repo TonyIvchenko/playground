@@ -888,7 +888,7 @@
         console.error(error);
         setStatus(COPY_ERROR_STATUS_MESSAGE, ERROR_STATUS_OPTIONS);
       } finally {
-        copyButton.disabled = !lastPack;
+        copyButton.disabled = false;
       }
     });
     clearButton.addEventListener("click", clearAll);
