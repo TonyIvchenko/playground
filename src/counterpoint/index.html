@@ -817,26 +817,25 @@
 
       setRunInProgressState(true);
       setStatus(BUILDING_STATUS_MESSAGE);
-      let packToRender;
+      let pack;
 
       try {
-        packToRender = ghostwriter
+        pack = ghostwriter
           ? await buildCounterpack(text)
           : heuristicCounterpack(text);
       } catch (error) {
         console.error(error);
         fallbackMode = true;
         setStatusState(fallbackPill, "fallback");
-        packToRender = heuristicCounterpack(text);
-      } finally {
-        renderPack({
-          ...packToRender,
-          sourceText: text,
-          ...currentContextLabels(),
-        });
-        setStatus(COUNTER_READY_STATUS_MESSAGE);
-        setRunInProgressState(false);
+        pack = heuristicCounterpack(text);
       }
+      renderPack({
+        ...pack,
+        sourceText: text,
+        ...currentContextLabels(),
+      });
+      setStatus(COUNTER_READY_STATUS_MESSAGE);
+      setRunInProgressState(false);
     }
 
     function clearAll() {
