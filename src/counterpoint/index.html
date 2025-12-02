@@ -841,11 +841,8 @@
       fileInput.value = "";
       clearOutputs();
       updateWordGuidance("");
-      if (modelReady || fallbackMode) {
-        setStatus(READY_STATUS_MESSAGE);
-        return;
-      }
-      setStatus(LOADING_STATUS_MESSAGE, LOADING_STATUS_OPTIONS);
+      const ready = modelReady || fallbackMode;
+      setStatus(ready ? READY_STATUS_MESSAGE : LOADING_STATUS_MESSAGE, ready ? undefined : LOADING_STATUS_OPTIONS);
     }
 
     function loadPositionText(text) {
