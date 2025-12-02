@@ -723,9 +723,7 @@
     }
 
     async function generateText(prompt, maxNewTokens = 120) {
-      if (!ghostwriter) {
-        return "";
-      }
+      if (!ghostwriter) return "";
       const output = await ghostwriter(prompt, {
         max_new_tokens: maxNewTokens,
         temperature: 0.9,
