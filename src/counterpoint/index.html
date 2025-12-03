@@ -852,9 +852,7 @@
     }
 
     bindFirstFileInput(fileInput, async (file) => {
-      if (!file) {
-        return;
-      }
+      if (!file) return;
       loadPositionText(await readTextFile(file));
       setStatus(`Loaded ${file.name}.`);
     });
