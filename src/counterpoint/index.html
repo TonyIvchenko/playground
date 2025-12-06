@@ -815,18 +815,18 @@
 
       setRunInProgressState(true);
       setStatus(BUILDING_STATUS_MESSAGE);
-      let pack;
-
-      try {
-        pack = ghostwriter
+      const pack = await (async () => {
+        try {
+          return ghostwriter
           ? await buildCounterpack(text)
           : heuristicCounterpack(text);
-      } catch (error) {
-        console.error(error);
-        fallbackMode = true;
-        setStatusState(fallbackPill, "fallback");
-        pack = heuristicCounterpack(text);
-      }
+        } catch (error) {
+          console.error(error);
+          fallbackMode = true;
+          setStatusState(fallbackPill, "fallback");
+          return heuristicCounterpack(text);
+        }
+      })();
       renderPack({
         ...pack,
         sourceText: text,
