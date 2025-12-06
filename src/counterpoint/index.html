@@ -885,9 +885,7 @@
     });
     clearButton.addEventListener("click", clearAll);
     outputModeSelect.addEventListener("change", applyOutputMode);
-    positionInput.addEventListener("input", (event) => {
-      updateWordGuidance(event.target.value);
-    });
+    positionInput.addEventListener("input", ({ target }) => updateWordGuidance(target.value));
 
     positionInput.value = SAMPLE_TEXT.remote;
     updateWordGuidance(positionInput.value);
