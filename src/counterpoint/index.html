@@ -841,9 +841,10 @@
       fileInput.value = "";
       clearOutputs();
       updateWordGuidance("");
+      const isReady = modelReady || fallbackMode;
       setStatus(
-        modelReady || fallbackMode ? READY_STATUS_MESSAGE : LOADING_STATUS_MESSAGE,
-        modelReady || fallbackMode ? undefined : LOADING_STATUS_OPTIONS
+        isReady ? READY_STATUS_MESSAGE : LOADING_STATUS_MESSAGE,
+        isReady ? undefined : LOADING_STATUS_OPTIONS
       );
     }
 
