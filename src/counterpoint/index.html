@@ -818,8 +818,8 @@
       const pack = await (async () => {
         try {
           return ghostwriter
-          ? await buildCounterpack(text)
-          : heuristicCounterpack(text);
+            ? await buildCounterpack(text)
+            : heuristicCounterpack(text);
         } catch (error) {
           console.error(error);
           fallbackMode = true;
@@ -842,10 +842,7 @@
       clearOutputs();
       updateWordGuidance("");
       const isReady = modelReady || fallbackMode;
-      setStatus(
-        isReady ? READY_STATUS_MESSAGE : LOADING_STATUS_MESSAGE,
-        isReady ? undefined : LOADING_STATUS_OPTIONS
-      );
+      setStatus(isReady ? READY_STATUS_MESSAGE : LOADING_STATUS_MESSAGE, isReady ? undefined : LOADING_STATUS_OPTIONS);
     }
 
     function loadPositionText(text) {
@@ -874,8 +871,7 @@
 
       copyButton.disabled = true;
       try {
-        const copied = await copyTextToClipboard(buildExportText(lastPack));
-        if (!copied) {
+        if (!await copyTextToClipboard(buildExportText(lastPack))) {
           throw new Error("Copy command unavailable");
         }
         setStatus(COPY_SUCCESS_STATUS_MESSAGE);
