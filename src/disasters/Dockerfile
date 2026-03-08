@@ -11,4 +11,5 @@ ENV PORT=8080
 
 EXPOSE 8080
 
-CMD ["python", "-m", "src.disasters.main"]
+WORKDIR /app/src/disasters
+CMD ["python", "main.py"]

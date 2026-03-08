@@ -5,14 +5,18 @@ from __future__ import annotations
 import argparse
 import math
 from pathlib import Path
+import sys
+
+DISASTERS_ROOT = Path(__file__).resolve().parents[2]
+if str(DISASTERS_ROOT) not in sys.path:
+    sys.path.insert(0, str(DISASTERS_ROOT))
 
 import pandas as pd
 import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from src.disasters.models.huricaines import save_model_bundle
-from src.disasters.models.huricaines import FEATURE_NAMES, HuricainesMLP, create_model
+from models.huricaines import FEATURE_NAMES, HuricainesMLP, create_model, save_model_bundle
 
 
 TARGET_NAME = "target"
@@ -20,9 +24,7 @@ TARGET_NAME = "target"
 
 def load_raw_dataset(path: Path, max_rows: int | None = None) -> pd.DataFrame:
     if not path.exists():
-        raise FileNotFoundError(
-            f"Dataset not found at {path}. Run: `python -m src.disasters.scripts.huricaines.download_data`"
-        )
+        raise FileNotFoundError(f"Dataset not found at {path}. Run: `python scripts/huricaines/download_data.py`")
 
     usecols = ["storm_id", "iso_time", "lat", "lon", "vmax_kt", "min_pressure_mb", "source"]
     df = pd.read_csv(path, usecols=usecols, low_memory=False, nrows=max_rows)
@@ -183,19 +185,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--input-csv",
         type=Path,
-        default=Path("src/disasters/data/huricaines/raw/huricaines_tracks_merged.csv"),
+        default=DISASTERS_ROOT / "data" / "huricaines" / "raw" / "huricaines_tracks_merged.csv",
         help="Path to merged canonical tracks CSV produced by download_data.py.",
     )
     parser.add_argument(
         "--processed-csv",
         type=Path,
-        default=Path("src/disasters/data/huricaines/processed/huricaines_training.csv"),
+        default=DISASTERS_ROOT / "data" / "huricaines" / "processed" / "huricaines_training.csv",
         help="Where to write processed training rows for inspection.",
     )
     parser.add_argument(
         "--output-path",
         type=Path,
-        default=Path("src/disasters/models/huricaines.pt"),
+        default=DISASTERS_ROOT / "models" / "huricaines.pt",
         help="Where to write trained model artifact.",
     )
     parser.add_argument(

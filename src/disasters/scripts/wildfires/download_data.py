@@ -11,6 +11,7 @@ import pandas as pd
 
 FOREST_FIRES_URL = "https://archive.ics.uci.edu/ml/machine-learning-databases/forest-fires/forestfires.csv"
 ALGERIAN_FIRES_URL = "https://archive.ics.uci.edu/ml/machine-learning-databases/00547/Algerian_forest_fires_dataset_UPDATE.csv"
+DISASTERS_ROOT = Path(__file__).resolve().parents[2]
 
 
 def parse_args() -> argparse.Namespace:
@@ -18,13 +19,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--raw-dir",
         type=Path,
-        default=Path("src/disasters/data/wildfires/raw"),
+        default=DISASTERS_ROOT / "data" / "wildfires" / "raw",
         help="Directory where raw source files are stored.",
     )
     parser.add_argument(
         "--output-path",
         type=Path,
-        default=Path("src/disasters/data/wildfires/raw/wildfires_training_merged.csv"),
+        default=DISASTERS_ROOT / "data" / "wildfires" / "raw" / "wildfires_training_merged.csv",
         help="Path for merged canonical wildfires training CSV.",
     )
     parser.add_argument(

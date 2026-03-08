@@ -16,8 +16,12 @@ from PIL import Image
 import torch
 import uvicorn
 
-from src.disasters.models.huricaines import load_model_bundle as load_huricaines_model_bundle
-from src.disasters.models.wildfires import load_model_bundle as load_wildfires_model_bundle
+try:
+    from models.huricaines import load_model_bundle as load_huricaines_model_bundle
+    from models.wildfires import load_model_bundle as load_wildfires_model_bundle
+except ModuleNotFoundError:
+    from src.disasters.models.huricaines import load_model_bundle as load_huricaines_model_bundle
+    from src.disasters.models.wildfires import load_model_bundle as load_wildfires_model_bundle
 
 
 HOST = os.getenv("API_HOST", "0.0.0.0")

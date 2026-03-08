@@ -6,12 +6,17 @@ import argparse
 import json
 import math
 from pathlib import Path
+import sys
+
+DISASTERS_ROOT = Path(__file__).resolve().parents[2]
+if str(DISASTERS_ROOT) not in sys.path:
+    sys.path.insert(0, str(DISASTERS_ROOT))
 
 import numpy as np
 import pandas as pd
 import torch
 
-from src.disasters.models.wildfires import load_model_bundle
+from models.wildfires import load_model_bundle
 
 
 TRAIN_END_YEAR = 2018
@@ -46,25 +51,25 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model-path",
         type=Path,
-        default=Path("src/disasters/models/wildfires.pt"),
+        default=DISASTERS_ROOT / "models" / "wildfires.pt",
         help="Path to wildfires model artifact.",
     )
     parser.add_argument(
         "--forest-path",
         type=Path,
-        default=Path("src/disasters/data/wildfires/raw/forestfires_uci.csv"),
+        default=DISASTERS_ROOT / "data" / "wildfires" / "raw" / "forestfires_uci.csv",
         help="Path to UCI forest fires csv.",
     )
     parser.add_argument(
         "--algerian-path",
         type=Path,
-        default=Path("src/disasters/data/wildfires/raw/algerian_forest_fires.csv"),
+        default=DISASTERS_ROOT / "data" / "wildfires" / "raw" / "algerian_forest_fires.csv",
         help="Path to Algerian forest fires csv-like file.",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("src/disasters/tiles/wildfires"),
+        default=DISASTERS_ROOT / "tiles" / "wildfires",
         help="Output directory for overlay + metadata.",
     )
     parser.add_argument("--start-year", type=int, default=2000)

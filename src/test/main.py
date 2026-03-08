@@ -2,8 +2,12 @@ import logging
 import signal
 import threading
 
-from .service import build_client, run_forever
-from .settings import load_settings
+try:
+    from .service import build_client, run_forever
+    from .settings import load_settings
+except ImportError:
+    from service import build_client, run_forever
+    from settings import load_settings
 
 logger = logging.getLogger(__name__)
 

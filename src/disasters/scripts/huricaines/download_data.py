@@ -17,6 +17,7 @@ IBTRACS_NA_URL = (
     "v04r01/access/csv/ibtracs.NA.list.v04r01.csv"
 )
 HURDAT_INDEX_URL = "https://www.nhc.noaa.gov/data/hurdat/"
+DISASTERS_ROOT = Path(__file__).resolve().parents[2]
 
 
 def parse_args() -> argparse.Namespace:
@@ -24,13 +25,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--raw-dir",
         type=Path,
-        default=Path("src/disasters/data/huricaines/raw"),
+        default=DISASTERS_ROOT / "data" / "huricaines" / "raw",
         help="Directory where raw source files are stored.",
     )
     parser.add_argument(
         "--output-path",
         type=Path,
-        default=Path("src/disasters/data/huricaines/raw/huricaines_tracks_merged.csv"),
+        default=DISASTERS_ROOT / "data" / "huricaines" / "raw" / "huricaines_tracks_merged.csv",
         help="Path for merged canonical huricaines tracks CSV.",
     )
     parser.add_argument(

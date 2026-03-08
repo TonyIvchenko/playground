@@ -6,12 +6,17 @@ import argparse
 import json
 import math
 from pathlib import Path
+import sys
+
+DISASTERS_ROOT = Path(__file__).resolve().parents[2]
+if str(DISASTERS_ROOT) not in sys.path:
+    sys.path.insert(0, str(DISASTERS_ROOT))
 
 import numpy as np
 import pandas as pd
 import torch
 
-from src.disasters.models.huricaines import load_model_bundle
+from models.huricaines import load_model_bundle
 
 
 TRAIN_END_YEAR = 2018
@@ -30,19 +35,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model-path",
         type=Path,
-        default=Path("src/disasters/models/huricaines.pt"),
+        default=DISASTERS_ROOT / "models" / "huricaines.pt",
         help="Path to huricaines model artifact.",
     )
     parser.add_argument(
         "--input-csv",
         type=Path,
-        default=Path("src/disasters/data/huricaines/raw/huricaines_tracks_merged.csv"),
+        default=DISASTERS_ROOT / "data" / "huricaines" / "raw" / "huricaines_tracks_merged.csv",
         help="Path to merged huricaines tracks csv.",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("src/disasters/tiles/huricaines"),
+        default=DISASTERS_ROOT / "tiles" / "huricaines",
         help="Output directory for overlay + metadata.",
     )
     parser.add_argument("--start-year", type=int, default=2000)
