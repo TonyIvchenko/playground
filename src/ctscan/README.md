@@ -35,10 +35,10 @@ This does three things:
 - downloads a small real `LIDC-IDRI` training subset and converts XML annotations into canonical 3D nodule patches
 - generates a deterministic smoke fallback dataset for tests/offline fallback
 
-By default the real training subset uses `3` LIDC studies so the first run stays practical. Increase it when you want more real patches:
+By default the real training subset uses `7` LIDC studies, which is the subset size used for the currently shipped checkpoint. Increase it when you want more real patches:
 
 ```bash
-python scripts/nodules/download_data.py --lidc-study-limit 6
+python scripts/nodules/download_data.py --lidc-study-limit 10
 ```
 
 If you only want the real training subset and not the demo studies:
@@ -50,10 +50,10 @@ python scripts/nodules/download_data.py --skip-samples
 ## Train
 
 ```bash
-python scripts/nodules/train_model.py --model-version 0.2.0
+python scripts/nodules/train_model.py --model-version 0.3.0
 ```
 
-The shipped checkpoint is now trained on a small real `LIDC-IDRI` subset built by `download_data.py`. It is still a lightweight prototype model, not a clinically meaningful detector, but it is no longer trained on synthetic-only patches. The smoke dataset remains in the repo only as an offline fallback for tests and local recovery.
+The shipped checkpoint is now trained on a real `LIDC-IDRI` subset built from `7` annotated studies and `150` extracted patches. It is still a lightweight prototype model, not a clinically meaningful detector, but it is no longer trained on synthetic-only patches. The smoke dataset remains in the repo only as an offline fallback for tests and local recovery.
 
 ## Notebook
 
