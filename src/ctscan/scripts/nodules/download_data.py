@@ -77,7 +77,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--lidc-study-limit",
         type=int,
-        default=3,
+        default=7,
         help="How many real LIDC studies to download and convert into training patches.",
     )
     parser.add_argument(

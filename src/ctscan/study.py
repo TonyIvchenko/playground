@@ -10,6 +10,8 @@ import numpy as np
 from PIL import Image, ImageDraw
 import pydicom
 from pydicom.dataset import FileDataset
+import torch
+import torch.nn.functional as F
 
 
 TARGET_SPACING = (1.0, 1.0, 1.0)
@@ -65,26 +67,22 @@ def _pixel_spacing(ds: FileDataset) -> tuple[float, float]:
     return 1.0, 1.0
 
 
-def _resample_axis(volume: np.ndarray, axis: int, old_spacing: float, new_spacing: float) -> np.ndarray:
-    if abs(old_spacing - new_spacing) < 1e-6:
-        return volume
-    old_size = volume.shape[axis]
-    new_size = max(1, int(round(old_size * old_spacing / new_spacing)))
-    source = np.linspace(0.0, old_size - 1, old_size)
-    target = np.linspace(0.0, old_size - 1, new_size)
-    moved = np.moveaxis(volume, axis, 0)
-    out = np.empty((new_size,) + moved.shape[1:], dtype=np.float32)
-    for index in np.ndindex(moved.shape[1:]):
-        out[(slice(None),) + index] = np.interp(target, source, moved[(slice(None),) + index])
-    return np.moveaxis(out, 0, axis)
-
-
 def resample_volume(volume_hu: np.ndarray, spacing: tuple[float, float, float]) -> tuple[np.ndarray, tuple[float, float, float]]:
-    resampled = volume_hu.astype(np.float32, copy=False)
-    current_spacing = spacing
-    for axis, (old_spacing, new_spacing) in enumerate(zip(current_spacing, TARGET_SPACING)):
-        resampled = _resample_axis(resampled, axis=axis, old_spacing=float(old_spacing), new_spacing=float(new_spacing))
-    return resampled.astype(np.float32), TARGET_SPACING
+    current_spacing = np.array(spacing, dtype=np.float32)
+    target_spacing = np.array(TARGET_SPACING, dtype=np.float32)
+    if np.allclose(current_spacing, target_spacing, atol=1e-6):
+        return volume_hu.astype(np.float32, copy=False), TARGET_SPACING
+
+    source_shape = np.array(volume_hu.shape, dtype=np.float32)
+    target_shape = np.maximum(1, np.round(source_shape * current_spacing / target_spacing).astype(int))
+    tensor = torch.from_numpy(volume_hu.astype(np.float32, copy=False)).unsqueeze(0).unsqueeze(0)
+    resampled = F.interpolate(
+        tensor,
+        size=tuple(int(x) for x in target_shape.tolist()),
+        mode="trilinear",
+        align_corners=False,
+    )
+    return resampled.squeeze(0).squeeze(0).cpu().numpy().astype(np.float32), TARGET_SPACING
 
 
 def _body_bounds(volume_hu: np.ndarray) -> tuple[slice, slice, slice]:
