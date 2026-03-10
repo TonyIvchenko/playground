@@ -1,44 +1,57 @@
 from __future__ import annotations
 
-from src.ctscan.study import estimate_lung_mask, generate_candidates, load_study_from_zip_bytes, match_prior_findings, render_slice_image
+from src.ctscan.study import (
+    issue_slice_stats,
+    issue_volume_stats,
+    load_study_from_zip_bytes,
+    render_segmentation_slice,
+    segment_issues,
+    segment_lungs,
+)
 
 
-def test_load_study_and_resample(make_ct_zip):
+def test_load_study_contract(make_ct_zip):
     study_path = make_ct_zip()
     loaded = load_study_from_zip_bytes(study_path.read_bytes())
     assert loaded.metadata["body_part_examined"] == "CHEST"
-    assert loaded.spacing == (1.0, 1.0, 1.0)
-    assert loaded.volume_hu.shape[0] > 24
-    assert loaded.qc_reasons == []
+    assert loaded.metadata["slice_count"] == 24
+    assert len(loaded.spacing) == 3
 
 
-def test_load_study_rejects_wrong_body_part(make_ct_zip):
+def test_load_study_wrong_body_part_is_flagged(make_ct_zip):
     study_path = make_ct_zip(body_part="HEAD", patient_id="head-study")
     loaded = load_study_from_zip_bytes(study_path.read_bytes())
     assert loaded.qc_reasons
 
 
-def test_candidate_generation_and_prior_matching(make_ct_zip):
-    current_path = make_ct_zip(patient_id="current", nodule_center=(12, 32, 38), nodule_radius=4)
-    prior_path = make_ct_zip(patient_id="prior", nodule_center=(12, 32, 38), nodule_radius=2, malignant_boost=80.0)
-    current = load_study_from_zip_bytes(current_path.read_bytes())
-    prior = load_study_from_zip_bytes(prior_path.read_bytes())
-
-    current_candidates = generate_candidates(current.volume_hu, estimate_lung_mask(current.volume_hu))
-    prior_candidates = generate_candidates(prior.volume_hu, estimate_lung_mask(prior.volume_hu))
-    matched = match_prior_findings(current_candidates, prior_candidates)
-
-    assert matched
-    assert any(item.get("growth") is not None for item in matched)
-
-
-def test_render_slice_image(make_ct_zip):
+def test_segmentation_and_stats(make_ct_zip):
     study_path = make_ct_zip()
     loaded = load_study_from_zip_bytes(study_path.read_bytes())
-    findings = generate_candidates(loaded.volume_hu, estimate_lung_mask(loaded.volume_hu))
-    for index, finding in enumerate(findings):
-        finding["lesion_id"] = f"lesion-{index + 1}"
-        finding["nodule_probability"] = 0.9
-        finding["malignancy_risk"] = 0.6
-    image = render_slice_image(loaded.volume_hu, findings, findings[0]["slice_index"], "lung", findings[0]["lesion_id"])
+    lung_mask, backend = segment_lungs(loaded.volume_hu)
+    labels = segment_issues(loaded.volume_hu, lung_mask)
+
+    assert backend in {"threshold", "lungmask"}
+    assert int(lung_mask.sum()) > 0
+    assert int((labels > 0).sum()) > 0
+
+    volume_rows = issue_volume_stats(labels, lung_mask, loaded.spacing)
+    assert any(float(row["lung_percent"]) > 0.0 for row in volume_rows)
+
+    slice_rows = issue_slice_stats(labels, lung_mask, slice_index=loaded.volume_hu.shape[0] // 2)
+    assert any(float(row["slice_percent"]) > 0.0 for row in slice_rows)
+
+
+def test_render_segmentation_slice(make_ct_zip):
+    study_path = make_ct_zip()
+    loaded = load_study_from_zip_bytes(study_path.read_bytes())
+    lung_mask, _ = segment_lungs(loaded.volume_hu)
+    labels = segment_issues(loaded.volume_hu, lung_mask)
+    image = render_segmentation_slice(
+        volume_hu=loaded.volume_hu,
+        labels=labels,
+        lung_mask=lung_mask,
+        slice_index=loaded.volume_hu.shape[0] // 2,
+        preset="lung",
+        focus_issue="all",
+    )
     assert image.size == (loaded.volume_hu.shape[2], loaded.volume_hu.shape[1])
