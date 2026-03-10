@@ -40,6 +40,15 @@ python scripts/segmentation/build_dataset.py --overwrite
 python scripts/segmentation/train_unet.py --model-version 0.1.0
 ```
 
+## Dataset Licenses
+
+- LIDC-IDRI: CC BY 3.0 (`https://creativecommons.org/licenses/by/3.0/`) + TCIA attribution policy.
+- LUNA16: CC BY 4.0 (`https://creativecommons.org/licenses/by/4.0/`).
+- NLSTseg (Zenodo `14838349`): CC BY 4.0 (`https://creativecommons.org/licenses/by/4.0/`).
+- LNDb (Grand Challenge rules): CC BY-NC-ND 4.0 (`https://creativecommons.org/licenses/by-nc-nd/4.0/`).
+
+Do not redistribute raw or derived data unless the source license allows it.
+
 ## Full LIDC Ingest (Real Data)
 
 From `src/ctscan`:
