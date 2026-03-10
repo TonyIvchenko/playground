@@ -111,6 +111,8 @@ def build_lidc_rows(
         np.int = int  # type: ignore[attr-defined]
     if not hasattr(np, "float"):  # pragma: no cover
         np.float = float  # type: ignore[attr-defined]
+    if not hasattr(np, "bool"):  # pragma: no cover
+        np.bool = bool  # type: ignore[attr-defined]
 
     import pylidc as pl
     from pylidc.utils import consensus
