@@ -68,9 +68,9 @@ def print_http_startup(service_name: str, host: str, port: int) -> None:
     if str(repo_root) not in sys.path:
         sys.path.insert(0, str(repo_root))
 
-    from scripts.service_startup import print_http_service_startup
+    #from scripts.service_startup import print_http_service_startup
 
-    print_http_service_startup(service_name, host, port)
+    print(service_name, host, port)
 
 
 wildfires_model, wildfires_mean, wildfires_std, WILDFIRES_MODEL_VERSION = (
