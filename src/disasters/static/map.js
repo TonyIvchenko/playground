@@ -16,24 +16,27 @@ window.bootstrapDisastersMap = () => {
   const markerNode = root.querySelector("#risk-now-marker");
   const mapNode = root.querySelector("#risk-map");
   const statusNode = root.querySelector("#risk-map-status");
+  const timelineTicksNode = root.querySelector("#risk-timeline-ticks");
+  const timelinePhasesNode = root.querySelector("#risk-timeline-phases");
+  const timelineTrackNode = root.querySelector("#risk-timeline-track");
+  const frameLabelNode = root.querySelector("#risk-frame-label");
 
-  const yearTicks = Array.from(root.querySelectorAll(".year-tick"));
   const hazardSelect = root.querySelector("#hazard-select");
-  const modelMetricAcc = root.querySelector("#model-metric-acc");
-  const modelMetricAuc = root.querySelector("#model-metric-auc");
+  const metric1LabelNode = root.querySelector("#model-metric-1-label");
+  const metric1ValueNode = root.querySelector("#model-metric-1-value");
+  const metric2LabelNode = root.querySelector("#model-metric-2-label");
+  const metric2ValueNode = root.querySelector("#model-metric-2-value");
 
-  const frameCount =
-    Array.isArray(cfg.frames) && cfg.frames.length > 0 ? cfg.frames.length : 1;
-  const maxFrameIdx = Math.max(1, frameCount - 1);
-  if (slider) {
-    slider.max = String(frameCount - 1);
+  const hazards = cfg.hazards || {};
+  if (hazardSelect && hazards[cfg.default_hazard]) {
+    hazardSelect.value = cfg.default_hazard;
   }
 
   let timer = null;
   let map = null;
 
   const updateStatus = (text, isError = false) => {
-    if (!text || !isError) {
+    if (!text) {
       statusNode.textContent = "";
       statusNode.classList.remove("show", "error");
       return;
@@ -48,28 +51,91 @@ window.bootstrapDisastersMap = () => {
     return `${(value * 100).toFixed(2)}%`;
   };
 
+  const currentHazardKey = () => hazardSelect.value;
+
+  const currentHazardCfg = () => hazards[currentHazardKey()] || null;
+
+  const currentFrames = () => {
+    const hazardCfg = currentHazardCfg();
+    if (!hazardCfg || !Array.isArray(hazardCfg.frames) || hazardCfg.frames.length === 0) {
+      return ["Frame 0"];
+    }
+    return hazardCfg.frames;
+  };
+
+  const currentFrameCount = () => currentFrames().length;
+
+  const maxFrameIdx = () => Math.max(1, currentFrameCount() - 1);
+
   const renderModelSummary = () => {
-    const key = hazardSelect.value;
-    const model = (cfg.model_metrics && cfg.model_metrics[key]) || null;
-    modelMetricAcc.textContent = model ? fmtPct(model.val_accuracy) : "n/a";
-    modelMetricAuc.textContent = model ? fmtPct(model.val_auc) : "n/a";
+    const hazardCfg = currentHazardCfg();
+    const metrics = Array.isArray(hazardCfg?.metrics) ? hazardCfg.metrics : [];
+    const metric1 = metrics[0] || { label: "Metric 1", value: null };
+    const metric2 = metrics[1] || { label: "Metric 2", value: null };
+    metric1LabelNode.textContent = metric1.label || "Metric 1";
+    metric1ValueNode.textContent = fmtPct(metric1.value);
+    metric2LabelNode.textContent = metric2.label || "Metric 2";
+    metric2ValueNode.textContent = fmtPct(metric2.value);
+  };
+
+  const renderTimelineScaffold = () => {
+    const hazardCfg = currentHazardCfg();
+    const timeline = hazardCfg?.timeline || {};
+    const denom = maxFrameIdx();
+    const stepPct = Number(timeline.step_pct || 1);
+    timelineTrackNode.style.setProperty("--frame-step", `${stepPct}%`);
+
+    const ticks = Array.isArray(timeline.ticks) ? timeline.ticks : [];
+    timelineTicksNode.innerHTML = ticks
+      .map((tick) => {
+        const frameIdx = Number(tick.frame_idx || 0);
+        const left = (frameIdx / denom) * 100.0;
+        return `<div class="year-tick" data-frame-index="${frameIdx}" style="left:${left.toFixed(6)}%"><span>${tick.label || ""}</span></div>`;
+      })
+      .join("");
+
+    const phases = Array.isArray(timeline.phases) ? timeline.phases : [];
+    timelinePhasesNode.innerHTML = phases
+      .map((phase) => {
+        const phaseKind = phase.kind || "live";
+        const phaseLabel = phase.label ? ` title="${phase.label}"` : "";
+        const phaseCount = Math.max(1, Number(phase.count || 1));
+        return `<div class="phase-seg ${phaseKind}" style="flex:${phaseCount};"${phaseLabel}></div>`;
+      })
+      .join("");
+  };
+
+  const syncSliderToHazard = (resetToDefault) => {
+    const hazardCfg = currentHazardCfg();
+    const frameCount = currentFrameCount();
+    const currentValue = Number(slider.value) || 0;
+    const defaultFrameIdx = Number(hazardCfg?.default_frame_idx || 0);
+    slider.max = String(Math.max(0, frameCount - 1));
+    slider.value = String(
+      resetToDefault
+        ? Math.max(0, Math.min(frameCount - 1, defaultFrameIdx))
+        : Math.max(0, Math.min(frameCount - 1, currentValue))
+    );
   };
 
   const updateTimeline = () => {
-    const idx = Math.min(maxFrameIdx, Math.max(0, Number(slider.value) || 0));
+    const frames = currentFrames();
+    const idx = Math.min(maxFrameIdx(), Math.max(0, Number(slider.value) || 0));
     slider.value = String(idx);
-    const pct = (idx / maxFrameIdx) * 100.0;
+    const pct = (idx / maxFrameIdx()) * 100.0;
     progressNode.style.width = `${pct}%`;
     markerNode.style.left = `${pct}%`;
+    frameLabelNode.textContent = frames[idx] || "";
 
-    let activeYear = -1;
-    yearTicks.forEach((tick, i) => {
+    const ticks = Array.from(root.querySelectorAll(".year-tick"));
+    let activeTick = -1;
+    ticks.forEach((tick, i) => {
       const startIdx = Number(tick.dataset.frameIndex || "0");
       if (idx >= startIdx) {
-        activeYear = i;
+        activeTick = i;
       }
     });
-    yearTicks.forEach((tick, i) => tick.classList.toggle("active", i === activeYear));
+    ticks.forEach((tick, i) => tick.classList.toggle("active", i === activeTick));
   };
 
   const setPlaying = (on) => {
@@ -77,7 +143,7 @@ window.bootstrapDisastersMap = () => {
       playBtn.classList.add("playing");
       playBtn.setAttribute("aria-label", "Pause timeline");
       timer = setInterval(() => {
-        const next = (Number(slider.value) + 1) % frameCount;
+        const next = (Number(slider.value) + 1) % currentFrameCount();
         slider.value = String(next);
         installOverlay();
       }, 900);
@@ -113,31 +179,49 @@ window.bootstrapDisastersMap = () => {
     map.overlayMapTypes.push(overlay);
   };
 
-  const installOverlay = () => {
-    updateTimeline();
-    renderModelSummary();
+  const applyHazardMapView = () => {
     if (!map) return;
+    const hazardCfg = currentHazardCfg();
+    if (!hazardCfg) return;
+    map.setOptions({
+      minZoom: Number(hazardCfg.zoom_min || 2),
+      maxZoom: Number(hazardCfg.zoom_max || 10),
+    });
+    map.setCenter({
+      lat: Number(hazardCfg.center_lat || 36.0),
+      lng: Number(hazardCfg.center_lon || -95.0),
+    });
+    map.setZoom(Number(hazardCfg.default_zoom || 4));
+  };
+
+  const installOverlay = () => {
+    updateStatus("");
+    renderModelSummary();
+    updateTimeline();
+    if (!map) return;
+
+    const selectedHazard = currentHazardKey();
+    if (!hazards[selectedHazard]) {
+      clearOverlays();
+      updateStatus("Unknown layer selection.", true);
+      return;
+    }
 
     const frameIdx = Number(slider.value);
     clearOverlays();
-
-    const selectedHazard = hazardSelect.value;
-    if (selectedHazard === "wildfires" || selectedHazard === "huricaines") {
-      pushOverlay(selectedHazard, frameIdx);
-      return;
-    }
-    updateStatus("Unknown layer selection.", true);
+    pushOverlay(selectedHazard, frameIdx);
   };
 
   const initGoogleMap = () => {
+    const hazardCfg = currentHazardCfg() || {};
     map = new google.maps.Map(mapNode, {
       center: {
-        lat: Number(cfg.center_lat || 36.0),
-        lng: Number(cfg.center_lon || -95.0),
+        lat: Number(hazardCfg.center_lat || 36.0),
+        lng: Number(hazardCfg.center_lon || -95.0),
       },
-      zoom: Number(cfg.default_zoom || 4),
-      minZoom: Number(cfg.zoom_min || 2),
-      maxZoom: Number(cfg.zoom_max || 10),
+      zoom: Number(hazardCfg.default_zoom || 4),
+      minZoom: Number(hazardCfg.zoom_min || 2),
+      maxZoom: Number(hazardCfg.zoom_max || 10),
       mapTypeControl: false,
       streetViewControl: false,
       fullscreenControl: false,
@@ -180,11 +264,19 @@ window.bootstrapDisastersMap = () => {
   };
 
   slider.addEventListener("input", installOverlay);
-  hazardSelect.addEventListener("change", installOverlay);
+  hazardSelect.addEventListener("change", () => {
+    setPlaying(false);
+    syncSliderToHazard(true);
+    renderTimelineScaffold();
+    applyHazardMapView();
+    installOverlay();
+  });
   playBtn.addEventListener("click", () => setPlaying(!timer));
 
-  updateTimeline();
+  syncSliderToHazard(true);
+  renderTimelineScaffold();
   renderModelSummary();
+  updateTimeline();
   loadGoogleMaps();
   return [];
 };

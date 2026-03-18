@@ -9,16 +9,20 @@ from src.disasters.main import (
     DISASTERS_STATIC_URL,
     HURRICANES_LABEL,
     MAP_HEAD,
+    TRAFFIC_SAFETY_LABEL,
     api,
     demo,
 )
 from src.disasters.main import (
     HURICAINES_MODEL_VERSION,
+    TRAFFIC_SAFETY_MODEL_BUNDLE,
+    TRAFFIC_SAFETY_MODEL_VERSION,
     WILDFIRES_MODEL_VERSION,
     _toggle_model_panel,
     _map_bootstrap_js,
     _map_html,
     predict_huricaines,
+    predict_traffic_safety,
     predict_wildfires,
 )
 
@@ -32,6 +36,8 @@ def test_health_endpoint_contract():
     payload = response.json()
     assert payload["status"] == "ok"
     assert payload["service"] == "Disasters"
+    assert "traffic_safety_model_version" in payload
+    assert "frames_by_hazard" in payload
 
 
 def test_predict_wildfires_shape_and_values():
@@ -68,6 +74,23 @@ def test_predict_huricaines_shape_and_values():
     assert result["risk_level"] in {"low", "moderate", "high", "extreme"}
 
 
+@pytest.mark.skipif(
+    not TRAFFIC_SAFETY_MODEL_BUNDLE,
+    reason="traffic safety model artifact not generated",
+)
+def test_predict_traffic_safety_shape_and_values():
+    result = predict_traffic_safety(
+        lat=34.0522,
+        lon=-118.2437,
+        day_of_week=5,
+        hour=17,
+        month=9,
+    )
+    assert result["model_version"] == TRAFFIC_SAFETY_MODEL_VERSION
+    assert 0.0 <= result["risk_score"] <= 1.0
+    assert result["risk_level"] in {"low", "moderate", "high", "extreme"}
+
+
 def test_demo_uses_hurricanes_user_facing_labels():
     components = demo.config.get("components", [])
 
@@ -80,6 +103,7 @@ def test_demo_uses_hurricanes_user_facing_labels():
         for choice in choices
     ]
     assert HURRICANES_LABEL in choice_labels
+    assert TRAFFIC_SAFETY_LABEL in choice_labels
     assert "Huricaines" not in "".join(choice_labels)
 
     json_labels = [
@@ -88,6 +112,7 @@ def test_demo_uses_hurricanes_user_facing_labels():
         if component.get("type") == "json"
     ]
     assert f"{HURRICANES_LABEL} Prediction" in json_labels
+    assert f"{TRAFFIC_SAFETY_LABEL} Prediction" in json_labels
 
     button_values = [
         component.get("props", {}).get("value")
@@ -95,6 +120,7 @@ def test_demo_uses_hurricanes_user_facing_labels():
         if component.get("type") == "button"
     ]
     assert f"Predict {HURRICANES_LABEL}" in button_values
+    assert f"Predict {TRAFFIC_SAFETY_LABEL}" in button_values
 
     html_values = [
         component.get("props", {}).get("value", "")
@@ -102,6 +128,7 @@ def test_demo_uses_hurricanes_user_facing_labels():
         if component.get("type") == "html"
     ]
     assert any(">Hurricanes</option>" in value for value in html_values)
+    assert any(f">{TRAFFIC_SAFETY_LABEL}</option>" in value for value in html_values)
 
 
 def test_demo_includes_external_map_assets():
@@ -118,6 +145,7 @@ def test_map_html_uses_external_assets_not_inline_css():
     assert "<style>" not in html
     assert 'data-config="' in html
     assert ">Hurricanes</option>" in html
+    assert f">{TRAFFIC_SAFETY_LABEL}</option>" in html
 
 
 def test_disasters_static_map_assets_are_served():
@@ -162,7 +190,20 @@ def test_legacy_tiles_reject_unknown_layer():
 
 
 def test_toggle_model_panel_accepts_hurricanes_label():
-    hurricanes_panel, wildfires_panel = _toggle_model_panel(HURRICANES_LABEL)
+    hurricanes_panel, wildfires_panel, traffic_safety_panel = _toggle_model_panel(
+        HURRICANES_LABEL
+    )
 
     assert hurricanes_panel == gr.update(visible=True)
     assert wildfires_panel == gr.update(visible=False)
+    assert traffic_safety_panel == gr.update(visible=False)
+
+
+def test_toggle_model_panel_accepts_traffic_safety_label():
+    hurricanes_panel, wildfires_panel, traffic_safety_panel = _toggle_model_panel(
+        TRAFFIC_SAFETY_LABEL
+    )
+
+    assert hurricanes_panel == gr.update(visible=False)
+    assert wildfires_panel == gr.update(visible=False)
+    assert traffic_safety_panel == gr.update(visible=True)

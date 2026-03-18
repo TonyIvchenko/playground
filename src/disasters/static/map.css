@@ -18,18 +18,20 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: repeating-linear-gradient(to right, rgba(15,23,42,0.12), rgba(15,23,42,0.12) 1px, transparent 1px, transparent var(--month-step));
+  background: repeating-linear-gradient(to right, rgba(15,23,42,0.12), rgba(15,23,42,0.12) 1px, transparent 1px, transparent var(--frame-step));
   opacity: 0.35;
 }
 .timeline-phases { position: absolute; inset: 0; display: flex; z-index: 0; }
 .phase-seg.train { background: #c9f7d7; }
 .phase-seg.eval { background: #fde68a; }
 .phase-seg.infer { background: #fecaca; }
+.phase-seg.live { background: #dbeafe; }
 .timeline-progress { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: rgba(30, 64, 175, 0.16); z-index: 1; pointer-events: none; }
 .timeline-marker { position: absolute; top: 50%; left: 0%; width: 14px; height: 14px; border-radius: 999px; background: #1d4ed8; border: 2px solid #ffffff; box-shadow: 0 0 0 1px rgba(29,78,216,0.35); transform: translate(-50%, -50%); z-index: 3; pointer-events: none; }
 #risk-time-slider { position: absolute; inset: 0; width: 100%; margin: 0; appearance: none; background: transparent; z-index: 4; }
 #risk-time-slider::-webkit-slider-thumb { appearance: none; width: 18px; height: 18px; border-radius: 999px; background: transparent; border: none; }
 #risk-time-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 999px; background: transparent; border: none; }
+.timeline-current-label { margin-top: 6px; font-size: 12px; color: #334155; min-height: 16px; }
 #risk-play { width: 36px; height: 36px; border-radius: 999px; border: 1px solid #cbd5e1; background: #ffffff; color: #0f172a; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
 #risk-play .pause-icon { display: none; }
 #risk-play.playing .play-icon { display: none; }

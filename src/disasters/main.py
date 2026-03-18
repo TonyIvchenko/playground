@@ -6,6 +6,7 @@ from functools import lru_cache
 import html
 import io
 import json
+import joblib
 import math
 import os
 from pathlib import Path
@@ -14,6 +15,7 @@ import sys
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.staticfiles import StaticFiles
 import gradio as gr
+import h3
 import numpy as np
 from PIL import Image
 import torch
@@ -36,6 +38,7 @@ PORT = int(os.getenv("PORT", "8080"))
 GMAPS_API_KEY = os.getenv("GMAPS_API_KEY", "")
 SERVICE_NAME = os.getenv("SERVICE_NAME", "Disasters")
 HURRICANES_LABEL = "Hurricanes"
+TRAFFIC_SAFETY_LABEL = "Traffic Safety"
 DISASTERS_STATIC_DIR = Path(__file__).resolve().parent / "static"
 DISASTERS_STATIC_URL = "/disasters-static"
 MAP_HEAD = """
@@ -58,6 +61,9 @@ HURICAINES_MODEL_PATH = Path(
 
 WILDFIRES_TILES_DIR = Path(__file__).resolve().parent / "tiles" / "wildfires"
 HURICAINES_TILES_DIR = Path(__file__).resolve().parent / "tiles" / "huricaines"
+TRAFFIC_SAFETY_DIR = Path(__file__).resolve().parents[1] / "traffic-safety"
+TRAFFIC_SAFETY_MODEL_PATH = TRAFFIC_SAFETY_DIR / "models" / "traffic_safety.joblib"
+TRAFFIC_SAFETY_TILES_DIR = TRAFFIC_SAFETY_DIR / "tiles"
 
 TILE_SIZE = 256
 SAMPLE_SIZE = 64
@@ -88,11 +94,24 @@ HURICAINES_MODEL_BUNDLE = torch.load(
 )
 
 
+def _weekly_frame_labels() -> list[str]:
+    weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    return [f"{weekdays[idx // 24]} {idx % 24:02d}:00" for idx in range(24 * 7)]
+
+
+def _load_joblib_bundle(path: Path) -> dict[str, object]:
+    if not path.exists():
+        return {}
+    loaded = joblib.load(path)
+    return loaded if isinstance(loaded, dict) else {}
+
+
 def _load_overlay(
     cube_path: Path,
     config_path: Path,
     default_config: dict[str, float | int | str],
     default_shape: tuple[int, int],
+    default_frames: list[str] | None = None,
 ) -> dict[str, object]:
     config = dict(default_config)
     if config_path.exists():
@@ -109,11 +128,14 @@ def _load_overlay(
             confidence = np.zeros_like(risk, dtype=np.float32)
         frames = [str(x) for x in cube["frames"].tolist()]
     else:
-        frames = [
-            f"{year:04d}-{month:02d}"
-            for year in range(int(config["start_year"]), int(config["end_year"]) + 1)
-            for month in range(1, 13)
-        ]
+        if default_frames is not None:
+            frames = list(default_frames)
+        else:
+            frames = [
+                f"{year:04d}-{month:02d}"
+                for year in range(int(config["start_year"]), int(config["end_year"]) + 1)
+                for month in range(1, 13)
+            ]
         risk = np.zeros(
             (len(frames), default_shape[0], default_shape[1]), dtype=np.float32
         )
@@ -167,33 +189,126 @@ HURICAINES_OVERLAY = _load_overlay(
     default_shape=(160, 220),
 )
 
-if len(WILDFIRES_OVERLAY["frames"]) <= len(HURICAINES_OVERLAY["frames"]):
-    FRAMES = list(WILDFIRES_OVERLAY["frames"])
-else:
-    FRAMES = list(HURICAINES_OVERLAY["frames"])
+TRAFFIC_SAFETY_OVERLAY = _load_overlay(
+    cube_path=TRAFFIC_SAFETY_TILES_DIR / "overlay.npz",
+    config_path=TRAFFIC_SAFETY_TILES_DIR / "overlay.json",
+    default_config={
+        "timeline_type": "weekly_cycle",
+        "month": 1,
+        "zoom_min": 3,
+        "zoom_max": 9,
+        "center_lat": 39.5,
+        "center_lon": -98.35,
+        "lat_min": 18.0,
+        "lat_max": 72.0,
+        "lon_min": -179.0,
+        "lon_max": -66.0,
+        "model_version": "missing",
+    },
+    default_shape=(360, 760),
+    default_frames=_weekly_frame_labels(),
+)
+
+TRAFFIC_SAFETY_MODEL_BUNDLE = _load_joblib_bundle(TRAFFIC_SAFETY_MODEL_PATH)
+TRAFFIC_SAFETY_MODEL_VERSION = str(
+    TRAFFIC_SAFETY_MODEL_BUNDLE.get(
+        "model_version", TRAFFIC_SAFETY_OVERLAY["config"].get("model_version", "missing")
+    )
+)
+TRAFFIC_SAFETY_CELL_INDEX = {
+    str(cell): idx
+    for idx, cell in enumerate(TRAFFIC_SAFETY_MODEL_BUNDLE.get("candidate_cells", []))
+}
+
+FRAMES = list(WILDFIRES_OVERLAY["frames"])
 
 
 OVERLAYS: dict[str, dict[str, object]] = {
     "wildfires": WILDFIRES_OVERLAY,
     "huricaines": HURICAINES_OVERLAY,
+    "traffic_safety": TRAFFIC_SAFETY_OVERLAY,
 }
 
 
-def _phase_for_frame(frame: str) -> str:
+def _phase_for_monthly_frame(frame: str, overlay: dict[str, object]) -> str:
     year = int(frame[:4])
-    train_end = min(
-        int(WILDFIRES_OVERLAY["config"]["training_end_year"]),
-        int(HURICAINES_OVERLAY["config"]["training_end_year"]),
-    )
-    eval_end = min(
-        int(WILDFIRES_OVERLAY["config"]["eval_end_year"]),
-        int(HURICAINES_OVERLAY["config"]["eval_end_year"]),
-    )
+    config = overlay["config"]
+    train_end = int(config["training_end_year"])
+    eval_end = int(config["eval_end_year"])
     if year <= train_end:
         return "training"
     if year <= eval_end:
         return "eval"
     return "inference"
+
+
+def _timeline_for_monthly(overlay: dict[str, object]) -> dict[str, object]:
+    frames = [str(frame) for frame in overlay["frames"]]
+    frame_count = len(frames)
+    train_frames = sum(
+        1 for frame in frames if _phase_for_monthly_frame(frame, overlay) == "training"
+    )
+    eval_frames = sum(
+        1 for frame in frames if _phase_for_monthly_frame(frame, overlay) == "eval"
+    )
+    infer_frames = max(1, frame_count - train_frames - eval_frames)
+    return {
+        "type": "monthly",
+        "step_pct": 100.0 / max(1, frame_count - 1),
+        "ticks": [
+            {"label": frame[:4], "frame_idx": idx}
+            for idx, frame in enumerate(frames)
+            if frame.endswith("-01")
+        ],
+        "phases": [
+            {"kind": "train", "label": "Training", "count": max(1, train_frames)},
+            {"kind": "eval", "label": "Evaluation", "count": max(1, eval_frames)},
+            {"kind": "infer", "label": "Inference", "count": max(1, infer_frames)},
+        ],
+    }
+
+
+def _timeline_for_weekly(overlay: dict[str, object]) -> dict[str, object]:
+    month_value = int(overlay["config"].get("month", 1))
+    month_labels = [
+        "",
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+    ]
+    month_label = month_labels[month_value] if 1 <= month_value <= 12 else "Current"
+    frame_count = len(overlay["frames"])
+    weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    return {
+        "type": "weekly_cycle",
+        "step_pct": 100.0 / max(1, frame_count - 1),
+        "ticks": [
+            {"label": weekday, "frame_idx": idx * 24}
+            for idx, weekday in enumerate(weekdays)
+        ],
+        "phases": [
+            {
+                "kind": "live",
+                "label": f"{month_label} weekly pattern",
+                "count": max(1, frame_count),
+            }
+        ],
+    }
+
+
+def _timeline_for_overlay(overlay: dict[str, object]) -> dict[str, object]:
+    if str(overlay["config"].get("timeline_type", "monthly")) == "weekly_cycle":
+        return _timeline_for_weekly(overlay)
+    return _timeline_for_monthly(overlay)
 
 
 def _risk_level_wildfires(probability: float) -> str:
@@ -212,6 +327,30 @@ def _risk_level_huricaines(probability: float) -> str:
     if probability < 0.50:
         return "moderate"
     if probability < 0.75:
+        return "high"
+    return "extreme"
+
+
+def _risk_level_traffic_safety(probability: float) -> str:
+    quantiles = TRAFFIC_SAFETY_MODEL_BUNDLE.get("risk_quantiles")
+    if (
+        isinstance(quantiles, list)
+        and len(quantiles) >= 3
+        and all(isinstance(value, (int, float)) for value in quantiles[:3])
+    ):
+        low_cut, mid_cut, high_cut = (float(value) for value in quantiles[:3])
+        if probability < low_cut:
+            return "low"
+        if probability < mid_cut:
+            return "moderate"
+        if probability < high_cut:
+            return "high"
+        return "extreme"
+    if probability < 0.10:
+        return "low"
+    if probability < 0.25:
+        return "moderate"
+    if probability < 0.45:
         return "high"
     return "extreme"
 
@@ -404,83 +543,179 @@ def predict_huricaines(
     }
 
 
-def _map_html() -> str:
-    frame_count = len(FRAMES)
-    train_frames = sum(1 for f in FRAMES if _phase_for_frame(f) == "training")
-    eval_frames = sum(1 for f in FRAMES if _phase_for_frame(f) == "eval")
-    infer_frames = max(1, frame_count - train_frames - eval_frames)
-    train_end_year = min(
-        int(WILDFIRES_OVERLAY["config"]["training_end_year"]),
-        int(HURICAINES_OVERLAY["config"]["training_end_year"]),
-    )
-    eval_end_year = min(
-        int(WILDFIRES_OVERLAY["config"]["eval_end_year"]),
-        int(HURICAINES_OVERLAY["config"]["eval_end_year"]),
-    )
-    default_zoom = max(
-        int(WILDFIRES_OVERLAY["config"]["zoom_min"]),
-        int(HURICAINES_OVERLAY["config"]["zoom_min"]),
-    )
-
-    year_ticks: list[tuple[int, int]] = []
-    for idx, frame in enumerate(FRAMES):
-        if frame.endswith("-01"):
-            year_ticks.append((int(frame[:4]), idx))
-    frame_denom = max(1, frame_count - 1)
-    year_ticks_html = "".join(
-        (
-            f'<div class="year-tick" data-frame-index="{idx}" '
-            f'style="left:{(idx / frame_denom) * 100.0:.6f}%"><span>{year}</span></div>'
+def predict_traffic_safety(
+    lat: float,
+    lon: float,
+    day_of_week: int,
+    hour: int,
+    month: int,
+) -> dict[str, object]:
+    if not TRAFFIC_SAFETY_MODEL_BUNDLE:
+        raise RuntimeError(
+            f"traffic safety model is unavailable; expected {TRAFFIC_SAFETY_MODEL_PATH}"
         )
-        for year, idx in year_ticks
-    )
-    month_step_pct = 100.0 / frame_denom
 
+    resolution = int(TRAFFIC_SAFETY_MODEL_BUNDLE.get("resolution", 5))
+    cell_id = h3.latlng_to_cell(float(lat), float(lon), resolution)
+    idx = TRAFFIC_SAFETY_CELL_INDEX.get(cell_id)
+    if idx is None:
+        return {
+            "model_version": TRAFFIC_SAFETY_MODEL_VERSION,
+            "cell_id": cell_id,
+            "lat": float(lat),
+            "lon": float(lon),
+            "local_day_of_week": int(day_of_week),
+            "local_hour": int(hour),
+            "month": int(month),
+            "historical_cell_events": 0,
+            "historical_same_hour_events": 0,
+            "risk_score": 0.0,
+            "risk_level": "low",
+        }
+
+    model = TRAFFIC_SAFETY_MODEL_BUNDLE["model"]
+    candidate_lats = np.asarray(TRAFFIC_SAFETY_MODEL_BUNDLE["candidate_lats"], dtype=np.float32)
+    candidate_lons = np.asarray(TRAFFIC_SAFETY_MODEL_BUNDLE["candidate_lons"], dtype=np.float32)
+    cell_total_counts = np.asarray(
+        TRAFFIC_SAFETY_MODEL_BUNDLE["cell_total_counts"], dtype=np.float32
+    )
+    cell_hour_counts = np.asarray(
+        TRAFFIC_SAFETY_MODEL_BUNDLE["cell_hour_counts"], dtype=np.float32
+    )
+
+    day_of_week = max(1, min(7, int(day_of_week)))
+    hour = max(0, min(23, int(hour)))
+    month = max(1, min(12, int(month)))
+    hour_of_week = (day_of_week - 1) * 24 + hour
+
+    hour_angle = 2.0 * math.pi * float(hour) / 24.0
+    dow_angle = 2.0 * math.pi * float(day_of_week - 1) / 7.0
+    month_angle = 2.0 * math.pi * float(month) / 12.0
+    prior_total = float(cell_total_counts[idx])
+    prior_same_hour = float(cell_hour_counts[idx, hour_of_week])
+    features = np.array(
+        [
+            [
+                float(candidate_lats[idx]),
+                float(candidate_lons[idx]),
+                math.sin(hour_angle),
+                math.cos(hour_angle),
+                math.sin(dow_angle),
+                math.cos(dow_angle),
+                math.sin(month_angle),
+                math.cos(month_angle),
+                math.log1p(prior_total),
+                math.log1p(prior_same_hour),
+                prior_same_hour / max(prior_total, 1.0),
+            ]
+        ],
+        dtype=np.float32,
+    )
+    probability = float(model.predict_proba(features)[0, 1])
+    probability = max(0.0, min(1.0, probability))
+
+    return {
+        "model_version": TRAFFIC_SAFETY_MODEL_VERSION,
+        "cell_id": cell_id,
+        "lat": float(lat),
+        "lon": float(lon),
+        "local_day_of_week": day_of_week,
+        "local_hour": hour,
+        "month": month,
+        "historical_cell_events": int(prior_total),
+        "historical_same_hour_events": int(prior_same_hour),
+        "risk_score": probability,
+        "risk_level": _risk_level_traffic_safety(probability),
+    }
+
+
+def _map_html() -> str:
     def _first_metric(bundle: dict[str, object], keys: list[str]) -> float | None:
         for key in keys:
             value = bundle.get(key)
             if isinstance(value, (int, float)):
                 return float(value)
+        nested_metrics = bundle.get("metrics")
+        if isinstance(nested_metrics, dict):
+            for key in keys:
+                value = nested_metrics.get(key)
+                if isinstance(value, (int, float)):
+                    return float(value)
         return None
+
+    def _metric_pair(label: str, value: float | None) -> dict[str, float | str | None]:
+        return {"label": label, "value": value}
+
+    def _hazard_map_config(
+        label: str,
+        overlay: dict[str, object],
+        metrics: list[dict[str, float | str | None]],
+        default_frame_idx: int = 0,
+    ) -> dict[str, object]:
+        config = overlay["config"]
+        frames = [str(frame) for frame in overlay["frames"]]
+        return {
+            "label": label,
+            "frames": frames,
+            "center_lat": float(config["center_lat"]),
+            "center_lon": float(config["center_lon"]),
+            "default_zoom": int(config.get("zoom_min", 4)),
+            "zoom_min": int(config.get("zoom_min", 2)),
+            "zoom_max": int(config.get("zoom_max", 10)),
+            "timeline": _timeline_for_overlay(overlay),
+            "metrics": metrics,
+            "default_frame_idx": max(0, min(default_frame_idx, len(frames) - 1)),
+        }
 
     js_config = {
         "api_key": GMAPS_API_KEY,
-        "frames": FRAMES,
         "service_id": "disasters",
-        "center_lat": 36.0,
-        "center_lon": -95.0,
-        "default_zoom": default_zoom,
-        "zoom_min": 2,
-        "zoom_max": 10,
-        "training_end_year": train_end_year,
-        "eval_end_year": eval_end_year,
+        "default_hazard": "wildfires",
         "hazards": {
-            "wildfires": {
-                "lat_min": float(WILDFIRES_OVERLAY["config"]["lat_min"]),
-                "lat_max": float(WILDFIRES_OVERLAY["config"]["lat_max"]),
-                "lon_min": float(WILDFIRES_OVERLAY["config"]["lon_min"]),
-                "lon_max": float(WILDFIRES_OVERLAY["config"]["lon_max"]),
-            },
-            "huricaines": {
-                "lat_min": float(HURICAINES_OVERLAY["config"]["lat_min"]),
-                "lat_max": float(HURICAINES_OVERLAY["config"]["lat_max"]),
-                "lon_min": float(HURICAINES_OVERLAY["config"]["lon_min"]),
-                "lon_max": float(HURICAINES_OVERLAY["config"]["lon_max"]),
-            },
-        },
-        "model_metrics": {
-            "wildfires": {
-                "val_accuracy": _first_metric(
-                    WILDFIRES_MODEL_BUNDLE, ["val_accuracy", "accuracy"]
-                ),
-                "val_auc": _first_metric(WILDFIRES_MODEL_BUNDLE, ["val_auc", "auc"]),
-            },
-            "huricaines": {
-                "val_accuracy": _first_metric(
-                    HURICAINES_MODEL_BUNDLE, ["val_accuracy", "accuracy"]
-                ),
-                "val_auc": _first_metric(HURICAINES_MODEL_BUNDLE, ["val_auc", "auc"]),
-            },
+            "wildfires": _hazard_map_config(
+                label="Wildfires",
+                overlay=WILDFIRES_OVERLAY,
+                metrics=[
+                    _metric_pair(
+                        "Accuracy",
+                        _first_metric(WILDFIRES_MODEL_BUNDLE, ["val_accuracy", "accuracy"]),
+                    ),
+                    _metric_pair("AUC", _first_metric(WILDFIRES_MODEL_BUNDLE, ["val_auc", "auc"])),
+                ],
+                default_frame_idx=max(0, len(WILDFIRES_OVERLAY["frames"]) - 1),
+            ),
+            "huricaines": _hazard_map_config(
+                label=HURRICANES_LABEL,
+                overlay=HURICAINES_OVERLAY,
+                metrics=[
+                    _metric_pair(
+                        "Accuracy",
+                        _first_metric(HURICAINES_MODEL_BUNDLE, ["val_accuracy", "accuracy"]),
+                    ),
+                    _metric_pair("AUC", _first_metric(HURICAINES_MODEL_BUNDLE, ["val_auc", "auc"])),
+                ],
+                default_frame_idx=max(0, len(HURICAINES_OVERLAY["frames"]) - 1),
+            ),
+            "traffic_safety": _hazard_map_config(
+                label=TRAFFIC_SAFETY_LABEL,
+                overlay=TRAFFIC_SAFETY_OVERLAY,
+                metrics=[
+                    _metric_pair(
+                        "ROC AUC",
+                        _first_metric(
+                            TRAFFIC_SAFETY_MODEL_BUNDLE, ["val_roc_auc", "roc_auc"]
+                        ),
+                    ),
+                    _metric_pair(
+                        "Avg Precision",
+                        _first_metric(
+                            TRAFFIC_SAFETY_MODEL_BUNDLE,
+                            ["val_average_precision", "average_precision"],
+                        ),
+                    ),
+                ],
+                default_frame_idx=0,
+            ),
         },
     }
     config_blob = html.escape(json.dumps(js_config), quote=True)
@@ -491,19 +726,14 @@ def _map_html() -> str:
     <div class="risk-map-header">
       <div class="timeline-row">
         <div class="timeline-wrap">
-          <div class="timeline-years">
-            {year_ticks_html}
-          </div>
-          <div class="timeline-track" style="--month-step:{month_step_pct:.6f}%;">
-            <div class="timeline-phases">
-              <div class="phase-seg train" style="flex:{max(1, train_frames)};"></div>
-              <div class="phase-seg eval" style="flex:{max(1, eval_frames)};"></div>
-              <div class="phase-seg infer" style="flex:{max(1, infer_frames)};"></div>
-            </div>
+          <div id="risk-timeline-ticks" class="timeline-years"></div>
+          <div id="risk-timeline-track" class="timeline-track" style="--frame-step:1%;">
+            <div id="risk-timeline-phases" class="timeline-phases"></div>
             <div id="risk-time-progress" class="timeline-progress"></div>
             <div id="risk-now-marker" class="timeline-marker"></div>
-            <input id="risk-time-slider" type="range" min="0" max="{frame_count - 1}" value="0" step="1" />
+            <input id="risk-time-slider" type="range" min="0" max="0" value="0" step="1" />
           </div>
+          <div id="risk-frame-label" class="timeline-current-label"></div>
         </div>
         <button id="risk-play" type="button" aria-label="Play timeline">
           <span class="play-icon" aria-hidden="true">&#9658;</span>
@@ -519,11 +749,12 @@ def _map_html() -> str:
           <select id="hazard-select" class="layer-select">
             <option value="wildfires" selected>Wildfires</option>
             <option value="huricaines">{HURRICANES_LABEL}</option>
+            <option value="traffic_safety">{TRAFFIC_SAFETY_LABEL}</option>
           </select>
         </div>
         <div class="overlay-row metrics-row">
-          <div class="metric-inline"><span>Accuracy</span><strong id="model-metric-acc">-</strong></div>
-          <div class="metric-inline"><span>AUC</span><strong id="model-metric-auc">-</strong></div>
+          <div class="metric-inline"><span id="model-metric-1-label">Accuracy</span><strong id="model-metric-1-value">-</strong></div>
+          <div class="metric-inline"><span id="model-metric-2-label">AUC</span><strong id="model-metric-2-value">-</strong></div>
         </div>
       </div>
       <div id="risk-map" class="risk-map"></div>
@@ -552,9 +783,17 @@ async () => {
 """
 
 
-def _toggle_model_panel(selection: str) -> tuple[dict[str, bool], dict[str, bool]]:
+def _toggle_model_panel(
+    selection: str,
+) -> tuple[dict[str, bool], dict[str, bool], dict[str, bool]]:
     show_huricaines = selection == HURRICANES_LABEL
-    return gr.update(visible=show_huricaines), gr.update(visible=not show_huricaines)
+    show_traffic_safety = selection == TRAFFIC_SAFETY_LABEL
+    show_wildfires = selection == "Wildfires"
+    return (
+        gr.update(visible=show_huricaines),
+        gr.update(visible=show_wildfires),
+        gr.update(visible=show_traffic_safety),
+    )
 
 
 with gr.Blocks(title=SERVICE_NAME, head=MAP_HEAD) as demo:
@@ -568,7 +807,7 @@ with gr.Blocks(title=SERVICE_NAME, head=MAP_HEAD) as demo:
             with gr.Row():
                 with gr.Column(scale=1, min_width=170):
                     model_selector = gr.Radio(
-                        choices=[HURRICANES_LABEL, "Wildfires"],
+                        choices=[HURRICANES_LABEL, "Wildfires", TRAFFIC_SAFETY_LABEL],
                         value=HURRICANES_LABEL,
                         show_label=False,
                         container=False,
@@ -639,10 +878,38 @@ with gr.Blocks(title=SERVICE_NAME, head=MAP_HEAD) as demo:
                             outputs=wildfires_output,
                         )
 
+                    with gr.Group(visible=False) as traffic_safety_panel:
+                        with gr.Row():
+                            traffic_lat = gr.Number(label="Latitude", value=34.0522)
+                            traffic_lon = gr.Number(label="Longitude", value=-118.2437)
+                            traffic_day_of_week = gr.Number(
+                                label="Day Of Week (1=Mon)", value=5
+                            )
+                            traffic_hour = gr.Number(label="Hour", value=17)
+                            traffic_month = gr.Number(label="Month", value=9)
+
+                        traffic_safety_output = gr.JSON(
+                            label=f"{TRAFFIC_SAFETY_LABEL} Prediction"
+                        )
+                        traffic_safety_run = gr.Button(
+                            f"Predict {TRAFFIC_SAFETY_LABEL}"
+                        )
+                        traffic_safety_run.click(
+                            fn=predict_traffic_safety,
+                            inputs=[
+                                traffic_lat,
+                                traffic_lon,
+                                traffic_day_of_week,
+                                traffic_hour,
+                                traffic_month,
+                            ],
+                            outputs=traffic_safety_output,
+                        )
+
             model_selector.change(
                 fn=_toggle_model_panel,
                 inputs=model_selector,
-                outputs=[huricaines_panel, wildfires_panel],
+                outputs=[huricaines_panel, wildfires_panel, traffic_safety_panel],
                 queue=False,
                 show_progress="hidden",
             )
@@ -671,8 +938,12 @@ def health() -> dict[str, object]:
         "service": SERVICE_NAME,
         "status": "ok",
         "frames": len(FRAMES),
+        "frames_by_hazard": {
+            hazard: len(overlay["frames"]) for hazard, overlay in OVERLAYS.items()
+        },
         "wildfires_model_version": WILDFIRES_MODEL_VERSION,
         "huricaines_model_version": HURICAINES_MODEL_VERSION,
+        "traffic_safety_model_version": TRAFFIC_SAFETY_MODEL_VERSION,
     }
 
 

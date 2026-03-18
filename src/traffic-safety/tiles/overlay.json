@@ -1,0 +1,13 @@
+{
+  "timeline_type": "weekly_cycle",
+  "month": 4,
+  "zoom_min": 3,
+  "zoom_max": 9,
+  "center_lat": 39.5,
+  "center_lon": -98.35,
+  "lat_min": 18.0,
+  "lat_max": 72.0,
+  "lon_min": -179.0,
+  "lon_max": -66.0,
+  "model_version": "0.1.0"
+}
