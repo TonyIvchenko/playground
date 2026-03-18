@@ -1,0 +1,213 @@
+window.bootstrapTrafficSafetyMap = () => {
+  const root = document.getElementById("risk-map-shell");
+  if (!root || root.dataset.ready === "1") return [];
+  root.dataset.ready = "1";
+
+  let cfg = {};
+  try {
+    cfg = JSON.parse(root.dataset.config || "{}");
+  } catch (err) {
+    console.error("Failed to parse map config", err);
+  }
+
+  const slider = root.querySelector("#risk-time-slider");
+  const playBtn = root.querySelector("#risk-play");
+  const progressNode = root.querySelector("#risk-time-progress");
+  const markerNode = root.querySelector("#risk-now-marker");
+  const mapNode = root.querySelector("#risk-map");
+  const statusNode = root.querySelector("#risk-map-status");
+  const timelineTicksNode = root.querySelector("#risk-timeline-ticks");
+  const timelinePhasesNode = root.querySelector("#risk-timeline-phases");
+  const timelineTrackNode = root.querySelector("#risk-timeline-track");
+  const frameLabelNode = root.querySelector("#risk-frame-label");
+  const metric1LabelNode = root.querySelector("#model-metric-1-label");
+  const metric1ValueNode = root.querySelector("#model-metric-1-value");
+  const metric2LabelNode = root.querySelector("#model-metric-2-label");
+  const metric2ValueNode = root.querySelector("#model-metric-2-value");
+
+  const frames = Array.isArray(cfg.frames) && cfg.frames.length > 0 ? cfg.frames : ["Frame 0"];
+  const frameCount = frames.length;
+  const maxFrameIdx = Math.max(1, frameCount - 1);
+  slider.max = String(Math.max(0, frameCount - 1));
+  slider.value = String(Math.max(0, Math.min(frameCount - 1, Number(cfg.default_frame_idx || 0))));
+
+  let timer = null;
+  let map = null;
+
+  const updateStatus = (text, isError = false) => {
+    if (!text) {
+      statusNode.textContent = "";
+      statusNode.classList.remove("show", "error");
+      return;
+    }
+    statusNode.textContent = text;
+    statusNode.classList.add("show");
+    statusNode.classList.toggle("error", Boolean(isError));
+  };
+
+  const fmtPct = (value) => {
+    if (typeof value !== "number" || Number.isNaN(value)) return "n/a";
+    return `${(value * 100).toFixed(2)}%`;
+  };
+
+  const renderModelSummary = () => {
+    const metrics = Array.isArray(cfg.metrics) ? cfg.metrics : [];
+    const metric1 = metrics[0] || { label: "Metric 1", value: null };
+    const metric2 = metrics[1] || { label: "Metric 2", value: null };
+    metric1LabelNode.textContent = metric1.label || "Metric 1";
+    metric1ValueNode.textContent = fmtPct(metric1.value);
+    metric2LabelNode.textContent = metric2.label || "Metric 2";
+    metric2ValueNode.textContent = fmtPct(metric2.value);
+  };
+
+  const renderTimelineScaffold = () => {
+    const timeline = cfg.timeline || {};
+    const stepPct = Number(timeline.step_pct || 1);
+    timelineTrackNode.style.setProperty("--frame-step", `${stepPct}%`);
+
+    const ticks = Array.isArray(timeline.ticks) ? timeline.ticks : [];
+    timelineTicksNode.innerHTML = ticks
+      .map((tick) => {
+        const frameIdx = Number(tick.frame_idx || 0);
+        const left = (frameIdx / maxFrameIdx) * 100.0;
+        return `<div class="year-tick" data-frame-index="${frameIdx}" style="left:${left.toFixed(6)}%"><span>${tick.label || ""}</span></div>`;
+      })
+      .join("");
+
+    const phases = Array.isArray(timeline.phases) ? timeline.phases : [];
+    timelinePhasesNode.innerHTML = phases
+      .map((phase) => {
+        const phaseKind = phase.kind || "live";
+        const phaseLabel = phase.label ? ` title="${phase.label}"` : "";
+        const phaseCount = Math.max(1, Number(phase.count || 1));
+        return `<div class="phase-seg ${phaseKind}" style="flex:${phaseCount};"${phaseLabel}></div>`;
+      })
+      .join("");
+  };
+
+  const updateTimeline = () => {
+    const idx = Math.min(maxFrameIdx, Math.max(0, Number(slider.value) || 0));
+    slider.value = String(idx);
+    const pct = (idx / maxFrameIdx) * 100.0;
+    progressNode.style.width = `${pct}%`;
+    markerNode.style.left = `${pct}%`;
+    frameLabelNode.textContent = frames[idx] || "";
+
+    const ticks = Array.from(root.querySelectorAll(".year-tick"));
+    let activeTick = -1;
+    ticks.forEach((tick, i) => {
+      const startIdx = Number(tick.dataset.frameIndex || "0");
+      if (idx >= startIdx) {
+        activeTick = i;
+      }
+    });
+    ticks.forEach((tick, i) => tick.classList.toggle("active", i === activeTick));
+  };
+
+  const setPlaying = (on) => {
+    if (on && !timer) {
+      playBtn.classList.add("playing");
+      playBtn.setAttribute("aria-label", "Pause timeline");
+      timer = setInterval(() => {
+        const next = (Number(slider.value) + 1) % frameCount;
+        slider.value = String(next);
+        installOverlay();
+      }, 900);
+      return;
+    }
+    if (!on && timer) {
+      clearInterval(timer);
+      timer = null;
+    }
+    playBtn.classList.remove("playing");
+    playBtn.setAttribute("aria-label", "Play timeline");
+  };
+
+  const tileUrl = (frameIdx, z, x, y) => `/tiles/${frameIdx}/${z}/${x}/${y}.png`;
+
+  const clearOverlays = () => {
+    if (!map) return;
+    map.overlayMapTypes.clear();
+  };
+
+  const pushOverlay = (frameIdx) => {
+    if (!map) return;
+    const overlay = new google.maps.ImageMapType({
+      tileSize: new google.maps.Size(256, 256),
+      opacity: 1.0,
+      getTileUrl: (coord, zoom) => {
+        if (coord.y < 0 || coord.y >= 1 << zoom) return "";
+        const wrappedX = ((coord.x % (1 << zoom)) + (1 << zoom)) % (1 << zoom);
+        return tileUrl(frameIdx, zoom, wrappedX, coord.y);
+      },
+    });
+    map.overlayMapTypes.push(overlay);
+  };
+
+  const installOverlay = () => {
+    updateStatus("");
+    updateTimeline();
+    if (!map) return;
+    clearOverlays();
+    pushOverlay(Number(slider.value));
+  };
+
+  const initGoogleMap = () => {
+    map = new google.maps.Map(mapNode, {
+      center: {
+        lat: Number(cfg.center_lat || 39.5),
+        lng: Number(cfg.center_lon || -98.35),
+      },
+      zoom: Number(cfg.default_zoom || 4),
+      minZoom: Number(cfg.zoom_min || 2),
+      maxZoom: Number(cfg.zoom_max || 10),
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: false,
+      zoomControl: true,
+      zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_BOTTOM },
+      rotateControl: false,
+      scaleControl: false,
+      clickableIcons: false,
+    });
+    setTimeout(() => {
+      if (window.google && window.google.maps) {
+        google.maps.event.trigger(map, "resize");
+      }
+    }, 150);
+    installOverlay();
+  };
+
+  const loadGoogleMaps = () => {
+    if (!cfg.api_key) {
+      updateStatus("GMAPS_API_KEY is required.", true);
+      return;
+    }
+    if (window.google && window.google.maps) {
+      initGoogleMap();
+      return;
+    }
+    const callbackName = `gmapsInit_${cfg.service_id}_${Date.now()}`;
+    window[callbackName] = () => {
+      delete window[callbackName];
+      initGoogleMap();
+    };
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${cfg.api_key}&callback=${callbackName}&v=weekly`;
+    script.async = true;
+    script.defer = true;
+    script.onerror = () => {
+      updateStatus("Failed to load Google Maps JavaScript API.", true);
+    };
+    document.head.appendChild(script);
+  };
+
+  slider.addEventListener("input", installOverlay);
+  playBtn.addEventListener("click", () => setPlaying(!timer));
+
+  renderTimelineScaffold();
+  renderModelSummary();
+  updateTimeline();
+  loadGoogleMaps();
+  return [];
+};

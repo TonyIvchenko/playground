@@ -2,6 +2,19 @@
 
 US-wide traffic incident risk modeling and map overlay design.
 
+This app is self-contained. You can run it directly with:
+
+```bash
+python src/traffic-safety/main.py
+```
+
+If you want the interactive map basemap, set `GMAPS_API_KEY` first:
+
+```bash
+export GMAPS_API_KEY=your_google_maps_key
+python src/traffic-safety/main.py
+```
+
 The goal here is not a one-state demo. The goal is a nationwide system that can:
 
 - train offline on historical incident, weather, and road-context data
@@ -82,6 +95,7 @@ The open stack gets us full-US coverage. The commercial layer improves freshness
 
 ## Files In This Folder
 
+- [main.py](/Users/toxa/git/playground/src/traffic-safety/main.py)
 - [ARCHITECTURE.md](/Users/toxa/git/playground/src/traffic-safety/ARCHITECTURE.md)
 - [DATA_SOURCES.md](/Users/toxa/git/playground/src/traffic-safety/DATA_SOURCES.md)
 - [source_catalog.json](/Users/toxa/git/playground/src/traffic-safety/source_catalog.json)
