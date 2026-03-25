@@ -56,6 +56,7 @@ If we want a nationwide baseline without buying data, the strongest stack is:
 - strengths: official, long time range, reproducible
 - caveats: station-based, so we need interpolation or nearest-station joins
 - source: https://www.ncei.noaa.gov/
+- implemented here: `NOAA ISD-Lite` nearest representative-station hourly join plus station climatology fallback
 
 ### 6. FHWA HPMS
 
@@ -107,6 +108,7 @@ If we want a nationwide baseline without buying data, the strongest stack is:
 - best for: open nationwide online scoring
 - caveats: weather, not traffic
 - source: https://www.weather.gov/documentation/services-web-api
+- implemented here: yes, as the default live weather adapter for `/api/live-risk`
 
 #### State Or Regional 511 Feeds
 
@@ -156,6 +158,7 @@ If we want a nationwide baseline without buying data, the strongest stack is:
 - use: higher-SLA forecast and nowcast data
 - candidates: `Tomorrow.io`, `AccuWeather`, `Meteomatics`, `OpenWeather`
 - best for: production-grade live weather if NWS alone is not enough
+- implemented here: optional `Tomorrow.io` and `OpenWeather` adapters behind feature flags
 
 ## Recommendation
 

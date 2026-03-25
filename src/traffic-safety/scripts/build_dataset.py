@@ -27,6 +27,7 @@ USECOLS = [
     "STATENAME",
     "YEAR",
     "MONTH",
+    "DAY",
     "DAY_WEEK",
     "HOUR",
     "LATITUDE",
@@ -81,6 +82,7 @@ def load_year_accidents(year: int) -> pd.DataFrame:
     frame["LATITUDE"] = pd.to_numeric(frame["LATITUDE"], errors="coerce")
     frame["LONGITUD"] = pd.to_numeric(frame["LONGITUD"], errors="coerce")
     frame["MONTH"] = pd.to_numeric(frame["MONTH"], errors="coerce")
+    frame["DAY"] = pd.to_numeric(frame["DAY"], errors="coerce")
     frame["DAY_WEEK"] = pd.to_numeric(frame["DAY_WEEK"], errors="coerce")
     frame["HOUR"] = pd.to_numeric(frame["HOUR"], errors="coerce")
     frame["FATALS"] = pd.to_numeric(frame["FATALS"], errors="coerce")
@@ -90,16 +92,20 @@ def load_year_accidents(year: int) -> pd.DataFrame:
     frame["LGT_COND"] = pd.to_numeric(frame["LGT_COND"], errors="coerce")
     frame["WRK_ZONE"] = pd.to_numeric(frame["WRK_ZONE"], errors="coerce")
 
-    frame = frame.dropna(subset=["LATITUDE", "LONGITUD", "MONTH", "DAY_WEEK", "HOUR"])
+    frame = frame.dropna(
+        subset=["LATITUDE", "LONGITUD", "MONTH", "DAY", "DAY_WEEK", "HOUR"]
+    )
     frame = frame.loc[
         frame["LATITUDE"].between(LAT_MIN, LAT_MAX)
         & frame["LONGITUD"].between(LON_MIN, LON_MAX)
         & frame["MONTH"].between(1, 12)
+        & frame["DAY"].between(1, 31)
         & frame["DAY_WEEK"].between(1, 7)
         & frame["HOUR"].between(0, 23)
     ].copy()
 
     frame["day_of_week"] = frame["DAY_WEEK"].astype(int).map(normalize_day_of_week)
+    frame["day"] = frame["DAY"].astype(int)
     frame["hour"] = frame["HOUR"].astype(int)
     frame["month"] = frame["MONTH"].astype(int)
     frame["fatals"] = frame["FATALS"].fillna(1).astype(int).clip(lower=1)
@@ -116,6 +122,7 @@ def load_year_accidents(year: int) -> pd.DataFrame:
             "STATE",
             "STATENAME",
             "month",
+            "day",
             "day_of_week",
             "hour",
             "hour_of_week",
@@ -187,7 +194,7 @@ def main() -> None:
         yearly_frames.append(load_year_accidents(year))
 
     events = pd.concat(yearly_frames, ignore_index=True)
-    events = events.sort_values(["year", "month", "day_of_week", "hour"]).reset_index(drop=True)
+    events = events.sort_values(["year", "month", "day", "hour"]).reset_index(drop=True)
     candidate_cells = build_candidate_cells(events)
     weekly_counts = (
         events.groupby(["cell_id", "hour_of_week"]).size().rename("event_count").reset_index()

@@ -7,7 +7,6 @@ import html
 import io
 import json
 import joblib
-import math
 import os
 from pathlib import Path
 import sys
@@ -18,6 +17,7 @@ import gradio as gr
 import h3
 import numpy as np
 from PIL import Image
+import requests
 import uvicorn
 
 
@@ -27,6 +27,16 @@ GMAPS_API_KEY = os.getenv("GMAPS_API_KEY", "")
 SERVICE_NAME = os.getenv("SERVICE_NAME", "Traffic Safety")
 
 APP_DIR = Path(__file__).resolve().parent
+if str(APP_DIR) not in sys.path:
+    sys.path.insert(0, str(APP_DIR))
+
+from live_weather import (
+    LiveWeatherProviderError,
+    fetch_live_weather,
+    provider_statuses,
+)
+from model_support import build_feature_matrix, lookup_weather_climatology
+
 STATIC_DIR = APP_DIR / "static"
 STATIC_URL = "/traffic-safety-static"
 MODEL_PATH = APP_DIR / "models" / "traffic_safety.joblib"
@@ -121,6 +131,7 @@ MODEL_VERSION = str(
 CELL_INDEX = {
     str(cell): idx for idx, cell in enumerate(MODEL_BUNDLE.get("candidate_cells", []))
 }
+LIVE_PROVIDER_CHOICES = ["auto", *[status.name for status in provider_statuses()]]
 
 
 def _first_metric(bundle: dict[str, object], keys: list[str]) -> float | None:
@@ -308,24 +319,112 @@ def _render_tile_png(frame_idx: int, z: int, x: int, y: int) -> bytes:
     return buffer.getvalue()
 
 
-def predict_traffic_safety(
+def _bundle_array(key: str, dtype: np.dtype | type, default: object | None = None) -> np.ndarray:
+    value = MODEL_BUNDLE.get(key, default)
+    if value is None:
+        raise RuntimeError(f"traffic safety bundle is missing '{key}'")
+    return np.asarray(value, dtype=dtype)
+
+
+def _default_weather_for_index(idx: int, hour_of_week: int, month: int) -> np.ndarray:
+    if "weather_climatology" not in MODEL_BUNDLE or "candidate_station_indices" not in MODEL_BUNDLE:
+        return np.zeros(5, dtype=np.float32)
+
+    weather = lookup_weather_climatology(
+        weather_cube=_bundle_array("weather_climatology", np.float32),
+        station_indices=int(_bundle_array("candidate_station_indices", np.int16)[idx]),
+        months=int(month),
+        hour_of_week=int(hour_of_week),
+        weather_defaults=_bundle_array("weather_defaults", np.float32, default=np.zeros(5)),
+    )
+    return weather[0]
+
+
+def _prediction_feature_row(
+    *,
+    model: object,
     lat: float,
     lon: float,
     day_of_week: int,
     hour: int,
     month: int,
+    prior_total: float,
+    prior_same_hour: float,
+    temp_c: float,
+    dewpoint_c: float,
+    relative_humidity_pct: float,
+    wind_speed_mps: float,
+    wet_hour: float,
+) -> np.ndarray:
+    feature_count = int(getattr(model, "n_features_in_", 16))
+    if feature_count <= 11:
+        hour_angle = 2.0 * np.pi * float(hour) / 24.0
+        dow_angle = 2.0 * np.pi * float(day_of_week - 1) / 7.0
+        month_angle = 2.0 * np.pi * float(month) / 12.0
+        return np.array(
+            [
+                [
+                    float(lat),
+                    float(lon),
+                    float(np.sin(hour_angle)),
+                    float(np.cos(hour_angle)),
+                    float(np.sin(dow_angle)),
+                    float(np.cos(dow_angle)),
+                    float(np.sin(month_angle)),
+                    float(np.cos(month_angle)),
+                    float(np.log1p(prior_total)),
+                    float(np.log1p(prior_same_hour)),
+                    float(prior_same_hour / max(prior_total, 1.0)),
+                ]
+            ],
+            dtype=np.float32,
+        )
+
+    hour_of_week = (day_of_week - 1) * 24 + hour
+    return build_feature_matrix(
+        latitudes=np.array([lat], dtype=np.float32),
+        longitudes=np.array([lon], dtype=np.float32),
+        hour_of_week=np.array([hour_of_week], dtype=np.int16),
+        months=np.array([month], dtype=np.int8),
+        totals=np.array([prior_total], dtype=np.float32),
+        same_hour=np.array([prior_same_hour], dtype=np.float32),
+        temp_c=np.array([temp_c], dtype=np.float32),
+        dewpoint_c=np.array([dewpoint_c], dtype=np.float32),
+        relative_humidity_pct=np.array([relative_humidity_pct], dtype=np.float32),
+        wind_speed_mps=np.array([wind_speed_mps], dtype=np.float32),
+        wet_hour=np.array([wet_hour], dtype=np.float32),
+    )
+
+
+def _predict_with_weather(
+    *,
+    lat: float,
+    lon: float,
+    day_of_week: int,
+    hour: int,
+    month: int,
+    temp_c: float,
+    dewpoint_c: float,
+    relative_humidity_pct: float,
+    wind_speed_mps: float,
+    wet_hour: float,
+    weather_source: str,
+    weather_summary: str = "",
+    provider: str | None = None,
+    provider_label: str | None = None,
+    timestamp_local: str | None = None,
+    forecast_hours: int | None = None,
 ) -> dict[str, object]:
     if not MODEL_BUNDLE:
         raise RuntimeError(f"traffic safety model is unavailable; expected {MODEL_PATH}")
-
-    resolution = int(MODEL_BUNDLE.get("resolution", 5))
-    cell_id = h3.latlng_to_cell(float(lat), float(lon), resolution)
-    idx = CELL_INDEX.get(cell_id)
 
     day_of_week = max(1, min(7, int(day_of_week)))
     hour = max(0, min(23, int(hour)))
     month = max(1, min(12, int(month)))
 
+    resolution = int(MODEL_BUNDLE.get("resolution", 5))
+    cell_id = h3.latlng_to_cell(float(lat), float(lon), resolution)
+    idx = CELL_INDEX.get(cell_id)
     if idx is None:
         return {
             "model_version": MODEL_VERSION,
@@ -339,38 +438,44 @@ def predict_traffic_safety(
             "historical_same_hour_events": 0,
             "risk_score": 0.0,
             "risk_level": "low",
+            "weather_source": weather_source,
+            "weather": {
+                "temp_c": float(temp_c),
+                "dewpoint_c": float(dewpoint_c),
+                "relative_humidity_pct": float(relative_humidity_pct),
+                "wind_speed_mps": float(wind_speed_mps),
+                "wet_hour": float(wet_hour),
+                "summary": weather_summary,
+            },
+            "live_provider": provider,
+            "live_provider_label": provider_label,
+            "target_timestamp_local": timestamp_local,
+            "forecast_hours": forecast_hours,
         }
 
     model = MODEL_BUNDLE["model"]
-    candidate_lats = np.asarray(MODEL_BUNDLE["candidate_lats"], dtype=np.float32)
-    candidate_lons = np.asarray(MODEL_BUNDLE["candidate_lons"], dtype=np.float32)
-    cell_total_counts = np.asarray(MODEL_BUNDLE["cell_total_counts"], dtype=np.float32)
-    cell_hour_counts = np.asarray(MODEL_BUNDLE["cell_hour_counts"], dtype=np.float32)
+    candidate_lats = _bundle_array("candidate_lats", np.float32)
+    candidate_lons = _bundle_array("candidate_lons", np.float32)
+    cell_total_counts = _bundle_array("cell_total_counts", np.float32)
+    cell_hour_counts = _bundle_array("cell_hour_counts", np.float32)
 
     hour_of_week = (day_of_week - 1) * 24 + hour
-    hour_angle = 2.0 * math.pi * float(hour) / 24.0
-    dow_angle = 2.0 * math.pi * float(day_of_week - 1) / 7.0
-    month_angle = 2.0 * math.pi * float(month) / 12.0
     prior_total = float(cell_total_counts[idx])
     prior_same_hour = float(cell_hour_counts[idx, hour_of_week])
-
-    features = np.array(
-        [
-            [
-                float(candidate_lats[idx]),
-                float(candidate_lons[idx]),
-                math.sin(hour_angle),
-                math.cos(hour_angle),
-                math.sin(dow_angle),
-                math.cos(dow_angle),
-                math.sin(month_angle),
-                math.cos(month_angle),
-                math.log1p(prior_total),
-                math.log1p(prior_same_hour),
-                prior_same_hour / max(prior_total, 1.0),
-            ]
-        ],
-        dtype=np.float32,
+    features = _prediction_feature_row(
+        model=model,
+        lat=float(candidate_lats[idx]),
+        lon=float(candidate_lons[idx]),
+        day_of_week=day_of_week,
+        hour=hour,
+        month=month,
+        prior_total=prior_total,
+        prior_same_hour=prior_same_hour,
+        temp_c=float(temp_c),
+        dewpoint_c=float(dewpoint_c),
+        relative_humidity_pct=float(relative_humidity_pct),
+        wind_speed_mps=float(wind_speed_mps),
+        wet_hour=float(wet_hour),
     )
     probability = float(model.predict_proba(features)[0, 1])
     probability = max(0.0, min(1.0, probability))
@@ -386,7 +491,101 @@ def predict_traffic_safety(
         "historical_same_hour_events": int(prior_same_hour),
         "risk_score": probability,
         "risk_level": _risk_level(probability),
+        "weather_source": weather_source,
+        "weather": {
+            "temp_c": float(temp_c),
+            "dewpoint_c": float(dewpoint_c),
+            "relative_humidity_pct": float(relative_humidity_pct),
+            "wind_speed_mps": float(wind_speed_mps),
+            "wet_hour": float(wet_hour),
+            "summary": weather_summary,
+        },
+        "live_provider": provider,
+        "live_provider_label": provider_label,
+        "target_timestamp_local": timestamp_local,
+        "forecast_hours": forecast_hours,
     }
+
+
+def predict_traffic_safety(
+    lat: float,
+    lon: float,
+    day_of_week: int,
+    hour: int,
+    month: int,
+) -> dict[str, object]:
+    day_of_week = max(1, min(7, int(day_of_week)))
+    hour = max(0, min(23, int(hour)))
+    month = max(1, min(12, int(month)))
+    resolution = int(MODEL_BUNDLE.get("resolution", 5))
+    cell_id = h3.latlng_to_cell(float(lat), float(lon), resolution)
+    idx = CELL_INDEX.get(cell_id)
+
+    if idx is None:
+        return {
+            "model_version": MODEL_VERSION,
+            "cell_id": cell_id,
+            "lat": float(lat),
+            "lon": float(lon),
+            "local_day_of_week": day_of_week,
+            "local_hour": hour,
+            "month": month,
+            "historical_cell_events": 0,
+            "historical_same_hour_events": 0,
+            "risk_score": 0.0,
+            "risk_level": "low",
+            "weather_source": "climatology",
+        }
+
+    hour_of_week = (day_of_week - 1) * 24 + hour
+    default_weather = _default_weather_for_index(idx=idx, hour_of_week=hour_of_week, month=month)
+    return _predict_with_weather(
+        lat=float(lat),
+        lon=float(lon),
+        day_of_week=day_of_week,
+        hour=hour,
+        month=month,
+        temp_c=float(default_weather[0]),
+        dewpoint_c=float(default_weather[1]),
+        relative_humidity_pct=float(default_weather[2]),
+        wind_speed_mps=float(default_weather[3]),
+        wet_hour=float(default_weather[4]),
+        weather_source="climatology",
+        weather_summary="station climatology",
+    )
+
+
+def predict_traffic_safety_live(
+    lat: float,
+    lon: float,
+    forecast_hours: int = 0,
+    provider: str = "auto",
+) -> dict[str, object]:
+    snapshot = fetch_live_weather(
+        lat=float(lat),
+        lon=float(lon),
+        forecast_hours=int(forecast_hours),
+        provider=provider,
+    )
+    timestamp_local = snapshot.timestamp_local
+    return _predict_with_weather(
+        lat=float(lat),
+        lon=float(lon),
+        day_of_week=timestamp_local.weekday() + 1,
+        hour=timestamp_local.hour,
+        month=timestamp_local.month,
+        temp_c=snapshot.temp_c,
+        dewpoint_c=snapshot.dewpoint_c,
+        relative_humidity_pct=snapshot.relative_humidity_pct,
+        wind_speed_mps=snapshot.wind_speed_mps,
+        wet_hour=snapshot.wet_hour,
+        weather_source=f"live_{snapshot.observed_or_forecast}",
+        weather_summary=snapshot.summary,
+        provider=snapshot.provider,
+        provider_label=snapshot.provider_label,
+        timestamp_local=timestamp_local.isoformat(),
+        forecast_hours=int(snapshot.forecast_hours),
+    )
 
 
 def _map_html() -> str:
@@ -496,6 +695,31 @@ with gr.Blocks(title=SERVICE_NAME, head=MAP_HEAD) as demo:
                 outputs=output,
             )
 
+        with gr.Tab("Live"):
+            with gr.Row():
+                live_lat = gr.Number(label="Latitude", value=34.0522)
+                live_lon = gr.Number(label="Longitude", value=-118.2437)
+                live_forecast_hours = gr.Slider(
+                    label="Forecast Hours Ahead",
+                    minimum=0,
+                    maximum=24,
+                    step=1,
+                    value=0,
+                )
+                live_provider = gr.Dropdown(
+                    label="Weather Provider",
+                    choices=LIVE_PROVIDER_CHOICES,
+                    value="auto",
+                )
+
+            live_output = gr.JSON(label="Live Traffic Safety Prediction")
+            live_run = gr.Button("Predict With Live Weather")
+            live_run.click(
+                fn=predict_traffic_safety_live,
+                inputs=[live_lat, live_lon, live_forecast_hours, live_provider],
+                outputs=live_output,
+            )
+
     demo.load(
         fn=None,
         inputs=None,
@@ -519,6 +743,17 @@ def health() -> dict[str, object]:
         "model_version": MODEL_VERSION,
         "model_ready": bool(MODEL_BUNDLE),
         "overlay_ready": bool((TILES_DIR / "overlay.npz").exists()),
+        "live_providers": [
+            {
+                "name": status.name,
+                "label": status.label,
+                "paid": status.paid,
+                "enabled": status.enabled,
+                "configured": status.configured,
+                "available": status.available,
+            }
+            for status in provider_statuses()
+        ],
     }
 
 
@@ -540,6 +775,26 @@ def tile(frame_idx: int, z: int, x: int, y: int) -> Response:
         media_type="image/png",
         headers={"Cache-Control": "public, max-age=86400"},
     )
+
+
+@api.get("/api/live-risk")
+def live_risk(
+    lat: float,
+    lon: float,
+    forecast_hours: int = 0,
+    provider: str = "auto",
+) -> dict[str, object]:
+    try:
+        return predict_traffic_safety_live(
+            lat=lat,
+            lon=lon,
+            forecast_hours=forecast_hours,
+            provider=provider,
+        )
+    except LiveWeatherProviderError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except requests.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"weather provider request failed: {exc}") from exc
 
 
 app = gr.mount_gradio_app(api, demo, path="/")

@@ -8,6 +8,19 @@ This app is self-contained. You can run it directly with:
 python src/traffic-safety/main.py
 ```
 
+## Current Build
+
+The current standalone app includes:
+
+- an offline nationwide baseline trained from `FARS` fatal-crash data
+- hourly NOAA `ISD-Lite` weather joins for training
+- a weekly overlay generated from model output plus station climatology fallback
+- a manual predictor tab that uses climatology when live weather is not requested
+- a live predictor tab and `/api/live-risk` endpoint that can use:
+  - `NWS` first, with no API key
+  - `OpenWeather` if `TRAFFIC_SAFETY_ENABLE_OPENWEATHER=1` and `OPENWEATHER_API_KEY` is set
+  - `Tomorrow.io` if `TRAFFIC_SAFETY_ENABLE_TOMORROW_IO=1` and `TOMORROW_IO_API_KEY` is set
+
 If you want the interactive map basemap, set `GMAPS_API_KEY` first:
 
 ```bash
@@ -20,6 +33,45 @@ The goal here is not a one-state demo. The goal is a nationwide system that can:
 - train offline on historical incident, weather, and road-context data
 - score risk online for the next hour or next few hours
 - render a map overlay that changes by time of day, day of week, weather, and live conditions
+
+## Offline Pipeline
+
+To rebuild the full offline stack inside the shared `playground` conda env:
+
+```bash
+conda run -n playground python src/traffic-safety/scripts/build_dataset.py
+conda run -n playground python src/traffic-safety/scripts/download_weather.py
+conda run -n playground python src/traffic-safety/scripts/train_model.py
+conda run -n playground python src/traffic-safety/scripts/generate_tiles.py
+```
+
+That pipeline writes:
+
+- processed incidents under `src/traffic-safety/data/processed`
+- processed NOAA weather under `src/traffic-safety/data/processed/weather`
+- the trained bundle at `src/traffic-safety/models/traffic_safety.joblib`
+- the overlay tiles at `src/traffic-safety/tiles`
+
+## Live Provider Flags
+
+Feature flags are environment-variable based:
+
+```bash
+export TRAFFIC_SAFETY_ENABLE_NWS=1
+export TRAFFIC_SAFETY_ENABLE_OPENWEATHER=0
+export TRAFFIC_SAFETY_ENABLE_TOMORROW_IO=0
+export TRAFFIC_SAFETY_LIVE_PROVIDERS=nws,openweather,tomorrow
+```
+
+Optional paid providers:
+
+```bash
+export TRAFFIC_SAFETY_ENABLE_OPENWEATHER=1
+export OPENWEATHER_API_KEY=...
+
+export TRAFFIC_SAFETY_ENABLE_TOMORROW_IO=1
+export TOMORROW_IO_API_KEY=...
+```
 
 ## Recommended Shape
 

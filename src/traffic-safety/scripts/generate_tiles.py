@@ -2,10 +2,18 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
+import sys
 
 import joblib
 import numpy as np
 from PIL import Image, ImageFilter
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
+from model_support import build_feature_matrix, lookup_weather_climatology
 
 from common import (
     CELL_PAINT_RADIUS,
@@ -18,45 +26,50 @@ from common import (
     OVERLAY_JSON_PATH,
     OVERLAY_NPZ_PATH,
     OVERLAY_WIDTH,
-    TILES_DIR,
     current_month,
-    dow_sin_cos,
     ensure_dirs,
-    hour_sin_cos,
-    month_sin_cos,
     weekly_frame_labels,
 )
 
 
-def feature_matrix(
-    candidate_lats: np.ndarray,
-    candidate_lons: np.ndarray,
-    cell_total_counts: np.ndarray,
-    cell_hour_counts: np.ndarray,
+def build_frame_features(
+    bundle: dict[str, object],
     frame_idx: int,
     month: int,
 ) -> np.ndarray:
-    day_of_week = frame_idx // 24 + 1
-    hour = frame_idx % 24
-    hour_s, hour_c = hour_sin_cos(hour)
-    dow_s, dow_c = dow_sin_cos(day_of_week)
-    month_s, month_c = month_sin_cos(month)
-    same_hour = cell_hour_counts[:, frame_idx]
-    return np.column_stack(
-        [
-            candidate_lats,
-            candidate_lons,
-            np.full_like(candidate_lats, hour_s),
-            np.full_like(candidate_lats, hour_c),
-            np.full_like(candidate_lats, dow_s),
-            np.full_like(candidate_lats, dow_c),
-            np.full_like(candidate_lats, month_s),
-            np.full_like(candidate_lats, month_c),
-            np.log1p(cell_total_counts),
-            np.log1p(same_hour),
-            np.divide(same_hour, np.maximum(cell_total_counts, 1.0)),
-        ]
-    ).astype(np.float32)
+    candidate_lats = np.asarray(bundle["candidate_lats"], dtype=np.float32)
+    candidate_lons = np.asarray(bundle["candidate_lons"], dtype=np.float32)
+    cell_total_counts = np.asarray(bundle["cell_total_counts"], dtype=np.float32)
+    cell_hour_counts = np.asarray(bundle["cell_hour_counts"], dtype=np.float32)
+    candidate_station_indices = np.asarray(
+        bundle["candidate_station_indices"],
+        dtype=np.int16,
+    )
+    weather_cube = np.asarray(bundle["weather_climatology"], dtype=np.float32)
+    weather_defaults = np.asarray(bundle["weather_defaults"], dtype=np.float32)
+
+    month_values = np.full(len(candidate_lats), month, dtype=np.int8)
+    frame_values = np.full(len(candidate_lats), frame_idx, dtype=np.int16)
+    weather = lookup_weather_climatology(
+        weather_cube=weather_cube,
+        station_indices=candidate_station_indices,
+        months=month_values,
+        hour_of_week=frame_values,
+        weather_defaults=weather_defaults,
+    )
+    return build_feature_matrix(
+        latitudes=candidate_lats,
+        longitudes=candidate_lons,
+        hour_of_week=frame_values,
+        months=month_values,
+        totals=cell_total_counts,
+        same_hour=cell_hour_counts[:, frame_idx],
+        temp_c=weather[:, 0],
+        dewpoint_c=weather[:, 1],
+        relative_humidity_pct=weather[:, 2],
+        wind_speed_mps=weather[:, 3],
+        wet_hour=weather[:, 4],
+    )
 
 
 def normalize_probs(probabilities: np.ndarray) -> np.ndarray:
@@ -114,22 +127,16 @@ def main() -> None:
     ensure_dirs()
     bundle = joblib.load(MODEL_BUNDLE_PATH)
     model = bundle["model"]
-    candidate_lats = bundle["candidate_lats"].astype(np.float32)
-    candidate_lons = bundle["candidate_lons"].astype(np.float32)
-    cell_total_counts = bundle["cell_total_counts"].astype(np.float32)
-    cell_hour_counts = bundle["cell_hour_counts"].astype(np.float32)
-    confidence_values = np.log1p(cell_total_counts) / np.log1p(max(1.0, float(cell_total_counts.max())))
+    candidate_lats = np.asarray(bundle["candidate_lats"], dtype=np.float32)
+    candidate_lons = np.asarray(bundle["candidate_lons"], dtype=np.float32)
+    cell_total_counts = np.asarray(bundle["cell_total_counts"], dtype=np.float32)
+    confidence_values = np.log1p(cell_total_counts) / np.log1p(
+        max(1.0, float(cell_total_counts.max()))
+    )
 
     raw_probs = []
     for frame_idx in range(24 * 7):
-        features = feature_matrix(
-            candidate_lats=candidate_lats,
-            candidate_lons=candidate_lons,
-            cell_total_counts=cell_total_counts,
-            cell_hour_counts=cell_hour_counts,
-            frame_idx=frame_idx,
-            month=args.month,
-        )
+        features = build_frame_features(bundle=bundle, frame_idx=frame_idx, month=args.month)
         raw_probs.append(model.predict_proba(features)[:, 1].astype(np.float32))
 
     raw_probs = np.stack(raw_probs, axis=0)
